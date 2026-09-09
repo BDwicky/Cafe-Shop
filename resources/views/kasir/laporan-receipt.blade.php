@@ -6,7 +6,7 @@
     <title>Struk Laporan Penjualan — {{ $from->format('d/m/Y') }} @if($from->format('Y-m-d') !== $to->format('Y-m-d')) - {{ $to->format('d/m/Y') }} @endif</title>
     <style>
         @page {
-            size: 80mm auto;
+            size: auto;
             margin: 0;
         }
         * {
@@ -21,14 +21,50 @@
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
+        .paper-selector {
+            max-width: 72mm;
+            margin: 6mm auto 2mm;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 11px;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        .paper-selector .label {
+            color: #555;
+            font-size: 10px;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+        .paper-selector .btn-group {
+            display: flex;
+            gap: 4px;
+        }
+        .paper-selector button {
+            padding: 4px 10px;
+            border: 1px solid #1F1812;
+            background: #fff;
+            color: #1F1812;
+            font-family: monospace;
+            font-size: 11px;
+            cursor: pointer;
+            border-radius: 2px;
+        }
+        .paper-selector button.active {
+            background: #1F1812;
+            color: #fff;
+            font-weight: bold;
+        }
         .receipt {
             width: 72mm;
-            margin: 6mm auto;
+            margin: 0 auto 6mm;
             padding: 4mm 3mm;
             background: #fff;
             color: #000;
             font-size: 9pt;
             line-height: 1.4;
+            transition: width 0.15s ease;
         }
         .receipt .center {
             text-align: center;
@@ -123,6 +159,21 @@
             color: #F7F3EC;
             font-weight: bold;
         }
+
+        /* Khusus Printer Kertas 58mm */
+        .receipt.p-58mm {
+            width: 48mm;
+            padding: 2.5mm 1.5mm;
+            font-size: 7.5pt;
+            line-height: 1.3;
+        }
+        .receipt.p-58mm .brand { font-size: 10.5pt; letter-spacing: 0.08em; }
+        .receipt.p-58mm .title { font-size: 8.5pt; }
+        .receipt.p-58mm .meta { font-size: 7pt; }
+        .receipt.p-58mm table { font-size: 7.5pt; }
+        .receipt.p-58mm .box { font-size: 7.5pt; padding: 1.5mm; }
+        .actions.p-58mm, .paper-selector.p-58mm { max-width: 48mm; }
+
         @media print {
             body {
                 background: #fff;
@@ -132,14 +183,22 @@
                 padding: 2mm 1mm;
                 box-shadow: none;
             }
-            .actions {
-                display: none;
+            .actions, .paper-selector {
+                display: none !important;
             }
         }
     </style>
 </head>
 <body>
-    <div class="receipt">
+    <div class="paper-selector" id="paper-selector">
+        <span class="label">Ukuran Kertas:</span>
+        <div class="btn-group">
+            <button type="button" id="btn-80" onclick="setPaper('80mm')">80mm</button>
+            <button type="button" id="btn-58" onclick="setPaper('58mm')">58mm</button>
+        </div>
+    </div>
+
+    <div class="receipt" id="receipt-card">
         <!-- Header Struk -->
         <div class="center">
             <div class="brand">{{ config('cafe.name') }}</div>
@@ -279,12 +338,42 @@
     </div>
 
     <!-- Tombol Aksi (Layar Saja, Sembunyi Saat Cetak) -->
-    <div class="actions">
-        <button onclick="window.print()">Cetak Struk</button>
+    <div class="actions" id="actions-bar">
+        <button type="button" onclick="window.print()">Cetak Struk</button>
         <a href="{{ route('kasir.laporan', ['from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d')]) }}">‹ Kembali</a>
     </div>
 
     <script>
+        function setPaper(size) {
+            const receipt = document.getElementById('receipt-card');
+            const actions = document.getElementById('actions-bar');
+            const selector = document.getElementById('paper-selector');
+            const btn80 = document.getElementById('btn-80');
+            const btn58 = document.getElementById('btn-58');
+
+            if (size === '58mm') {
+                receipt.classList.add('p-58mm');
+                actions.classList.add('p-58mm');
+                selector.classList.add('p-58mm');
+                btn58.classList.add('active');
+                btn80.classList.remove('active');
+            } else {
+                receipt.classList.remove('p-58mm');
+                actions.classList.remove('p-58mm');
+                selector.classList.remove('p-58mm');
+                btn80.classList.add('active');
+                btn58.classList.remove('active');
+            }
+            try {
+                localStorage.setItem('pos_paper_size', size);
+            } catch (e) {}
+        }
+
+        // Terapkan preferensi tersimpan
+        const savedPaper = localStorage.getItem('pos_paper_size') || '80mm';
+        setPaper(savedPaper);
+
+        // Auto print setelah ukuran diterapkan
         window.addEventListener('load', () => {
             window.print();
         });

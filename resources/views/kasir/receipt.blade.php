@@ -5,10 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Struk {{ $order->code }}</title>
     <style>
-        @page { size: 80mm auto; margin: 0; }
+        @page { size: auto; margin: 0; }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { background: #eee; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-        .receipt { width: 72mm; margin: 6mm auto; padding: 4mm; background: #fff; color: #000; font-size: 10pt; line-height: 1.45; }
+        .paper-selector { max-width: 72mm; margin: 6mm auto 2mm; display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-family: system-ui, -apple-system, sans-serif; }
+        .paper-selector .label { color: #555; font-size: 10px; text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; }
+        .paper-selector .btn-group { display: flex; gap: 4px; }
+        .paper-selector button { padding: 4px 10px; border: 1px solid #1F1812; background: #fff; color: #1F1812; font-family: monospace; font-size: 11px; cursor: pointer; border-radius: 2px; }
+        .paper-selector button.active { background: #1F1812; color: #fff; font-weight: bold; }
+        .receipt { width: 72mm; margin: 0 auto 6mm; padding: 4mm; background: #fff; color: #000; font-size: 10pt; line-height: 1.45; transition: width 0.15s ease; }
         .receipt .center { text-align: center; }
         .receipt .brand { font-size: 13pt; font-weight: bold; letter-spacing: 0.15em; text-transform: uppercase; }
         .receipt .meta { font-size: 9pt; }
@@ -22,17 +27,36 @@
         .receipt .wifi b { text-transform: uppercase; letter-spacing: 0.1em; }
         .actions { max-width: 72mm; margin: 0 auto 8mm; display: flex; gap: 8px; }
         .actions a, .actions button { flex: 1; padding: 10px; font-family: inherit; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; cursor: pointer; border: 1px solid #1F1812; background: #fff; color: #1F1812; text-decoration: none; text-align: center; }
-        .actions button { background: #1F1812; color: #F7F3EC; }
+        .actions button { background: #1F1812; color: #F7F3EC; font-weight: bold; }
         .voided { text-align: center; font-weight: bold; font-size: 14pt; letter-spacing: 0.3em; border: 2px solid #000; padding: 2mm; margin: 2mm 0; }
+
+        /* Khusus Printer Kertas 58mm */
+        .receipt.p-58mm { width: 48mm; padding: 2.5mm 1.5mm; font-size: 8pt; line-height: 1.35; }
+        .receipt.p-58mm .brand { font-size: 10.5pt; letter-spacing: 0.1em; }
+        .receipt.p-58mm .meta { font-size: 7.5pt; }
+        .receipt.p-58mm table { font-size: 8pt; }
+        .receipt.p-58mm .tot { font-size: 10pt; }
+        .receipt.p-58mm .qr-block img { width: 90px; height: 90px; }
+        .receipt.p-58mm .wifi { font-size: 7.5pt; }
+        .actions.p-58mm, .paper-selector.p-58mm { max-width: 48mm; }
+
         @media print {
             body { background: #fff; }
-            .receipt { margin: 0 auto; }
-            .actions { display: none; }
+            .receipt { margin: 0 auto; box-shadow: none; }
+            .actions, .paper-selector { display: none !important; }
         }
     </style>
 </head>
 <body>
-    <div class="receipt">
+    <div class="paper-selector" id="paper-selector">
+        <span class="label">Ukuran Kertas:</span>
+        <div class="btn-group">
+            <button type="button" id="btn-80" onclick="setPaper('80mm')">80mm</button>
+            <button type="button" id="btn-58" onclick="setPaper('58mm')">58mm</button>
+        </div>
+    </div>
+
+    <div class="receipt" id="receipt-card">
         <div class="center">
             <div class="brand">{{ config('cafe.name') }}</div>
             <div class="meta">{{ config('cafe.address') }}</div>
@@ -92,11 +116,45 @@
         </div>
     </div>
 
-    <div class="actions">
-        <button onclick="window.print()">Cetak</button>
+    <div class="actions" id="actions-bar">
+        <button type="button" onclick="window.print()">Cetak Struk</button>
         <a href="{{ route('kasir.terminal') }}">Transaksi Baru ›</a>
     </div>
 
-    <script>window.print();</script>
+    <script>
+        function setPaper(size) {
+            const receipt = document.getElementById('receipt-card');
+            const actions = document.getElementById('actions-bar');
+            const selector = document.getElementById('paper-selector');
+            const btn80 = document.getElementById('btn-80');
+            const btn58 = document.getElementById('btn-58');
+
+            if (size === '58mm') {
+                receipt.classList.add('p-58mm');
+                actions.classList.add('p-58mm');
+                selector.classList.add('p-58mm');
+                btn58.classList.add('active');
+                btn80.classList.remove('active');
+            } else {
+                receipt.classList.remove('p-58mm');
+                actions.classList.remove('p-58mm');
+                selector.classList.remove('p-58mm');
+                btn80.classList.add('active');
+                btn58.classList.remove('active');
+            }
+            try {
+                localStorage.setItem('pos_paper_size', size);
+            } catch (e) {}
+        }
+
+        // Terapkan preferensi tersimpan
+        const savedPaper = localStorage.getItem('pos_paper_size') || '80mm';
+        setPaper(savedPaper);
+
+        // Auto print setelah ukuran diterapkan
+        window.addEventListener('load', () => {
+            window.print();
+        });
+    </script>
 </body>
 </html>
