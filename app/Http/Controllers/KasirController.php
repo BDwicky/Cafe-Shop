@@ -13,7 +13,16 @@ class KasirController extends Controller
     {
         $menus = \App\Models\Menu::with('category')->orderBy('sort_order')->get();
 
-        return view('kasir.terminal', compact('menus'));
+        // Data polos untuk Alpine (hindari @json dengan ekspresi kompleks di Blade)
+        $menuData = $menus->map(fn ($m) => [
+            'id' => $m->id,
+            'name' => $m->name,
+            'price' => $m->price,
+            'available' => $m->is_available,
+            'category_id' => $m->category_id,
+        ])->values()->all();
+
+        return view('kasir.terminal', compact('menus', 'menuData'));
     }
 
     public function store(Request $request, OrderService $svc)

@@ -137,7 +137,7 @@
 <script>
 function pos() {
     return {
-        menus: @json($menus->map(fn ($m) => ['id' => $m->id, 'name' => $m->name, 'price' => $m->price, 'available' => $m->is_available, 'category_id' => $m->category_id])),
+        menus: @json($menuData),
         cat: 'all',
         items: [],
         orderType: 'dine_in',
