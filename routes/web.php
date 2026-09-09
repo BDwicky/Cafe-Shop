@@ -13,4 +13,6 @@ Route::post('/kasir/logout', [KasirLoginController::class, 'logout'])
 
 Route::middleware('auth')->prefix('kasir')->name('kasir.')->group(function () {
     Route::get('/', [KasirController::class, 'index'])->name('terminal');
+    Route::post('/orders', [KasirController::class, 'store'])->name('orders.store');
+    Route::get('/orders/{order}/receipt', [KasirController::class, 'receipt'])->name('receipt'); // view dibuat Phase 4
 });
