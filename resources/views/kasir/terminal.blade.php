@@ -441,7 +441,7 @@ function pos() {
             this.error = '';
             try {
                 const token = document.querySelector('meta[name="csrf-token"]')?.content;
-                const res = await fetch(@js(route('kasir.orders.store')), {
+                const res = await fetch(@js(route('kasir.orders.store', [], false)), {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -457,14 +457,36 @@ function pos() {
                         customer_name: this.customerName || null,
                     }),
                 });
-                const data = await res.json();
+
+                let data = null;
+                const contentType = res.headers.get('content-type') || '';
+                if (contentType.includes('application/json')) {
+                    try {
+                        data = await res.json();
+                    } catch (jsonErr) {
+                        data = null;
+                    }
+                }
+
                 if (!res.ok) {
-                    this.error = data.message || 'Gagal memproses transaksi.';
+                    if (res.status === 419) {
+                        this.error = 'Sesi telah kedaluwarsa. Silakan refresh halaman dan ulangi proses bayar.';
+                    } else if (data && data.message) {
+                        this.error = data.message;
+                    } else {
+                        this.error = 'Gagal memproses transaksi (HTTP ' + res.status + ').';
+                    }
                     return;
                 }
-                window.location = data.receipt_url;
+
+                if (data && data.receipt_url) {
+                    window.location = data.receipt_url;
+                } else {
+                    this.error = 'Respon server tidak valid atau data struk kosong.';
+                }
             } catch (e) {
-                this.error = 'Terjadi kesalahan jaringan. Silakan coba kembali.';
+                console.error('POS Checkout Error:', e);
+                this.error = 'Terjadi kesalahan jaringan atau koneksi diblokir: ' + (e.message || 'Silakan muat ulang halaman.');
             } finally {
                 this.submitting = false;
             }

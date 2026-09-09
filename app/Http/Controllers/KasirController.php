@@ -99,7 +99,7 @@ class KasirController extends Controller
 
         return response()->json([
             'code' => $order->code,
-            'receipt_url' => route('kasir.receipt', $order),
+            'receipt_url' => route('kasir.receipt', $order, false),
         ], 201);
     }
 
