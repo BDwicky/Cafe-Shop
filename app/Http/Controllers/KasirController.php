@@ -2,27 +2,34 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Category;
+use App\Models\Menu;
 use App\Models\Order;
 use App\Services\OrderService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class KasirController extends Controller
 {
     public function index(Request $request)
     {
-        $menus = \App\Models\Menu::with('category')->orderBy('sort_order')->get();
+        $menus = Menu::with('category')->orderBy('sort_order')->get();
+        $categories = Category::withCount('menus')->orderBy('sort_order')->get();
 
         // Data polos untuk Alpine (hindari @json dengan ekspresi kompleks di Blade)
         $menuData = $menus->map(fn ($m) => [
             'id' => $m->id,
             'name' => $m->name,
             'price' => $m->price,
-            'available' => $m->is_available,
+            'available' => (bool) $m->is_available,
             'category_id' => $m->category_id,
+            'category_name' => $m->category->name ?? '',
+            'image' => $m->image ? asset('storage/'.$m->image) : null,
+            'description' => $m->description,
         ])->values()->all();
 
-        return view('kasir.terminal', compact('menus', 'menuData'));
+        return view('kasir.terminal', compact('menus', 'menuData', 'categories'));
     }
 
     public function store(Request $request, OrderService $svc)
@@ -39,7 +46,7 @@ class KasirController extends Controller
             'note' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $menus = \App\Models\Menu::whereIn('id', collect($data['items'])->pluck('menu_id'))->get()->keyBy('id');
+        $menus = Menu::whereIn('id', collect($data['items'])->pluck('menu_id'))->get()->keyBy('id');
 
         foreach ($data['items'] as $i) {
             if (! isset($menus[$i['menu_id']])) {
@@ -99,7 +106,7 @@ class KasirController extends Controller
     public function orders(Request $request)
     {
         $date = $request->date
-            ? \Illuminate\Support\Carbon::createFromFormat('Y-m-d', $request->date)->startOfDay()
+            ? Carbon::createFromFormat('Y-m-d', $request->date)->startOfDay()
             : now()->startOfDay();
 
         $orders = Order::with('items')

@@ -4,21 +4,34 @@
 
 @section('content')
 <div>
-    <div class="flex flex-wrap items-baseline justify-between gap-3 mb-6">
-        <h1 class="text-2xl tracking-tight font-medium">Laporan Penjualan</h1>
-        <div class="flex items-center gap-2">
-            <form method="GET" action="{{ route('kasir.laporan') }}" class="flex items-center gap-2">
-                <input type="date" name="from" value="{{ $from->format('Y-m-d') }}"
-                       class="bg-white border border-[#E4DCCC] px-3 py-2 text-sm focus:outline-none focus:border-[#B5762A]">
-                <span class="text-[#8A7B66] text-sm">s/d</span>
-                <input type="date" name="to" value="{{ $to->format('Y-m-d') }}"
-                       class="bg-white border border-[#E4DCCC] px-3 py-2 text-sm focus:outline-none focus:border-[#B5762A]">
-                <button class="border border-[#2A211A] px-4 py-2 font-mono text-[11px] uppercase tracking-[0.15em] hover:bg-[#2A211A] hover:text-[#F7F3EC]">Tampilkan</button>
-            </form>
-            <button onclick="window.print()"
-                    class="border border-[#2A211A] px-4 py-2 font-mono text-[11px] uppercase tracking-[0.15em] hover:bg-[#2A211A] hover:text-[#F7F3EC] print:hidden">Cetak ›</button>
+    <!-- TAMPILAN DASHBOARD (LAYAR MONITOR / TABLET) -->
+    <div class="screen-dashboard-container p-6">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+            <div>
+                <h1 class="text-2xl tracking-tight font-medium">Laporan Penjualan</h1>
+                <p class="font-mono text-xs text-[#8A7B66] mt-0.5">Rekapitulasi penjualan kasir, omzet, dan metode pembayaran.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 print:hidden">
+                <form method="GET" action="{{ route('kasir.laporan') }}" class="flex items-center gap-2">
+                    <input type="date" name="from" value="{{ $from->format('Y-m-d') }}"
+                           class="bg-white border border-[#E4DCCC] px-3 py-2 text-sm focus:outline-none focus:border-[#B5762A]">
+                    <span class="text-[#8A7B66] text-sm">s/d</span>
+                    <input type="date" name="to" value="{{ $to->format('Y-m-d') }}"
+                           class="bg-white border border-[#E4DCCC] px-3 py-2 text-sm focus:outline-none focus:border-[#B5762A]">
+                    <button class="border border-[#2A211A] px-4 py-2 font-mono text-[11px] uppercase tracking-[0.15em] hover:bg-[#2A211A] hover:text-[#F7F3EC] transition-colors">Tampilkan</button>
+                </form>
+
+                <!-- Tombol Cetak Format Struk Thermal 80mm -->
+                <a href="{{ route('kasir.laporan.receipt', ['from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d')]) }}"
+                   target="_blank"
+                   class="bg-[#1F1812] text-[#F7F3EC] border border-[#1F1812] px-4 py-2 font-mono text-[11px] uppercase tracking-[0.15em] hover:bg-[#D9973E] hover:text-[#1F1812] transition-colors flex items-center gap-2 shadow-sm font-semibold">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                    </svg>
+                    <span>Cetak Struk (80mm) ›</span>
+                </a>
+            </div>
         </div>
-    </div>
 
     <!-- Stat utama -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
@@ -94,5 +107,188 @@
             </div>
         </div>
     @endif
+    </div> <!-- end .screen-dashboard-container -->
+
+    <!-- FORMAT STRUK THERMAL 80MM (TAMPIL HANYA SAAT PRINT LANGSUNG DARI HALAMAN INI) -->
+    <div class="print-receipt-container hidden">
+        <div class="receipt-inner">
+            <div class="center">
+                <div class="brand">{{ config('cafe.name') }}</div>
+                <div class="meta">{{ config('cafe.address') }}</div>
+                <div class="title">*** LAPORAN KASIR ***</div>
+            </div>
+
+            <div class="dashed meta">
+                <table style="font-size: 8.5pt;">
+                    <tr>
+                        <td>Tgl Cetak</td>
+                        <td class="r">{{ now()->timezone('Asia/Jakarta')->format('d/m/Y H:i:s') }}</td>
+                    </tr>
+                    <tr>
+                        <td>Periode</td>
+                        <td class="r">
+                            @if ($from->format('Y-m-d') === $to->format('Y-m-d'))
+                                {{ $from->format('d/m/Y') }}
+                            @else
+                                {{ $from->format('d/m/Y') }} - {{ $to->format('d/m/Y') }}
+                            @endif
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Kasir</td>
+                        <td class="r">{{ auth()->user()->name ?? 'Kasir' }}</td>
+                    </tr>
+                    <tr>
+                        <td>Status Shift</td>
+                        <td class="r">TUTUP / REKONSILIASI</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="dashed">
+                <div class="section-title">Ringkasan Penjualan</div>
+                <table>
+                    <tr>
+                        <td>Total Transaksi</td>
+                        <td class="r"><b>{{ number_format($totals->trx, 0, ',', '.') }}</b> Trx</td>
+                    </tr>
+                    <tr>
+                        <td>Total Item Terjual</td>
+                        <td class="r"><b>{{ number_format($itemsSold, 0, ',', '.') }}</b> pcs</td>
+                    </tr>
+                    <tr>
+                        <td>Rata-rata / Trx</td>
+                        <td class="r">Rp {{ number_format(round($totals->avg_basket), 0, ',', '.') }}</td>
+                    </tr>
+                    <tr class="tot" style="border-top: 1px dashed #000; padding-top: 1.5mm;">
+                        <td style="padding-top: 1.5mm;">TOTAL OMZET</td>
+                        <td class="r" style="padding-top: 1.5mm;">Rp {{ number_format($totals->omzet, 0, ',', '.') }}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="dashed">
+                <div class="section-title">Metode Pembayaran</div>
+                <table>
+                    @forelse ($byMethod as $m)
+                        <tr>
+                            <td style="text-transform: uppercase;">
+                                {{ $m->payment_method === 'cash' ? 'Tunai (Cash)' : strtoupper($m->payment_method) }}
+                                <span style="font-size: 7.5pt; color: #333;">({{ $m->c }} trx)</span>
+                            </td>
+                            <td class="r">Rp {{ number_format($m->t, 0, ',', '.') }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="2" style="font-style: italic; color: #555;">Tidak ada transaksi.</td></tr>
+                    @endforelse
+                </table>
+            </div>
+
+            <div class="dashed">
+                <div class="section-title">10 Menu Terlaris</div>
+                <table>
+                    @forelse ($best as $idx => $b)
+                        <tr>
+                            <td style="padding-bottom: 1mm;">
+                                {{ $idx + 1 }}. {{ $b->menu_name }}<br>
+                                &nbsp;&nbsp;&nbsp;<span style="font-size: 7.5pt; color: #444;">{{ $b->qty }} pcs terjual</span>
+                            </td>
+                            <td class="r" style="vertical-align: top;">
+                                Rp {{ number_format($b->omzet, 0, ',', '.') }}
+                            </td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="2" style="font-style: italic; color: #555;">Tidak ada penjualan.</td></tr>
+                    @endforelse
+                </table>
+            </div>
+
+            @if ($perDay->count() > 1)
+                <div class="dashed">
+                    <div class="section-title">Rincian Per Hari</div>
+                    <table>
+                        @foreach ($perDay as $d)
+                            <tr>
+                                <td>
+                                    {{ \Illuminate\Support\Str::of($d->d)->explode('-')->reverse()->implode('/') }}
+                                    <span style="font-size: 7.5pt; color: #444;">({{ $d->c }} trx)</span>
+                                </td>
+                                <td class="r">Rp {{ number_format($d->t, 0, ',', '.') }}</td>
+                            </tr>
+                        @endforeach
+                    </table>
+                </div>
+            @endif
+
+            <div class="dashed">
+                <div class="signatures">
+                    <div class="sig-box">
+                        <div class="meta">Kasir Bertugas</div>
+                        <div class="sig-line"></div>
+                        <div class="meta" style="margin-top: 1mm;">{{ auth()->user()->name ?? 'Kasir' }}</div>
+                    </div>
+                    <div class="sig-box">
+                        <div class="meta">Supervisor / Owner</div>
+                        <div class="sig-line"></div>
+                        <div class="meta" style="margin-top: 1mm;">( .................... )</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="center meta" style="margin-top: 3.5mm; border-top: 1px dashed #000; padding-top: 2.5mm;">
+                *** TUTUP KASIR // REKONSILIASI ***<br>
+                Dicetak oleh Sistem Kasir {{ config('cafe.name') }}<br>
+                Simpan struk ini sebagai bukti rekonsiliasi kas.
+            </div>
+        </div>
+    </div>
 </div>
+
+<style>
+@media print {
+    @page {
+        size: 80mm auto;
+        margin: 0;
+    }
+    aside, header, nav, .print\:hidden, form {
+        display: none !important;
+    }
+    body, html, main {
+        background: #fff !important;
+        overflow: visible !important;
+        height: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    .screen-dashboard-container {
+        display: none !important;
+    }
+    .print-receipt-container {
+        display: block !important;
+        width: 72mm !important;
+        margin: 0 auto !important;
+        padding: 2mm 1mm !important;
+        background: #fff !important;
+        color: #000 !important;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+        font-size: 9pt !important;
+        line-height: 1.4 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+    .print-receipt-container .center { text-align: center; }
+    .print-receipt-container .brand { font-size: 13pt; font-weight: bold; letter-spacing: 0.12em; text-transform: uppercase; }
+    .print-receipt-container .title { font-size: 10pt; font-weight: bold; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 1.5mm; }
+    .print-receipt-container .meta { font-size: 8.5pt; color: #111; }
+    .print-receipt-container .dashed { border-top: 1px dashed #000; margin: 2.5mm 0; padding-top: 2mm; }
+    .print-receipt-container table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+    .print-receipt-container td { padding: 0.8mm 0; vertical-align: top; }
+    .print-receipt-container td.r { text-align: right; white-space: nowrap; }
+    .print-receipt-container .section-title { font-weight: bold; font-size: 9pt; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 1mm; }
+    .print-receipt-container .tot { font-size: 10.5pt; font-weight: bold; }
+    .print-receipt-container .signatures { display: flex; justify-content: space-between; text-align: center; margin-top: 4mm; padding-top: 2mm; }
+    .print-receipt-container .sig-box { width: 45%; }
+    .print-receipt-container .sig-line { border-bottom: 1px solid #000; margin-top: 11mm; }
+}
+</style>
 @endsection

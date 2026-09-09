@@ -58,4 +58,31 @@ class ReportTest extends TestCase
             ->assertOk()
             ->assertSee('0');
     }
+
+    public function test_report_receipt_view_renders_thermal_format(): void
+    {
+        $user = User::factory()->create();
+        $order = Order::factory()->create(['total' => 75000, 'status' => 'paid', 'created_at' => now()]);
+        OrderItem::create([
+            'order_id' => $order->id,
+            'menu_id' => null,
+            'menu_name' => 'Caramel Macchiato',
+            'price' => 32000,
+            'qty' => 2,
+            'line_total' => 64000,
+        ]);
+
+        $this->actingAs($user)
+            ->get('/kasir/laporan/receipt')
+            ->assertOk()
+            ->assertSee('*** LAPORAN KASIR ***')
+            ->assertSee('Caramel Macchiato')
+            ->assertSee('75.000');
+    }
+
+    public function test_guest_cannot_access_report_receipt(): void
+    {
+        $this->get('/kasir/laporan/receipt')
+            ->assertRedirect('/kasir/login');
+    }
 }

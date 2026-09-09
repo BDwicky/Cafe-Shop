@@ -5,16 +5,34 @@ namespace App\Http\Controllers;
 use App\Models\Order;
 use App\Models\OrderItem;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 class ReportController extends Controller
 {
     public function index(Request $request)
     {
+        $data = $this->queryReport($request);
+
+        return view('kasir.laporan', $data);
+    }
+
+    public function receipt(Request $request)
+    {
+        $data = $this->queryReport($request);
+
+        return view('kasir.laporan-receipt', $data);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function queryReport(Request $request): array
+    {
         $from = $request->filled('from')
-            ? \Illuminate\Support\Carbon::createFromFormat('Y-m-d', $request->from)->startOfDay()
+            ? Carbon::createFromFormat('Y-m-d', $request->from)->startOfDay()
             : now()->startOfDay();
         $to = $request->filled('to')
-            ? \Illuminate\Support\Carbon::createFromFormat('Y-m-d', $request->to)->endOfDay()
+            ? Carbon::createFromFormat('Y-m-d', $request->to)->endOfDay()
             : now()->endOfDay();
 
         if ($to->lt($from)) {
@@ -53,6 +71,6 @@ class ReportController extends Controller
             ->limit(10)
             ->get();
 
-        return view('kasir.laporan', compact('from', 'to', 'totals', 'itemsSold', 'byMethod', 'perDay', 'best'));
+        return compact('from', 'to', 'totals', 'itemsSold', 'byMethod', 'perDay', 'best');
     }
 }

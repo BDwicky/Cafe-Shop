@@ -37,4 +37,5 @@ Route::middleware('auth')->prefix('kasir')->name('kasir.')->group(function () {
 
     // Laporan
     Route::get('/laporan', [ReportController::class, 'index'])->name('laporan');
+    Route::get('/laporan/receipt', [ReportController::class, 'receipt'])->name('laporan.receipt');
 });
