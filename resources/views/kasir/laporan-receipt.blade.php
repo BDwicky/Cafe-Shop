@@ -4,11 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Struk Laporan Penjualan — {{ $from->format('d/m/Y') }} @if($from->format('Y-m-d') !== $to->format('Y-m-d')) - {{ $to->format('d/m/Y') }} @endif</title>
+    <style id="page-size-style">
+        @page { size: 80mm auto; margin: 0; }
+    </style>
     <style>
-        @page {
-            size: auto;
-            margin: 0;
-        }
         * {
             box-sizing: border-box;
             margin: 0;
@@ -350,6 +349,7 @@
             const selector = document.getElementById('paper-selector');
             const btn80 = document.getElementById('btn-80');
             const btn58 = document.getElementById('btn-58');
+            const pageStyle = document.getElementById('page-size-style');
 
             if (size === '58mm') {
                 receipt.classList.add('p-58mm');
@@ -357,12 +357,14 @@
                 selector.classList.add('p-58mm');
                 btn58.classList.add('active');
                 btn80.classList.remove('active');
+                if (pageStyle) pageStyle.innerHTML = '@page { size: 58mm auto; margin: 0; }';
             } else {
                 receipt.classList.remove('p-58mm');
                 actions.classList.remove('p-58mm');
                 selector.classList.remove('p-58mm');
                 btn80.classList.add('active');
                 btn58.classList.remove('active');
+                if (pageStyle) pageStyle.innerHTML = '@page { size: 80mm auto; margin: 0; }';
             }
             try {
                 localStorage.setItem('pos_paper_size', size);
