@@ -3,9 +3,17 @@
 @section('title', 'Beranda')
 
 @section('content')
-    {{-- 1. HERO band gelap --}}
+    {{-- 1. HERO band gelap dengan background video --}}
     <section class="relative bg-[#1F1812] text-[#F7F3EC] min-h-[66vh] flex items-center overflow-hidden">
-        @if (file_exists(public_path('images/hero.jpg')))
+        @if (file_exists(public_path('images/hero.mp4')))
+            {{-- Background video: autoplay muted loop (hero-1: barista menuang susu, latte art) --}}
+            <video class="absolute inset-0 w-full h-full object-cover"
+                   autoplay muted loop playsinline preload="metadata"
+                   poster="{{ asset('images/hero.jpg') }}">
+                <source src="{{ asset('images/hero.mp4') }}" type="video/mp4">
+            </video>
+            <div class="absolute inset-0 bg-[#1F1812]/70"></div>
+        @elseif (file_exists(public_path('images/hero.jpg')))
             <img src="{{ asset('images/hero.jpg') }}" alt="" class="absolute inset-0 w-full h-full object-cover">
             <div class="absolute inset-0 bg-[#1F1812]/70"></div>
         @endif
