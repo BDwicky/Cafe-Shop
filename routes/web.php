@@ -13,6 +13,12 @@ Route::post('/kasir/logout', [KasirLoginController::class, 'logout'])
 
 Route::middleware('auth')->prefix('kasir')->name('kasir.')->group(function () {
     Route::get('/', [KasirController::class, 'index'])->name('terminal');
+    Route::get('/orders', [KasirController::class, 'orders'])->name('orders.index');
+    Route::get('/orders/{order}/receipt', [KasirController::class, 'receipt'])->name('receipt');
+    Route::post('/orders/{order}/void', [KasirController::class, 'void'])->name('orders.void');
     Route::post('/orders', [KasirController::class, 'store'])->name('orders.store');
-    Route::get('/orders/{order}/receipt', [KasirController::class, 'receipt'])->name('receipt'); // view dibuat Phase 4
+
+    // Stub sementara — diganti controller asli di Phase 5 & 6
+    Route::view('/menu', 'kasir.menu-stub')->name('menu.index');
+    Route::view('/laporan', 'kasir.laporan-stub')->name('laporan');
 });

@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Menu;
 use App\Models\Order;
 use App\Services\OrderService;
 use Illuminate\Http\Request;
@@ -12,7 +11,7 @@ class KasirController extends Controller
 {
     public function index(Request $request)
     {
-        $menus = Menu::with('category')->orderBy('sort_order')->get();
+        $menus = \App\Models\Menu::with('category')->orderBy('sort_order')->get();
 
         return view('kasir.terminal', compact('menus'));
     }
@@ -31,9 +30,8 @@ class KasirController extends Controller
             'note' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $menus = Menu::whereIn('id', collect($data['items'])->pluck('menu_id'))->get()->keyBy('id');
+        $menus = \App\Models\Menu::whereIn('id', collect($data['items'])->pluck('menu_id'))->get()->keyBy('id');
 
-        // Guard: menu harus ada (bisa saja dihapus di antara waktu)
         foreach ($data['items'] as $i) {
             if (! isset($menus[$i['menu_id']])) {
                 return response()->json(['message' => 'Menu tidak ditemukan.'], 422);
@@ -87,5 +85,36 @@ class KasirController extends Controller
             'code' => $order->code,
             'receipt_url' => route('kasir.receipt', $order),
         ], 201);
+    }
+
+    public function orders(Request $request)
+    {
+        $date = $request->date
+            ? \Illuminate\Support\Carbon::createFromFormat('Y-m-d', $request->date)->startOfDay()
+            : now()->startOfDay();
+
+        $orders = Order::with('items')
+            ->whereBetween('created_at', [$date->copy()->startOfDay(), $date->copy()->endOfDay()])
+            ->orderByDesc('id')
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('kasir.orders', compact('orders', 'date'));
+    }
+
+    public function receipt(Order $order)
+    {
+        $order->load('items');
+
+        return view('kasir.receipt', compact('order'));
+    }
+
+    public function void(Order $order)
+    {
+        abort_unless($order->status === 'paid', 422);
+
+        $order->update(['status' => 'voided']);
+
+        return back();
     }
 }
