@@ -6,7 +6,7 @@
     {{-- 1. HERO band gelap dengan background video --}}
     <section class="relative bg-[#1F1812] text-[#F7F3EC] min-h-[66vh] flex items-center overflow-hidden">
         @if (file_exists(public_path('images/hero.mp4')))
-            {{-- Background video: autoplay muted loop (hero-1: barista menuang susu, latte art) --}}
+            {{-- Background video: autoplay muted loop (barista menuang susu, latte art) --}}
             <video class="absolute inset-0 w-full h-full object-cover"
                    autoplay muted loop playsinline preload="metadata"
                    poster="{{ asset('images/hero.jpg') }}">
@@ -72,7 +72,40 @@
         </div>
     </section>
 
-    {{-- 3. TENTANG --}}
+    {{-- 3. SUASANA — galeri video ambience --}}
+    <section class="bg-[#1F1812] text-[#F7F3EC] border-y border-[#3A3026]">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 py-16">
+            <div class="font-mono text-[11px] uppercase tracking-[0.3em] text-[#A89A85]">Suasana // Di Dapur Kami</div>
+            <h2 class="mt-3 text-3xl tracking-tight font-medium">Dari biji, ke pastry, ke cangkirmu.</h2>
+
+            <div class="mt-10 grid grid-cols-1 md:grid-cols-3 gap-4">
+                @foreach ([
+                    ['file' => 'coffee-beans', 'tag' => 'BIJI // SINGLE-ORIGIN', 'title' => 'Biji segar, digiling harian', 'desc' => 'Kami menyimpan biji dalam batch kecil dan menggiling fresh sebelum diseduh.'],
+                    ['file' => 'coffee-stir', 'tag' => 'SEDUH // PRESISI', 'title' => 'Presisi di setiap tahap', 'desc' => 'Distribusi rata, suhu & rasio terukur — konsisten dari cup pertama sampai terakhir.'],
+                    ['file' => 'pastry-display', 'tag' => 'PASTRY // FRESH DAILY', 'title' => 'Pastry baru tiap pagi', 'desc' => 'Cinnamon roll, scone, dan babka diisi ke etalase setiap hari sebelum jam 8.'],
+                ] as $v)
+                    @if (file_exists(public_path("images/{$v['file']}.mp4")))
+                        <figure class="group">
+                            <div class="relative overflow-hidden border border-[#3A3026]">
+                                <video class="w-full h-56 object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                                       autoplay muted loop playsinline preload="metadata"
+                                       poster="{{ asset('images/hero.jpg') }}">
+                                    <source src="{{ asset('images/' . $v['file'] . '.mp4') }}" type="video/mp4">
+                                </video>
+                                <span class="absolute top-3 left-3 bg-[#1F1812]/80 text-[#D9973E] font-mono text-[9px] uppercase tracking-[0.2em] px-2.5 py-1.5">{{ $v['tag'] }}</span>
+                            </div>
+                            <figcaption class="mt-3">
+                                <h3 class="tracking-tight font-medium">{{ $v['title'] }}</h3>
+                                <p class="mt-1 text-sm text-[#A89A85] leading-relaxed">{{ $v['desc'] }}</p>
+                            </figcaption>
+                        </figure>
+                    @endif
+                @endforeach
+            </div>
+        </div>
+    </section>
+
+    {{-- 4. TENTANG --}}
     <section class="border-y border-[#E4DCCC] bg-white">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 py-16 grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
             <div>
@@ -98,7 +131,7 @@
         </div>
     </section>
 
-    {{-- 4. LOKASI & JAM --}}
+    {{-- 5. LOKASI & JAM --}}
     <section id="lokasi" class="max-w-6xl mx-auto px-4 sm:px-6 py-16">
         <div class="font-mono text-[11px] uppercase tracking-[0.3em] text-[#8A7B66]">Lokasi & Jam</div>
         <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-10">
