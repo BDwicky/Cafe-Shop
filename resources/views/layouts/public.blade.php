@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="{{ config('cafe.name') }} — {{ config('cafe.tagline') }}">
     <title>@yield('title', config('cafe.name')) — {{ config('cafe.name') }}</title>
+    <link rel="icon" type="image/svg+xml" href="{{ asset('images/logo-mark.svg') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-[#F7F3EC] text-[#2A211A] antialiased">
@@ -12,7 +13,9 @@
     <!-- Topbar band espresso -->
     <header class="sticky top-0 z-40 bg-[#1F1812] text-[#F7F3EC] border-b border-[#3A3026]">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
-            <a href="{{ route('landing') }}" class="font-mono text-xs tracking-[0.3em] uppercase">{{ strtoupper(config('cafe.name')) }}</a>
+            <a href="{{ route('landing') }}" class="flex items-center">
+                <img src="{{ asset('images/logo-light.svg') }}" alt="{{ config('cafe.name') }}" class="h-8 w-auto">
+            </a>
             <nav class="flex items-center gap-6 font-mono text-[11px] uppercase tracking-[0.2em] text-[#A89A85]">
                 <a href="{{ route('menu.public') }}" class="hover:text-[#D9973E]">Menu ›</a>
                 <a href="{{ route('landing') }}#lokasi" class="hover:text-[#D9973E] hidden sm:inline">Lokasi ›</a>
@@ -29,7 +32,7 @@
     <footer class="bg-[#1F1812] text-[#F7F3EC] border-t border-[#3A3026] mt-16">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 py-12 grid grid-cols-1 md:grid-cols-3 gap-8">
             <div>
-                <div class="font-mono text-xs tracking-[0.3em] uppercase">{{ strtoupper(config('cafe.name')) }}</div>
+                <img src="{{ asset('images/logo-light.svg') }}" alt="{{ config('cafe.name') }}" class="h-8 w-auto">
                 <p class="mt-3 text-sm text-[#A89A85] leading-relaxed">{{ config('cafe.tagline') }}</p>
             </div>
             <div>

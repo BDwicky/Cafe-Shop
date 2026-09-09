@@ -4,13 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'Kasir') — {{ config('cafe.name') }}</title>
+    <link rel="icon" type="image/svg+xml" href="{{ asset('images/logo-mark.svg') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-[#F7F3EC] text-[#2A211A] antialiased">
     <!-- Topbar band espresso -->
     <header class="bg-[#1F1812] text-[#F7F3EC] border-b border-[#3A3026]">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 h-12 flex items-center gap-6">
-            <a href="{{ route('kasir.terminal') }}" class="font-mono text-xs tracking-[0.3em] uppercase">{{ strtoupper(config('cafe.name')) }} <span class="text-[#A89A85]">// KASIR</span></a>
+            <a href="{{ route('kasir.terminal') }}" class="flex items-center gap-2.5">
+                <img src="{{ asset('images/logo-light.svg') }}" alt="{{ config('cafe.name') }}" class="h-7 w-auto">
+                <span class="font-mono text-xs tracking-[0.3em] uppercase text-[#A89A85]">// KASIR</span>
+            </a>
             <nav class="hidden md:flex items-center gap-5 font-mono text-[11px] uppercase tracking-[0.15em] text-[#A89A85]">
                 <a href="{{ route('kasir.terminal') }}" class="hover:text-[#D9973E]">Terminal</a>
                 <a href="{{ route('kasir.orders.index') }}" class="hover:text-[#D9973E]">Riwayat</a>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 64">
+  <g transform="translate(0,0)">
+    <rect width="64" height="64" fill="#F7F3EC"/>
+    <path d="M27 13c0 3.5-3 4.5-3 8" stroke="#B5762A" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <path d="M36 13c0 3.5-3 4.5-3 8" stroke="#B5762A" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <path d="M20 28h21v10a9 9 0 0 1-9 9h-3a9 9 0 0 1-9-9z" fill="none" stroke="#1F1812" stroke-width="3"/>
+    <path d="M41 31h3a5.5 5.5 0 0 1 0 11h-3" fill="none" stroke="#1F1812" stroke-width="3"/>
+    <path d="M23 52h15" stroke="#1F1812" stroke-width="3" stroke-linecap="round"/>
+  </g>
+  <text x="82" y="41" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="25" font-weight="600" letter-spacing="9" fill="#1F1812">KOPIKITA</text>
+</svg>
