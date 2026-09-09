@@ -1,7 +1,9 @@
 <?php
 
 use App\Http\Controllers\Auth\KasirLoginController;
+use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\KasirController;
+use App\Http\Controllers\MenuController;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'landing')->name('landing'); // placeholder, diganti Phase 7
@@ -18,7 +20,12 @@ Route::middleware('auth')->prefix('kasir')->name('kasir.')->group(function () {
     Route::post('/orders/{order}/void', [KasirController::class, 'void'])->name('orders.void');
     Route::post('/orders', [KasirController::class, 'store'])->name('orders.store');
 
-    // Stub sementara — diganti controller asli di Phase 5 & 6
-    Route::view('/menu', 'kasir.menu-stub')->name('menu.index');
+    // Kelola menu & kategori
+    Route::resource('menu', MenuController::class)->except(['show']);
+    Route::patch('/menu/{menu}/toggle', [MenuController::class, 'toggle'])->name('menu.toggle');
+    Route::post('/categories', [CategoryController::class, 'store'])->name('categories.store');
+    Route::delete('/categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
+
+    // Stub sementara — diganti controller asli di Phase 6
     Route::view('/laporan', 'kasir.laporan-stub')->name('laporan');
 });
