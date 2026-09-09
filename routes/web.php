@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\KasirLoginController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\KasirController;
 use App\Http\Controllers\MenuController;
+use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'landing')->name('landing'); // placeholder, diganti Phase 7
@@ -26,6 +27,6 @@ Route::middleware('auth')->prefix('kasir')->name('kasir.')->group(function () {
     Route::post('/categories', [CategoryController::class, 'store'])->name('categories.store');
     Route::delete('/categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
 
-    // Stub sementara — diganti controller asli di Phase 6
-    Route::view('/laporan', 'kasir.laporan-stub')->name('laporan');
+    // Laporan
+    Route::get('/laporan', [ReportController::class, 'index'])->name('laporan');
 });
