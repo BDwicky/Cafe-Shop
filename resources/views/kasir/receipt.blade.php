@@ -19,13 +19,13 @@
         .receipt .center { text-align: center; }
         .receipt .brand { font-size: 13pt; font-weight: bold; letter-spacing: 0.15em; text-transform: uppercase; }
         .receipt .meta { font-size: 9pt; }
-        .receipt .dashed { border-top: 1px dashed #000; margin: 3mm 0; padding-top: 3mm; }
+        .receipt .dashed { border-top: 1px dashed #000; margin: 2mm 0; padding-top: 2mm; }
         .receipt table { width: 100%; border-collapse: collapse; font-size: 9.5pt; }
-        .receipt td { padding: 0.6mm 0; vertical-align: top; }
+        .receipt td { padding: 0.5mm 0; vertical-align: top; }
         .receipt td.r { text-align: right; white-space: nowrap; }
-        .receipt .tot { font-size: 12pt; font-weight: bold; }
-        .receipt .qr-block { text-align: center; border-top: 1px dashed #000; padding-top: 3mm; margin-top: 3mm; }
-        .receipt .wifi { border-top: 1px dashed #000; margin-top: 3mm; padding-top: 2mm; text-align: center; font-size: 9pt; }
+        .receipt .tot { font-size: 11.5pt; font-weight: bold; }
+        .receipt .qr-block { text-align: center; border-top: 1px dashed #000; padding-top: 2mm; margin-top: 2mm; }
+        .receipt .wifi { border-top: 1px dashed #000; margin-top: 2mm; padding-top: 1.5mm; text-align: center; font-size: 8.5pt; }
         .receipt .wifi b { text-transform: uppercase; letter-spacing: 0.1em; }
         .actions { max-width: 72mm; margin: 0 auto 8mm; display: flex; gap: 8px; }
         .actions a, .actions button { flex: 1; padding: 10px; font-family: inherit; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; cursor: pointer; border: 1px solid #1F1812; background: #fff; color: #1F1812; text-decoration: none; text-align: center; }
@@ -33,18 +33,28 @@
         .voided { text-align: center; font-weight: bold; font-size: 14pt; letter-spacing: 0.3em; border: 2px solid #000; padding: 2mm; margin: 2mm 0; }
 
         /* Khusus Printer Kertas 58mm */
-        .receipt.p-58mm { width: 48mm; padding: 2.5mm 1.5mm; font-size: 8pt; line-height: 1.35; }
+        .receipt.p-58mm { width: 48mm; padding: 2mm 1mm; font-size: 8pt; line-height: 1.35; }
         .receipt.p-58mm .brand { font-size: 10.5pt; letter-spacing: 0.1em; }
         .receipt.p-58mm .meta { font-size: 7.5pt; }
         .receipt.p-58mm table { font-size: 8pt; }
         .receipt.p-58mm .tot { font-size: 10pt; }
-        .receipt.p-58mm .qr-block img { width: 90px; height: 90px; }
+        .receipt.p-58mm .qr-block img { width: 80px; height: 80px; }
         .receipt.p-58mm .wifi { font-size: 7.5pt; }
         .actions.p-58mm, .paper-selector.p-58mm { max-width: 48mm; }
 
         @media print {
-            body { background: #fff; }
-            .receipt { margin: 0 auto; box-shadow: none; }
+            html, body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #fff !important;
+            }
+            .receipt {
+                margin: 0 auto !important;
+                padding: 2mm 1mm !important;
+                box-shadow: none !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
             .actions, .paper-selector { display: none !important; }
         }
     </style>
@@ -103,7 +113,7 @@
         @endif
 
         <div class="qr-block">
-            <img src="{{ \App\Support\QrCode::dataUri(route('landing')) }}" width="120" height="120" alt="QR">
+            <img src="{{ \App\Support\QrCode::dataUri(route('landing')) }}" width="100" height="100" alt="QR">
             <div class="meta" style="margin-top:2mm">Scan untuk lihat menu & info kami</div>
         </div>
 
