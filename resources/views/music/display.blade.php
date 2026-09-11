@@ -120,17 +120,20 @@
         .card-fly-glow {
             animation: cardGlowPulse 2.5s ease-in-out infinite;
         }
+        [x-cloak] {
+            display: none !important;
+        }
     </style>
-</head>
-<body class="bg-[#0E0906] text-[#F7F3EC] w-screen h-screen min-w-full min-h-screen overflow-hidden antialiased font-sans select-none relative m-0 p-0"
-      x-data="{
-        nowPlaying: {{ json_encode($playerState['now_playing']) }},
-        queue: {{ json_encode($playerState['queue']) }},
-        queueCount: {{ $playerState['queue_count'] }},
-        readyOrders: {{ json_encode($readyOrders ?? []) }},
-        knownReadyIds: {{ json_encode(collect($readyOrders ?? [])->pluck('id')) }},
-        activeFlyingCards: [],
-        currentTime: '',
+    <script>
+        function tvDisplayApp() {
+            return {
+                nowPlaying: @json($playerState['now_playing']),
+                queue: @json($playerState['queue']),
+                queueCount: {{ (int) ($playerState['queue_count'] ?? 0) }},
+                readyOrders: @json($readyOrders ?? []),
+                knownReadyIds: @json(collect($readyOrders ?? [])->pluck('id')),
+                activeFlyingCards: [],
+                currentTime: '',
 
         displayMode: localStorage.getItem('tv_display_mode') || 'visualizer', // 'visualizer' atau 'video'
         isFullscreen: false,
@@ -672,8 +675,13 @@
                     document.msExitFullscreen();
                 }
             }
-        }
-      }">
+        };
+    }
+    </script>
+</head>
+<body class="bg-[#0E0906] text-[#F7F3EC] w-screen h-screen min-w-full min-h-screen overflow-hidden antialiased font-sans select-none relative m-0 p-0"
+      x-data="tvDisplayApp()"
+      x-cloak>
 
     <!-- BACKGROUND AMBIENT LAYERS (Strictly contained, no overflow on right/bottom) -->
     <div class="fixed inset-0 w-full h-full overflow-hidden pointer-events-none z-0" style="contain: strict;">
