@@ -618,14 +618,14 @@ function musicStationPage() {
         volume: parseInt(localStorage.getItem('pos_music_volume') || '75'),
         isMuted: false,
 
-        currentTrack: {{ json_encode($state['now_playing']) }},
+        currentTrack: {!! json_encode($state['now_playing']) !!},
         currentTime: 0,
         duration: {{ $state['now_playing']['duration_seconds'] ?? 0 }},
         progressPercent: 0,
         currentTimeFormatted: '00:00',
         durationFormatted: '{{ isset($state['now_playing']['duration_seconds']) && $state['now_playing']['duration_seconds'] > 0 ? sprintf('%02d:%02d', floor($state['now_playing']['duration_seconds'] / 60), $state['now_playing']['duration_seconds'] % 60) : '00:00' }}',
 
-        queue: {{ json_encode($state['queue']) }},
+        queue: {!! json_encode($state['queue']) !!},
         queueCount: {{ $state['queue_count'] }},
 
         activeTab: 'queue', // 'queue', 'default_tracks', 'history'
