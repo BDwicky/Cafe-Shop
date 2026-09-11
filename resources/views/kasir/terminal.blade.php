@@ -92,14 +92,17 @@
             </div>
         </div>
 
-        <!-- Grid Menu dengan Foto Resolusi Tinggi -->
+        <!-- Grid Menu dengan Foto Resolusi Tinggi & Label Nama Jelas -->
         <div class="flex-1 p-3 overflow-y-auto">
             <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
                 <template x-for="menu in filteredMenus" :key="menu.id">
-                    <button @click="add(menu.id)"
-                            :disabled="!menu.available"
-                            class="group text-left bg-white border border-[#E4DCCC] overflow-hidden flex flex-col justify-between transition-all duration-150 hover:border-[#B5762A] hover:shadow-md active:scale-[0.98]"
-                            :class="!menu.available ? 'opacity-45 cursor-not-allowed' : 'cursor-pointer'">
+                    <div @click="add(menu.id)"
+                         @keydown.enter.prevent="add(menu.id)"
+                         @keydown.space.prevent="add(menu.id)"
+                         role="button"
+                         tabindex="0"
+                         class="group text-left bg-white border border-[#E4DCCC] overflow-hidden flex flex-col justify-between transition-all duration-150 hover:border-[#B5762A] hover:shadow-md active:scale-[0.98] select-none"
+                         :class="!menu.available ? 'opacity-45 cursor-not-allowed' : 'cursor-pointer'">
 
                         <!-- Gambar Menu -->
                         <div class="relative w-full h-28 sm:h-32 bg-[#1F1812] overflow-hidden shrink-0">
@@ -111,12 +114,12 @@
                             </template>
                             <template x-if="!menu.image">
                                 <div class="w-full h-full flex items-center justify-center bg-[#1F1812]">
-                                    <span class="font-mono text-2xl text-[#A89A85]" x-text="menu.name.substring(0, 2).toUpperCase()"></span>
+                                    <span class="font-mono text-2xl text-[#A89A85]" x-text="menu.name ? menu.name.substring(0, 2).toUpperCase() : '☕'"></span>
                                 </div>
                             </template>
 
                             <!-- Badge Kategori -->
-                            <div class="absolute top-2 left-2 bg-[#1F1812]/80 backdrop-blur-xs px-2 py-0.5 text-[9px] font-mono uppercase tracking-wider text-[#F7F3EC] border border-[#3A3026]">
+                            <div class="absolute top-2 left-2 bg-[#1F1812]/85 backdrop-blur-xs px-2 py-0.5 text-[9px] font-mono uppercase tracking-wider text-[#F7F3EC] border border-[#3A3026] rounded-xs">
                                 <span x-text="menu.category_name"></span>
                             </div>
 
@@ -125,26 +128,31 @@
                                 <button type="button"
                                         @click.stop="toggleStock(menu)"
                                         :title="menu.available ? 'Klik untuk tandai Stok Habis' : 'Klik untuk aktifkan (Stok Tersedia)'"
-                                        class="px-1.5 py-0.5 font-mono text-[9px] uppercase font-bold tracking-wider transition border shadow-xs flex items-center gap-1"
-                                        :class="menu.available ? 'bg-black/60 hover:bg-[#C4553D] text-[#5F7F42] hover:text-white border-white/20' : 'bg-[#C4553D] hover:bg-[#5F7F42] text-white border-[#C4553D]'">
+                                        class="px-1.5 py-0.5 font-mono text-[9px] uppercase font-bold tracking-wider transition border shadow-xs flex items-center gap-1 rounded-xs cursor-pointer"
+                                        :class="menu.available ? 'bg-black/70 hover:bg-[#C4553D] text-[#5F7F42] hover:text-white border-white/20' : 'bg-[#C4553D] hover:bg-[#5F7F42] text-white border-[#C4553D]'">
                                     <span class="w-1.5 h-1.5 rounded-full" :class="menu.available ? 'bg-[#5F7F42]' : 'bg-white'"></span>
                                     <span x-text="menu.available ? 'Tersedia' : 'Habis'"></span>
                                 </button>
                             </div>
+
+                            <!-- Overlay Label Nama Menu di Atas Gambar -->
+                            <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-2 pt-4 pointer-events-none">
+                                <div class="text-[11px] sm:text-xs font-bold text-white truncate leading-tight drop-shadow-sm" x-text="menu.name"></div>
+                            </div>
                         </div>
 
-                        <!-- Detail Menu -->
-                        <div class="p-3 flex-1 flex flex-col justify-between">
+                        <!-- Detail Menu (Nama, Deskripsi, Harga, Tombol Tambah) -->
+                        <div class="p-3 bg-white flex-1 flex flex-col justify-between">
                             <div>
-                                <h3 class="text-sm font-medium leading-snug line-clamp-1 group-hover:text-[#B5762A] transition-colors" x-text="menu.name"></h3>
+                                <h3 class="text-sm font-bold text-[#1F1812] leading-snug line-clamp-2 group-hover:text-[#B5762A] transition-colors" x-text="menu.name"></h3>
                                 <p class="mt-1 text-[11px] text-[#8A7B66] line-clamp-1" :title="menu.description || ''" x-text="menu.description || '-'"></p>
                             </div>
-                            <div class="mt-3 flex items-baseline justify-between border-t border-[#E4DCCC]/60 pt-2">
-                                <span class="font-mono text-sm font-semibold text-[#B5762A]" x-text="fmt(menu.price)"></span>
-                                <span class="font-mono text-[10px] uppercase text-[#5F7F42] font-medium">+ Tambah</span>
+                            <div class="mt-2.5 flex items-baseline justify-between border-t border-[#E4DCCC] pt-2">
+                                <span class="font-mono text-sm font-bold text-[#B5762A]" x-text="fmt(menu.price)"></span>
+                                <span class="font-mono text-[10px] uppercase font-semibold text-[#5F7F42] bg-[#5F7F42]/10 px-2 py-0.5 rounded border border-[#5F7F42]/20 group-hover:bg-[#5F7F42] group-hover:text-white transition-colors">+ Tambah</span>
                             </div>
                         </div>
-                    </button>
+                    </div>
                 </template>
             </div>
 
