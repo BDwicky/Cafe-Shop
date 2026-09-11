@@ -379,6 +379,16 @@
     };
 })();
 
+// Warm up Web Speech voices for immediate female Indonesian TTS
+if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    window.speechSynthesis.getVoices();
+    if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = () => {
+            window.speechSynthesis.getVoices();
+        };
+    }
+}
+
 function navbarMusicWidget() {
     return {
         player: null,
@@ -1789,19 +1799,51 @@ function navbarMusicWidget() {
                 osc2.stop(now + 0.9);
             } catch (e) {}
 
-            // 3. TEXT-TO-SPEECH ANNOUNCER
+            // 3. TEXT-TO-SPEECH ANNOUNCER (SUARA WANITA RAMAH & RINGKAS)
             setTimeout(() => {
                 const custName = order.customer_name ? order.customer_name.trim() : '';
+                let orderNum = '';
+                if (order.code) {
+                    const parts = order.code.split('-');
+                    const lastPart = parts[parts.length - 1];
+                    const parsed = parseInt(lastPart, 10);
+                    orderNum = (!isNaN(parsed) && parsed > 0) ? parsed : lastPart;
+                }
+
+                // Format ringkas, ramah & to the point:
                 const text = custName
-                    ? `Panggilan untuk Kak ${custName}, pesanan nomor ${order.code}, pesanan Anda sudah siap. Silakan ambil di meja kasir. Terima kasih.`
-                    : `Panggilan pesanan nomor ${order.code}, pesanan Anda sudah siap. Silakan ambil di meja kasir. Terima kasih.`;
+                    ? `Pesanan Kak ${custName}, siap diambil di kasir.`
+                    : `Pesanan nomor ${orderNum || 'Anda'}, siap diambil di kasir.`;
 
                 if ('speechSynthesis' in window) {
                     window.speechSynthesis.cancel();
                     const utter = new SpeechSynthesisUtterance(text);
                     utter.lang = 'id-ID';
-                    utter.rate = 0.92;
+                    utter.rate = 1.0;
                     utter.pitch = 1.05;
+
+                    // Deteksi dan prioritaskan Suara Wanita (Female Voice) Bahasa Indonesia
+                    const voices = window.speechSynthesis.getVoices() || [];
+                    const femaleVoice = voices.find(v => {
+                        const name = (v.name || '').toLowerCase();
+                        const lang = (v.lang || '').toLowerCase().replace('_', '-');
+                        const isIndo = lang.includes('id') || name.includes('indonesia');
+                        const isFemale = name.includes('gadis') || name.includes('female') || name.includes('wanita') || name.includes('siti') || name.includes('google');
+                        return isIndo && isFemale;
+                    }) || voices.find(v => {
+                        const name = (v.name || '').toLowerCase();
+                        return name.includes('gadis') || (name.includes('google') && name.includes('indonesia'));
+                    }) || voices.find(v => {
+                        const lang = (v.lang || '').toLowerCase().replace('_', '-');
+                        return lang.startsWith('id');
+                    }) || voices.find(v => {
+                        const name = (v.name || '').toLowerCase();
+                        return name.includes('female') || name.includes('zira');
+                    });
+
+                    if (femaleVoice) {
+                        utter.voice = femaleVoice;
+                    }
 
                     const finish = async () => {
                         setTimeout(() => {
@@ -1837,7 +1879,7 @@ function navbarMusicWidget() {
                         this.broadcastSync();
                     }, 2500);
                 }
-            }, 650);
+            }, 1100);
         },
 
         openMiniPlayer() {
