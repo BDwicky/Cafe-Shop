@@ -11,7 +11,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 
 class KasirMusicController extends Controller
 {
@@ -744,5 +746,48 @@ class KasirMusicController extends Controller
         }
 
         return response()->json(['status' => 'released']);
+    }
+
+    /**
+     * Endpoint Audio Text-To-Speech (Model "Mbak Google" Indonesia Wanita Resmi).
+     * Menghasilkan audio MP3 jernih berlogat bahasa Indonesia asli.
+     */
+    public function tts(Request $request): Response
+    {
+        $text = trim((string) $request->query('text', ''));
+        if ($text === '') {
+            abort(400, 'Teks suara wajib diisi.');
+        }
+
+        // Batasi panjang maksimal 200 karakter
+        $text = mb_substr($text, 0, 200);
+
+        $cacheKey = 'tts_google_voice_'.md5($text);
+        $audioData = Cache::remember($cacheKey, 86400 * 7, function () use ($text) {
+            $url = 'https://translate.google.com/translate_tts?ie=UTF-8&tl=id&client=tw-ob&q='.urlencode($text);
+            try {
+                $response = Http::withHeaders([
+                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+                    'Referer' => 'https://translate.google.com/',
+                ])->timeout(5)->get($url);
+
+                if ($response->successful() && strlen($response->body()) > 100) {
+                    return $response->body();
+                }
+            } catch (\Throwable $e) {
+                // Fallback jika jaringan offline
+            }
+
+            return null;
+        });
+
+        if ($audioData) {
+            return response($audioData, 200, [
+                'Content-Type' => 'audio/mpeg',
+                'Cache-Control' => 'public, max-age=604800, immutable',
+            ]);
+        }
+
+        abort(502, 'Gagal mengambil audio Google TTS.');
     }
 }

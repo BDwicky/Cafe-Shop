@@ -1815,71 +1815,96 @@ function navbarMusicWidget() {
                     ? `Pesanan Kak ${custName}, siap diambil di kasir.`
                     : `Pesanan nomor ${orderNum || 'Anda'}, siap diambil di kasir.`;
 
-                if ('speechSynthesis' in window) {
-                    window.speechSynthesis.cancel();
-                    const utter = new SpeechSynthesisUtterance(text);
-                    utter.lang = 'id-ID';
-                    utter.rate = 1.0;
-                    utter.pitch = 1.05;
-
-                    // Deteksi dan prioritaskan Suara Wanita (Female Voice) Bahasa Indonesia
-                    const voices = window.speechSynthesis.getVoices() || [];
-                    const femaleVoice = voices.find(v => {
-                        const name = (v.name || '').toLowerCase();
-                        const lang = (v.lang || '').toLowerCase().replace('_', '-');
-                        const isIndo = lang.includes('id') || name.includes('indonesia');
-                        const isFemale = name.includes('gadis') || name.includes('female') || name.includes('wanita') || name.includes('siti') || name.includes('google');
-                        return isIndo && isFemale;
-                    }) || voices.find(v => {
-                        const name = (v.name || '').toLowerCase();
-                        return name.includes('gadis') || (name.includes('google') && name.includes('indonesia'));
-                    }) || voices.find(v => {
-                        const lang = (v.lang || '').toLowerCase().replace('_', '-');
-                        return lang.startsWith('id');
-                    }) || voices.find(v => {
-                        const name = (v.name || '').toLowerCase();
-                        return name.includes('female') || name.includes('zira');
-                    });
-
-                    if (femaleVoice) {
-                        utter.voice = femaleVoice;
-                    }
-
-                    const finish = async () => {
-                        setTimeout(() => {
-                            if (this.player && this.playerReady) {
-                                this.player.setVolume(this.volume);
-                            }
-                            this.isAnnouncing = false;
-                            this.broadcastSync();
-                        }, 500);
-
-                        if (!isTest && order.id) {
-                            try {
-                                await fetch('{{ url('/kasir/music/orders') }}/' + order.id + '/announced', {
-                                    method: 'POST',
-                                    headers: {
-                                        'Content-Type': 'application/json',
-                                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                                    }
-                                });
-                            } catch (err) {}
-                        }
-                    };
-
-                    utter.onend = finish;
-                    utter.onerror = finish;
-                    window.speechSynthesis.speak(utter);
-                } else {
+                const finish = async () => {
                     setTimeout(() => {
                         if (this.player && this.playerReady) {
                             this.player.setVolume(this.volume);
                         }
                         this.isAnnouncing = false;
                         this.broadcastSync();
-                    }, 2500);
+                    }, 500);
+
+                    if (!isTest && order.id) {
+                        try {
+                            await fetch('{{ url('/kasir/music/orders') }}/' + order.id + '/announced', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                }
+                            });
+                        } catch (err) {}
+                    }
+                };
+
+                let hasFinished = false;
+                const safeFinish = () => {
+                    if (hasFinished) return;
+                    hasFinished = true;
+                    finish();
+                };
+
+                // METODE UTAMA: Suara Asli "Mbak Google" Indonesia Wanita (Audio MP3 Asli)
+                // Memastikan 100% aksen bahasa Indonesia murni dan alami di semua browser & device
+                try {
+                    const ttsUrl = '{{ route('music.tts') }}?text=' + encodeURIComponent(text);
+                    const googleAudio = new Audio(ttsUrl);
+
+                    googleAudio.onended = safeFinish;
+
+                    // Fallback jika audio gagal atau offline: Web Speech API lokal Bahasa Indonesia
+                    googleAudio.onerror = () => {
+                        console.warn('[Announcer] Google TTS offline/gagal, fallback ke Web Speech lokal.');
+                        this.speakFallbackSpeech(text, safeFinish);
+                    };
+
+                    const playPromise = googleAudio.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch((err) => {
+                            console.warn('[Announcer] Google Audio play error:', err);
+                            this.speakFallbackSpeech(text, safeFinish);
+                        });
+                    }
+                } catch (e) {
+                    this.speakFallbackSpeech(text, safeFinish);
                 }
             }, 1100);
+        },
+
+        speakFallbackSpeech(text, callback) {
+            if (!('speechSynthesis' in window)) {
+                if (callback) callback();
+                return;
+            }
+
+            try {
+                window.speechSynthesis.cancel();
+                const utter = new SpeechSynthesisUtterance(text);
+                utter.lang = 'id-ID';
+                utter.rate = 1.0;
+                utter.pitch = 1.0;
+
+                const voices = window.speechSynthesis.getVoices() || [];
+                const femaleVoice = voices.find(v => {
+                    const name = (v.name || '').toLowerCase();
+                    const lang = (v.lang || '').toLowerCase().replace('_', '-');
+                    return (lang.includes('id') || name.includes('indonesia')) &&
+                           (name.includes('google') || name.includes('gadis') || name.includes('female') || name.includes('wanita') || name.includes('siti'));
+                }) || voices.find(v => {
+                    const lang = (v.lang || '').toLowerCase().replace('_', '-');
+                    return lang.startsWith('id');
+                });
+
+                if (femaleVoice) {
+                    utter.voice = femaleVoice;
+                }
+
+                utter.onend = () => { if (callback) callback(); };
+                utter.onerror = () => { if (callback) callback(); };
+                window.speechSynthesis.speak(utter);
+            } catch (e) {
+                if (callback) callback();
+            }
         },
 
         openMiniPlayer() {

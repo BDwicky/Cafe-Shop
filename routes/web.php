@@ -28,6 +28,7 @@ Route::prefix('music')->name('music.')->group(function () {
     Route::post('/request', [MusicRequestController::class, 'store'])->name('store');
     Route::get('/status', [MusicRequestController::class, 'status'])->name('status');
     Route::get('/display', [MusicRequestController::class, 'display'])->name('display');
+    Route::get('/tts', [KasirMusicController::class, 'tts'])->name('tts');
 });
 
 Route::get('/kasir/login', [KasirLoginController::class, 'showForm'])->name('kasir.login');

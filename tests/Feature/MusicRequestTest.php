@@ -7,6 +7,7 @@ use App\Models\MusicRequest;
 use App\Models\Order;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class MusicRequestTest extends TestCase
@@ -975,5 +976,17 @@ class MusicRequestTest extends TestCase
 
         // Pastikan status request pelanggan tetap 'playing', TIDAK terhapus/terubah menjadi 'played'
         $this->assertEquals('playing', $playingReq->fresh()->status);
+    }
+
+    public function test_music_tts_endpoint_returns_audio_stream(): void
+    {
+        Http::fake([
+            'translate.google.com/*' => Http::response('FAKE_AUDIO_MP3_STREAM_CONTENT_BYTES_1234567890_1234567890_1234567890_1234567890_1234567890_1234567890_1234567890', 200, ['Content-Type' => 'audio/mpeg']),
+        ]);
+
+        $response = $this->get(route('music.tts', ['text' => 'Pesanan Kak Budi, siap diambil di kasir.']));
+
+        $response->assertOk()
+            ->assertHeader('Content-Type', 'audio/mpeg');
     }
 }
