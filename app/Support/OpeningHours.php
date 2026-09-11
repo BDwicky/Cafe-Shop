@@ -24,7 +24,7 @@ class OpeningHours
     /** Label jam buka hari ini, mis. "08:00–22:00". */
     public static function todayLabel(): string
     {
-        $h = config('cafe.hours.' . now()->dayOfWeekIso);
+        $h = config('cafe.hours.'.now()->dayOfWeekIso);
 
         return $h ? "{$h[0]}–{$h[1]}" : 'Tutup';
     }
@@ -33,7 +33,7 @@ class OpeningHours
     public static function statusLine(): string
     {
         if (self::isOpen()) {
-            return 'BUKA SEKARANG — ' . self::todayLabel();
+            return 'BUKA SEKARANG — '.self::todayLabel();
         }
 
         // Cari jam buka berikutnya (besok, atau hari-hari berikutnya)
@@ -41,7 +41,7 @@ class OpeningHours
             $next = now()->addDays($i);
             $h = config("cafe.hours.{$next->dayOfWeekIso}");
             if ($h) {
-                $day = $i === 1 ? 'buka besok' : 'buka ' . self::dayName($next->dayOfWeekIso);
+                $day = $i === 1 ? 'buka besok' : 'buka '.self::dayName($next->dayOfWeekIso);
 
                 return strtoupper("TUTUP — {$day} {$h[0]}");
             }

@@ -11,7 +11,7 @@ class QrCode
     public static function dataUri(string $content, int $size = 160): string
     {
         $builder = new Builder(
-            writer: new PngWriter(),
+            writer: new PngWriter,
             data: $content,
             size: $size,
             margin: 0,

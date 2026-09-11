@@ -86,9 +86,14 @@ class DatabaseSeeder extends Seeder
             ['pastry', 'Cinnamon Roll', 26000, 'Roti gulung kayu manis lembut dengan glaze cream cheese vanilla manis gurih.', 'menus/cinnamon-roll.jpg'],
         ];
 
+        $catalog = Menu::curatedCatalog();
+
         foreach ($menus as $i => [$slug, $name, $price, $desc, $image]) {
+            $itemSlug = Str::slug($name);
+            $curated = $catalog[$itemSlug] ?? null;
+
             Menu::updateOrCreate(
-                ['slug' => Str::slug($name)],
+                ['slug' => $itemSlug],
                 [
                     'category_id' => $cats[$slug]->id,
                     'name' => $name,
@@ -97,8 +102,13 @@ class DatabaseSeeder extends Seeder
                     'image' => $image,
                     'is_available' => true,
                     'sort_order' => $i,
+                    'ingredients' => $curated['ingredients'] ?? null,
+                    'nutrition' => $curated['nutrition'] ?? null,
+                    'flavor_notes' => $curated['flavor_notes'] ?? null,
                 ]
             );
         }
+
+        $this->call(MusicDefaultSeeder::class);
     }
 }

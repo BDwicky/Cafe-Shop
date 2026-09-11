@@ -15,12 +15,12 @@ class CategoryController extends Controller
         $slug = Str::slug($data['name']);
         $i = 2;
         while (Category::where('slug', $slug)->exists()) {
-            $slug = Str::slug($data['name']) . '-' . $i++;
+            $slug = Str::slug($data['name']).'-'.$i++;
         }
 
         Category::create(['name' => $data['name'], 'slug' => $slug]);
 
-        return back()->with('status', 'Kategori "' . $data['name'] . '" ditambahkan.');
+        return back()->with('status', 'Kategori "'.$data['name'].'" ditambahkan.');
     }
 
     public function destroy(Category $category)

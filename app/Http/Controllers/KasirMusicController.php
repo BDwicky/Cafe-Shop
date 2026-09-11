@@ -1,0 +1,270 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\MusicDefaultTrack;
+use App\Models\MusicRequest;
+use App\Models\Order;
+use App\Services\KitchenService;
+use App\Services\MusicService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
+
+class KasirMusicController extends Controller
+{
+    public function __construct(
+        protected MusicService $musicService
+    ) {}
+
+    /**
+     * Halaman Pemutar Musik (Sound Station) Kasir.
+     */
+    public function index(): View
+    {
+        $state = $this->musicService->getPlayerState();
+        $defaultTracks = MusicDefaultTrack::orderBy('sort_order')->orderBy('id')->get();
+        $recentHistory = MusicRequest::whereIn('status', ['played', 'skipped', 'rejected'])
+            ->latest('updated_at')
+            ->limit(15)
+            ->get();
+
+        return view('kasir.music', compact('state', 'defaultTracks', 'recentHistory'));
+    }
+
+    /**
+     * Halaman Pop-up Mini Player (Sound Station Mini)
+     * Untuk dibuka di jendela terpisah agar musik & voice announcer tetap aktif saat kasir pindah tab / menu di POS.
+     */
+    public function mini(): View
+    {
+        $state = $this->musicService->getPlayerState();
+
+        return view('kasir.music-mini', compact('state'));
+    }
+
+    /**
+     * API untuk Player Browser mengambil lagu berikutnya secara otomatis:
+     * - Jika ada antrean request pelanggan, putar lagu tersebut.
+     * - Jika antrean kosong, lanjut putar lagu berikutnya dari playlist bawaan.
+     */
+    public function nextTrack(Request $request): JsonResponse
+    {
+        $finishRequestId = $request->integer('finish_request_id') ?: null;
+        $lastDefaultTrackId = $request->integer('last_default_track_id') ?: null;
+        $wasBlocked = $request->boolean('was_blocked');
+        $blockedReason = $request->string('blocked_reason')->toString() ?: null;
+        $resumeDefaultTrackId = $request->integer('resume_default_track_id') ?: null;
+        $resumePosition = $request->has('resume_position') ? $request->integer('resume_position') : null;
+
+        $next = $this->musicService->transitionToNextTrack(
+            $finishRequestId,
+            $lastDefaultTrackId,
+            $wasBlocked,
+            $blockedReason,
+            $resumeDefaultTrackId,
+            $resumePosition
+        );
+
+        return response()->json($next);
+    }
+
+    /**
+     * Kasir melewati (skip) lagu customer yang sedang diputar atau mengantre.
+     */
+    public function skip(MusicRequest $musicRequest): JsonResponse|RedirectResponse
+    {
+        $this->musicService->skipRequest($musicRequest);
+
+        if (request()->wantsJson()) {
+            return response()->json(['message' => 'Lagu berhasil dilewati (skip).']);
+        }
+
+        return back()->with('success', 'Lagu berhasil dilewati.');
+    }
+
+    /**
+     * Kasir menolak request lagu (misal: lagu tidak pantas/sara).
+     */
+    public function reject(Request $request, MusicRequest $musicRequest): JsonResponse|RedirectResponse
+    {
+        $reason = $request->input('reason', 'Tidak sesuai dengan suasana kafe');
+        $this->musicService->rejectRequest($musicRequest, $reason);
+
+        if (request()->wantsJson()) {
+            return response()->json(['message' => 'Lagu request berhasil ditolak.']);
+        }
+
+        return back()->with('success', 'Lagu request berhasil ditolak.');
+    }
+
+    /**
+     * Tambah lagu baru ke playlist bawaan kafe.
+     * Judul dan artis otomatis diekstraksi dari metadata video YouTube jika tidak diinput manual.
+     */
+    public function storeDefaultTrack(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'title' => ['nullable', 'string', 'max:255'],
+            'artist' => ['nullable', 'string', 'max:255'],
+            'youtube_url' => ['required', 'string', 'max:500'],
+            'sort_order' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        $youtubeId = $this->musicService->extractYouTubeId($data['youtube_url']);
+        if (! $youtubeId) {
+            return back()->withErrors(['youtube_url' => 'Tautan atau ID YouTube tidak valid.'])->withInput();
+        }
+
+        $details = $this->musicService->fetchYouTubeDetails($youtubeId);
+
+        // Kasir memiliki pengecualian durasi (bebas memutar lagu panjang, mix 1 jam, atau kompilasi santai)
+        // Otomatis isi judul dari YouTube jika kasir tidak menginput judul secara manual
+        $title = ! empty($data['title']) ? trim($data['title']) : $details['title'];
+        $artist = ! empty($data['artist'])
+            ? trim($data['artist'])
+            : ($details['artist'] !== 'YouTube' ? $details['artist'] : null);
+
+        MusicDefaultTrack::create([
+            'title' => $title,
+            'artist' => $artist,
+            'youtube_id' => $youtubeId,
+            'duration_seconds' => $details['duration_seconds'] ?? 0,
+            'sort_order' => $data['sort_order'] ?? (MusicDefaultTrack::count() + 1),
+            'is_active' => true,
+        ]);
+
+        return back()->with('success', "Lagu \"{$title}\" berhasil ditambahkan ke playlist bawaan.");
+    }
+
+    /**
+     * Inspeksi tautan YouTube secara instan untuk mengisi judul, artis, durasi, dan cover secara otomatis.
+     */
+    public function inspectLink(Request $request): JsonResponse
+    {
+        $url = (string) $request->input('url', '');
+        $youtubeId = $this->musicService->extractYouTubeId($url);
+
+        if (! $youtubeId) {
+            return response()->json([
+                'valid' => false,
+                'message' => 'Tautan atau ID video YouTube tidak valid.',
+            ], 422);
+        }
+
+        $details = $this->musicService->fetchYouTubeDetails($youtubeId);
+
+        return response()->json([
+            'valid' => true,
+            'youtube_id' => $details['youtube_id'],
+            'title' => $details['title'],
+            'artist' => $details['artist'] !== 'YouTube' ? $details['artist'] : '',
+            'duration_seconds' => $details['duration_seconds'],
+            'duration_formatted' => $details['duration_formatted'],
+            'thumbnail_url' => $details['thumbnail_url'],
+            'is_valid_duration' => $details['is_valid_duration'],
+            'duration_error' => $details['duration_error'],
+        ]);
+    }
+
+    /**
+     * Import banyak lagu sekaligus dari sekumpulan tautan YouTube (satu tautan per baris).
+     */
+    public function storeBatchDefaultTracks(Request $request): RedirectResponse
+    {
+        $rawLinks = (string) $request->input('youtube_urls', '');
+        $lines = preg_split('/[\r\n,]+/', $rawLinks);
+
+        $importedCount = 0;
+        $rejectedDurationCount = 0;
+        $invalidCount = 0;
+
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (empty($line)) {
+                continue;
+            }
+
+            $youtubeId = $this->musicService->extractYouTubeId($line);
+            if (! $youtubeId) {
+                $invalidCount++;
+
+                continue;
+            }
+
+            // Hindari duplikasi di playlist bawaan
+            if (MusicDefaultTrack::where('youtube_id', $youtubeId)->exists()) {
+                continue;
+            }
+
+            $details = $this->musicService->fetchYouTubeDetails($youtubeId);
+
+            MusicDefaultTrack::create([
+                'title' => $details['title'],
+                'artist' => $details['artist'] !== 'YouTube' ? $details['artist'] : null,
+                'youtube_id' => $youtubeId,
+                'duration_seconds' => $details['duration_seconds'] ?? 0,
+                'sort_order' => MusicDefaultTrack::count() + 1,
+                'is_active' => true,
+            ]);
+
+            $importedCount++;
+        }
+
+        $msg = "Berhasil mengimpor {$importedCount} lagu ke playlist bawaan.";
+        if ($invalidCount > 0) {
+            $msg .= " ({$invalidCount} tautan tidak valid).";
+        }
+
+        return back()->with('success', $msg);
+    }
+
+    /**
+     * Aktifkan / Nonaktifkan lagu bawaan kafe.
+     */
+    public function toggleDefaultTrack(MusicDefaultTrack $track): RedirectResponse
+    {
+        $track->update(['is_active' => ! $track->is_active]);
+
+        return back()->with('success', 'Status lagu bawaan berhasil diperbarui.');
+    }
+
+    /**
+     * Hapus lagu dari playlist bawaan kafe.
+     */
+    public function destroyDefaultTrack(MusicDefaultTrack $track): RedirectResponse
+    {
+        $track->delete();
+
+        return back()->with('success', 'Lagu berhasil dihapus dari playlist bawaan.');
+    }
+
+    /**
+     * Ambil pesanan yang berstatus 'ready' dan perlu dipanggil suaranya via Sound Station.
+     */
+    public function pendingAnnouncements(KitchenService $kitchenService): JsonResponse
+    {
+        $orders = $kitchenService->getPendingAnnouncements();
+
+        $data = $orders->map(fn ($o) => [
+            'id' => $o->id,
+            'code' => $o->code,
+            'music_code' => $o->music_code,
+            'customer_name' => $o->customer_name,
+            'order_type' => $o->order_type,
+        ]);
+
+        return response()->json(['orders' => $data]);
+    }
+
+    /**
+     * Tandai pesanan telah diumumkan suaranya oleh Sound Station.
+     */
+    public function markAnnounced(Order $order, KitchenService $kitchenService): JsonResponse
+    {
+        $kitchenService->markAnnounced($order);
+
+        return response()->json(['message' => "Pesanan {$order->code} telah diumumkan."]);
+    }
+}

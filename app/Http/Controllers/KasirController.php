@@ -52,6 +52,9 @@ class KasirController extends Controller
             if (! isset($menus[$i['menu_id']])) {
                 return response()->json(['message' => 'Menu tidak ditemukan.'], 422);
             }
+            if (! $menus[$i['menu_id']]->is_available) {
+                return response()->json(['message' => 'Menu "'.$menus[$i['menu_id']]->name.'" sedang tidak tersedia (stok kosong).'], 422);
+            }
         }
 
         $lines = collect($data['items'])->map(fn ($i) => [
@@ -98,7 +101,15 @@ class KasirController extends Controller
         });
 
         return response()->json([
+            'order_id' => $order->id,
             'code' => $order->code,
+            'music_code' => $order->music_code,
+            'customer_name' => $order->customer_name,
+            'order_type' => $order->order_type,
+            'payment_method' => $order->payment_method,
+            'total' => $order->total,
+            'paid_amount' => $order->paid_amount,
+            'change_amount' => $order->change_amount,
             'receipt_url' => route('kasir.receipt', $order, false),
         ], 201);
     }

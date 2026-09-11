@@ -19,7 +19,7 @@ class MenuController extends Controller
 
     public function create()
     {
-        $menu = new Menu();
+        $menu = new Menu;
         $categories = Category::orderBy('name')->get();
 
         return view('kasir.menu.form', ['menu' => $menu, 'categories' => $categories]);
@@ -38,7 +38,7 @@ class MenuController extends Controller
 
         Menu::create($data);
 
-        return redirect('/kasir/menu')->with('status', 'Menu "' . $data['name'] . '" ditambahkan.');
+        return redirect('/kasir/menu')->with('status', 'Menu "'.$data['name'].'" ditambahkan.');
     }
 
     public function edit(Menu $menu)
@@ -64,14 +64,26 @@ class MenuController extends Controller
 
         $menu->update($data);
 
-        return redirect('/kasir/menu')->with('status', 'Menu "' . $menu->name . '" diperbarui.');
+        return redirect('/kasir/menu')->with('status', 'Menu "'.$menu->name.'" diperbarui.');
     }
 
-    public function toggle(Menu $menu)
+    public function toggle(Request $request, Menu $menu)
     {
         $menu->update(['is_available' => ! $menu->is_available]);
 
-        return back();
+        $statusText = $menu->is_available ? 'Tersedia' : 'Habis (Stok Kosong)';
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'is_available' => (bool) $menu->is_available,
+                'status_text' => $statusText,
+                'message' => 'Menu "'.$menu->name.'" sekarang '.$statusText.'.',
+            ]);
+        }
+
+        return redirect()->route('kasir.menu.index')
+            ->with('status', 'Menu "'.$menu->name.'" sekarang '.$statusText.'.');
     }
 
     public function destroy(Menu $menu)
@@ -100,7 +112,7 @@ class MenuController extends Controller
         $i = 2;
 
         while (Menu::where('slug', $slug)->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))->exists()) {
-            $slug = $base . '-' . $i++;
+            $slug = $base.'-'.$i++;
         }
 
         return $slug;

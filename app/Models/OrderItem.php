@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use Database\Factories\OrderItemFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class OrderItem extends Model
 {
-    /** @use HasFactory<\Database\Factories\OrderItemFactory> */
+    /** @use HasFactory<OrderItemFactory> */
     use HasFactory;
 
     public $timestamps = false;
@@ -22,8 +24,13 @@ class OrderItem extends Model
         'line_total' => 'integer',
     ];
 
-    public function order()
+    public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
+    }
+
+    public function menu(): BelongsTo
+    {
+        return $this->belongsTo(Menu::class);
     }
 }

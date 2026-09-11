@@ -62,5 +62,8 @@
             </div>
         </div>
     </footer>
+
+    <!-- CUSTOM CONFIRMATION & ALERT MODAL DIALOG -->
+    @include('components.modal-dialog')
 </body>
 </html>

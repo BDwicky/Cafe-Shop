@@ -44,7 +44,10 @@
                             <a href="{{ route('kasir.receipt', $o) }}" class="font-mono text-[11px] uppercase tracking-[0.15em] hover:text-[#B5762A]">Struk ›</a>
                             @if ($o->status === 'paid')
                                 <form method="POST" action="{{ route('kasir.orders.void', $o) }}" class="inline ml-3"
-                                      onsubmit="return confirm('Void transaksi ini?')">
+                                      data-confirm="Void transaksi {{ $o->code }}?"
+                                      data-confirm-title="Void Transaksi"
+                                      data-confirm-type="danger"
+                                      data-confirm-btn="Void">
                                     @csrf
                                     <button class="font-mono text-[11px] uppercase tracking-[0.15em] text-[#C4553D] hover:underline">Void</button>
                                 </form>

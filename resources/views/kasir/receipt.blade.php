@@ -112,8 +112,23 @@
             <div class="dashed meta">Catatan: {{ $order->note }}</div>
         @endif
 
+        <div class="dashed" style="text-align:center; padding: 2mm 0;">
+            <div style="font-weight: bold; font-size: 9.5pt; letter-spacing: 0.08em; text-transform: uppercase;">
+                ♫ REQUEST MUSIK KAFE ♫
+            </div>
+            <div style="margin: 2mm auto 1.5mm;">
+                <img src="{{ \App\Support\QrCode::dataUri(route('music.request', ['code' => $order->music_code ?? $order->code]), 120) }}" width="90" height="90" alt="QR Request Musik" style="display:inline-block;">
+            </div>
+            <div style="font-weight: bold; font-size: 10.5pt; letter-spacing: 0.12em;">
+                KODE: {{ $order->music_code ?? $order->code }}
+            </div>
+            <div class="meta" style="font-size: 8pt; margin-top: 1mm;">
+                Scan QR di atas untuk request 1 lagu kesukaanmu! (1x per transaksi)
+            </div>
+        </div>
+
         <div class="qr-block">
-            <img src="{{ \App\Support\QrCode::dataUri(route('landing')) }}" width="100" height="100" alt="QR">
+            <img src="{{ \App\Support\QrCode::dataUri(route('landing')) }}" width="90" height="90" alt="QR">
             <div class="meta" style="margin-top:2mm">Scan untuk lihat menu & info kami</div>
         </div>
 

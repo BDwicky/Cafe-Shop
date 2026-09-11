@@ -54,9 +54,24 @@ class MenuManagementTest extends TestCase
         $menu = Menu::factory()->create(['is_available' => true]);
 
         $this->actingAs(User::factory()->create())
-            ->patch("/kasir/menu/{$menu->id}/toggle");
+            ->patch("/kasir/menu/{$menu->id}/toggle")
+            ->assertRedirect('/kasir/menu');
 
         $this->assertFalse($menu->fresh()->is_available);
+    }
+
+    public function test_kasir_can_toggle_availability_via_json(): void
+    {
+        $menu = Menu::factory()->create(['is_available' => false]);
+
+        $response = $this->actingAs(User::factory()->create())
+            ->patchJson("/kasir/menu/{$menu->id}/toggle");
+
+        $response->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('is_available', true);
+
+        $this->assertTrue($menu->fresh()->is_available);
     }
 
     public function test_kasir_can_delete_menu(): void

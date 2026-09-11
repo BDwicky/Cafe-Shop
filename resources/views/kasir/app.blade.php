@@ -22,12 +22,20 @@
     <div class="flex flex-col md:flex-row h-full w-full overflow-hidden">
 
         <!-- MOBILE TOPBAR (khusus smartphone kecil) -->
-        <header class="md:hidden bg-[#1F1812] text-[#F7F3EC] border-b border-[#3A3026] px-4 py-2.5 flex items-center justify-between shrink-0 z-30">
+        <header class="md:hidden bg-[#1F1812] text-[#F7F3EC] border-b border-[#3A3026] px-4 py-2 flex items-center justify-between shrink-0 z-30">
             <a href="{{ route('kasir.terminal') }}" class="flex items-center gap-2">
                 <img src="{{ asset('images/logo-light.svg') }}" alt="{{ config('cafe.name') }}" class="h-6 w-auto">
                 <span class="font-mono text-[11px] tracking-[0.2em] uppercase text-[#D9973E]">POS</span>
             </a>
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2.5">
+                <!-- Mobile Music Play/Pause Quick Button -->
+                <button type="button"
+                        onclick="if (window.SoundStation) window.SoundStation.togglePlayPause()"
+                        title="Putar / Jeda Musik"
+                        class="px-2 py-1 bg-[#2A211A] hover:bg-[#3A3026] border border-[#3A3026] rounded text-[10px] font-mono text-[#D9973E] flex items-center gap-1.5 transition">
+                    <span>♫</span>
+                    <span id="mobile-music-status">Musik</span>
+                </button>
                 <span class="font-mono text-xs text-[#A89A85]" x-text="currentTime"></span>
                 <button @click="mobileNavOpen = !mobileNavOpen"
                         class="p-1.5 text-[#A89A85] hover:text-[#F7F3EC] focus:outline-none"
@@ -44,8 +52,8 @@
         <aside :class="mobileNavOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'"
                class="fixed inset-y-0 left-0 z-40 md:static md:translate-x-0 w-60 lg:w-64 bg-[#1F1812] text-[#F7F3EC] border-r border-[#3A3026] flex flex-col justify-between shrink-0 transition-transform duration-200 ease-in-out h-full select-none shadow-2xl md:shadow-none">
 
-            <!-- Bagian Atas: Brand & Info Jam Tablet -->
-            <div>
+            <!-- Bagian Atas: Brand, Info Jam Tablet & Navigasi (Bisa scroll jika resolusi pendek) -->
+            <div class="flex-1 min-h-0 overflow-y-auto">
                 <div class="p-5 border-b border-[#3A3026]">
                     <a href="{{ route('kasir.terminal') }}" class="flex items-center gap-3">
                         <img src="{{ asset('images/logo-light.svg') }}" alt="{{ config('cafe.name') }}" class="h-7 w-auto">
@@ -105,6 +113,50 @@
                         <span>Laporan Kasir</span>
                     </a>
 
+                    <!-- 5. Kitchen Display System (KDS) -->
+                    <a href="{{ route('kasir.kitchen.index') }}"
+                       class="flex items-center justify-between px-3.5 py-3 rounded-none border text-xs font-mono tracking-wider uppercase transition-colors {{ request()->routeIs('kasir.kitchen.*') ? 'bg-[#D9973E] text-[#1F1812] border-[#D9973E] font-bold shadow-md' : 'text-[#A89A85] border-transparent hover:bg-[#2A211A] hover:border-[#3A3026] hover:text-[#F7F3EC]' }}">
+                        <div class="flex items-center gap-3">
+                            <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                            </svg>
+                            <span>Layar Dapur (KDS)</span>
+                        </div>
+                        @php $activeKitchenCount = \App\Models\Order::prepActive()->count(); @endphp
+                        @if ($activeKitchenCount > 0)
+                            <span class="px-1.5 py-0.5 text-[9px] font-bold bg-[#5F7F42] text-white rounded-full animate-pulse">
+                                {{ $activeKitchenCount }}
+                            </span>
+                        @endif
+                    </a>
+
+                    <!-- 6. Sound Station (Musik Kafe) -->
+                    <div class="border border-transparent hover:border-[#3A3026] transition">
+                        <a href="{{ route('kasir.music.index') }}"
+                           class="flex items-center justify-between px-3.5 py-2.5 rounded-none text-xs font-mono tracking-wider uppercase transition-colors {{ request()->routeIs('kasir.music.index') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md' : 'text-[#A89A85] hover:bg-[#2A211A] hover:text-[#F7F3EC]' }}">
+                            <div class="flex items-center gap-3">
+                                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
+                                </svg>
+                                <span>Sound Station</span>
+                            </div>
+                            @php $activeQueueCount = \App\Models\MusicRequest::queued()->count(); @endphp
+                            @if ($activeQueueCount > 0)
+                                <span class="px-1.5 py-0.5 text-[9px] font-bold bg-[#D9973E] text-[#1F1812] rounded-full animate-pulse">
+                                    {{ $activeQueueCount }}
+                                </span>
+                            @endif
+                        </a>
+                        <!-- TOMBOL BUKA POP-UP MINI WINDOW -->
+                        <button type="button"
+                                onclick="window.open('{{ route('kasir.music.mini') }}', 'SoundStationMini', 'width=380,height=520,resizable=yes')"
+                                title="Buka pemutar di jendela mini terpisah agar musik tidak mati saat kasir input transaksi di POS"
+                                class="w-full text-left px-3.5 py-1.5 bg-[#140E0A] hover:bg-[#2A211A] border-t border-[#3A3026] text-[10px] font-mono text-[#D9973E] flex items-center justify-between transition">
+                            <span>⧉ Mini Player (Pop-up)</span>
+                            <span class="text-[9px] text-[#A89A85]">Anti-Mati ↗</span>
+                        </button>
+                    </div>
+
                     <div class="pt-3 pb-1 border-t border-[#3A3026]/70 mt-3">
                         <a href="{{ route('landing') }}" target="_blank"
                            class="flex items-center justify-between px-3.5 py-2.5 text-[11px] font-mono tracking-wider uppercase text-[#A89A85] hover:text-[#D9973E] hover:bg-[#2A211A] transition-colors">
@@ -120,8 +172,11 @@
                 </nav>
             </div>
 
+            <!-- PERSISTENT NAVBAR MUSIC WIDGET (PEMUTAR MUSIK ANTI-MATI) -->
+            @include('components.navbar-music-widget')
+
             <!-- Bagian Bawah: Info Kasir & Tombol Logout -->
-            <div class="p-4 border-t border-[#3A3026] bg-[#19130E]">
+            <div class="p-4 border-t border-[#3A3026] bg-[#19130E] shrink-0">
                 <div class="flex items-center gap-3 mb-3">
                     <div class="w-9 h-9 rounded-full bg-[#D9973E] text-[#1F1812] flex items-center justify-center font-bold text-sm shrink-0 shadow">
                         {{ strtoupper(substr(auth()->user()->name ?? 'K', 0, 1)) }}
@@ -177,5 +232,143 @@
             </div>
         </main>
     </div>
+
+    <!-- CUSTOM CONFIRMATION & ALERT MODAL DIALOG -->
+    @include('components.modal-dialog')
+
+    <!-- SEAMLESS POS PAGE SWAPPER (MUSIK TIDAK MATI SAAT BERPINDAH MENU/TAB POS) -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Update teks tombol musik mobile saat status berubah
+            window.addEventListener('soundstation:state', function(e) {
+                const el = document.getElementById('mobile-music-status');
+                if (el) el.textContent = e.detail.isPlaying ? '⏸ Putar' : '▶ Jeda';
+            });
+
+            // Intercept klik navigasi link kasir agar perpindahan menu berlangsung instan & musik tetap menyala
+            document.addEventListener('click', function(e) {
+                const link = e.target.closest('a');
+                if (!link) return;
+
+                const href = link.getAttribute('href');
+                if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
+                if (link.target === '_blank' || link.hasAttribute('download') || link.dataset.noPjax !== undefined) return;
+
+                try {
+                    const url = new URL(href, window.location.origin);
+                    if (url.origin !== window.location.origin) return;
+                    if (!url.pathname.startsWith('/kasir')) return;
+                    if (url.pathname.includes('/receipt') || url.pathname.includes('/mini') || url.pathname.includes('/ticket')) return;
+
+                    e.preventDefault();
+                    swapKasirPage(url.href, true);
+                } catch (err) {}
+            });
+
+            window.addEventListener('popstate', function() {
+                swapKasirPage(window.location.href, false);
+            });
+        });
+
+        async function swapKasirPage(url, pushState = true) {
+            const mainEl = document.querySelector('main');
+            if (!mainEl) {
+                window.location.href = url;
+                return;
+            }
+
+            try {
+                mainEl.style.transition = 'opacity 0.15s ease';
+                mainEl.style.opacity = '0.6';
+                mainEl.style.pointerEvents = 'none';
+
+                const res = await fetch(url, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+
+                if (!res.ok) {
+                    window.location.href = url;
+                    return;
+                }
+
+                const html = await res.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+
+                const newMain = doc.querySelector('main');
+                if (!newMain) {
+                    window.location.href = url;
+                    return;
+                }
+
+                if (doc.title) {
+                    document.title = doc.title;
+                }
+
+                if (pushState) {
+                    window.history.pushState({}, '', url);
+                }
+
+                // Bersihkan Alpine trees lama jika ada
+                if (window.Alpine && window.Alpine.destroyTree) {
+                    window.Alpine.destroyTree(mainEl);
+                }
+
+                mainEl.innerHTML = newMain.innerHTML;
+                mainEl.style.opacity = '1';
+                mainEl.style.pointerEvents = 'auto';
+
+                // Jalankan kembali tag script yang baru dimasukkan
+                const scripts = mainEl.querySelectorAll('script');
+                scripts.forEach(oldScript => {
+                    const newScript = document.createElement('script');
+                    Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                    newScript.textContent = oldScript.textContent;
+                    oldScript.parentNode.replaceChild(newScript, oldScript);
+                });
+
+                // Inisialisasi ulang Alpine pada elemen konten baru
+                if (window.Alpine && window.Alpine.initTree) {
+                    window.Alpine.initTree(mainEl);
+                }
+
+                // Perbarui highlight link aktif di sidebar
+                highlightActiveNav(url);
+
+                // Scroll konten kembali ke atas
+                const scrollable = mainEl.querySelector('.overflow-y-auto') || mainEl;
+                if (scrollable) scrollable.scrollTop = 0;
+
+            } catch (err) {
+                console.warn('Seamless swap failed, standard reload:', err);
+                window.location.href = url;
+            }
+        }
+
+        function highlightActiveNav(currentUrl) {
+            const path = new URL(currentUrl, window.location.origin).pathname;
+            const navLinks = document.querySelectorAll('aside nav a[href]');
+            navLinks.forEach(link => {
+                const linkHref = link.getAttribute('href');
+                if (!linkHref) return;
+                const linkPath = new URL(linkHref, window.location.origin).pathname;
+
+                let isActive = false;
+                if (linkPath === '/kasir' && (path === '/kasir' || path === '/kasir/terminal')) {
+                    isActive = true;
+                } else if (linkPath !== '/kasir' && path.startsWith(linkPath)) {
+                    isActive = true;
+                }
+
+                if (isActive) {
+                    link.classList.add('bg-[#D9973E]', 'text-[#1F1812]', 'border-[#D9973E]', 'font-bold', 'shadow-md');
+                    link.classList.remove('text-[#A89A85]', 'border-transparent', 'text-[#F7F3EC]');
+                } else {
+                    link.classList.remove('bg-[#D9973E]', 'text-[#1F1812]', 'border-[#D9973E]', 'font-bold', 'shadow-md');
+                    link.classList.add('text-[#A89A85]', 'border-transparent');
+                }
+            });
+        }
+    </script>
 </body>
 </html>

@@ -2,11 +2,12 @@
 
 namespace Database\Factories;
 
+use App\Models\Order;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Order>
+ * @extends Factory<Order>
  */
 class OrderFactory extends Factory
 {
@@ -16,7 +17,7 @@ class OrderFactory extends Factory
         $discount = fake()->randomElement([0, 0, 0, 5000]);
 
         return [
-            'code' => 'KKI-' . now()->format('ymd') . '-' . fake()->unique()->numberBetween(1, 9999),
+            'code' => 'KKI-'.now()->format('ymd').'-'.fake()->unique()->numberBetween(1, 9999),
             'user_id' => User::factory(),
             'order_type' => fake()->randomElement(['dine_in', 'take_away']),
             'customer_name' => fake()->optional()->name(),

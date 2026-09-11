@@ -120,10 +120,16 @@
                                 <span x-text="menu.category_name"></span>
                             </div>
 
-                            <!-- Badge Status Ketersediaan -->
+                            <!-- Badge Status Ketersediaan & Quick Stock Toggle -->
                             <div class="absolute top-2 right-2">
-                                <span x-show="menu.available" class="inline-block w-2.5 h-2.5 rounded-full bg-[#5F7F42] ring-2 ring-white"></span>
-                                <span x-show="!menu.available" class="bg-[#C4553D] text-white font-mono text-[9px] uppercase px-1.5 py-0.5 font-semibold">Habis</span>
+                                <button type="button"
+                                        @click.stop="toggleStock(menu)"
+                                        :title="menu.available ? 'Klik untuk tandai Stok Habis' : 'Klik untuk aktifkan (Stok Tersedia)'"
+                                        class="px-1.5 py-0.5 font-mono text-[9px] uppercase font-bold tracking-wider transition border shadow-xs flex items-center gap-1"
+                                        :class="menu.available ? 'bg-black/60 hover:bg-[#C4553D] text-[#5F7F42] hover:text-white border-white/20' : 'bg-[#C4553D] hover:bg-[#5F7F42] text-white border-[#C4553D]'">
+                                    <span class="w-1.5 h-1.5 rounded-full" :class="menu.available ? 'bg-[#5F7F42]' : 'bg-white'"></span>
+                                    <span x-text="menu.available ? 'Tersedia' : 'Habis'"></span>
+                                </button>
                             </div>
                         </div>
 
@@ -131,7 +137,7 @@
                         <div class="p-3 flex-1 flex flex-col justify-between">
                             <div>
                                 <h3 class="text-sm font-medium leading-snug line-clamp-1 group-hover:text-[#B5762A] transition-colors" x-text="menu.name"></h3>
-                                <p class="mt-1 text-[11px] text-[#8A7B66] line-clamp-1" x-text="menu.description || '-'"></p>
+                                <p class="mt-1 text-[11px] text-[#8A7B66] line-clamp-1" :title="menu.description || ''" x-text="menu.description || '-'"></p>
                             </div>
                             <div class="mt-3 flex items-baseline justify-between border-t border-[#E4DCCC]/60 pt-2">
                                 <span class="font-mono text-sm font-semibold text-[#B5762A]" x-text="fmt(menu.price)"></span>
@@ -343,6 +349,101 @@
             </button>
         </div>
     </div>
+
+    <!-- 4. MODAL TRANSAKSI BERHASIL (SEAMLESS POS - MUSIK TIDAK TERPUTUS) -->
+    <div x-show="showSuccessModal"
+         x-cloak
+         @keydown.escape.window="if(showSuccessModal) closeSuccessModal()"
+         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs transition-all duration-200">
+        <div class="bg-[#1F1812] border border-[#3A3026] text-[#F7F3EC] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200"
+             @click.away="closeSuccessModal()">
+            
+            <!-- Header Modal -->
+            <div class="p-4 bg-[#2A211A] border-b border-[#3A3026] flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-full bg-[#5F7F42]/20 border border-[#5F7F42] flex items-center justify-center text-[#5F7F42] text-lg font-bold shrink-0">
+                        ✓
+                    </div>
+                    <div>
+                        <h3 class="font-mono text-sm uppercase tracking-wider font-bold text-[#F7F3EC]">Transaksi Berhasil</h3>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <span class="font-mono text-xs text-[#D9973E] font-bold" x-text="completedOrder?.code"></span>
+                            <span class="text-[#8A7B66] text-xs">•</span>
+                            <span class="text-xs text-[#A89A85]" x-text="completedOrder?.order_type === 'dine_in' ? 'Makan di Tempat' : 'Bawa Pulang'"></span>
+                            <template x-if="completedOrder?.customer_name">
+                                <span class="text-xs text-[#A89A85]" x-text="'(' + completedOrder.customer_name + ')'"></span>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+                <button type="button"
+                        @click="closeSuccessModal()"
+                        class="text-[#8A7B66] hover:text-[#F7F3EC] p-1.5 transition-colors text-lg font-bold cursor-pointer">
+                    ✕
+                </button>
+            </div>
+
+            <!-- Body Modal -->
+            <div class="p-5 space-y-4">
+                <!-- Banner Kembalian (Highlight Besar) -->
+                <div class="bg-[#2A211A] border border-[#3A3026] p-4 text-center rounded-xs">
+                    <div class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#8A7B66]">KEMBALIAN PELANGGAN</div>
+                    <div class="font-mono text-3xl font-bold text-[#5F7F42] mt-1" x-text="fmt(completedOrder?.change_amount || 0)"></div>
+                    <div class="font-mono text-xs text-[#A89A85] mt-2 flex items-center justify-center gap-4">
+                        <span>Total: <b class="text-[#F7F3EC]" x-text="fmt(completedOrder?.total || 0)"></b></span>
+                        <span>•</span>
+                        <span>Bayar (<span x-text="completedOrder?.payment_method?.toUpperCase()"></span>): <b class="text-[#F7F3EC]" x-text="fmt(completedOrder?.paid_amount || 0)"></b></span>
+                    </div>
+                </div>
+
+                <!-- Card Musik Request Code -->
+                <div class="bg-[#2A211A]/80 border border-[#D9973E]/30 p-3.5 flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <span class="text-2xl shrink-0">🎵</span>
+                        <div class="min-w-0">
+                            <div class="font-mono text-[10px] uppercase tracking-wider text-[#D9973E] font-bold">Kode Request Musik</div>
+                            <div class="text-[11px] text-[#A89A85] truncate">Pelanggan dapat memindai QR di struk atau masukkan kode:</div>
+                        </div>
+                    </div>
+                    <div class="font-mono text-base font-black px-3 py-1 bg-[#1F1812] border border-[#D9973E] text-[#D9973E] tracking-widest shrink-0" x-text="completedOrder?.music_code || '-'"></div>
+                </div>
+
+                <!-- Status Audio & Background Print -->
+                <div class="flex items-center gap-2 text-xs text-[#8A7B66] bg-[#1F1812] border border-[#3A3026] px-3 py-2">
+                    <span class="text-base">🖨️</span>
+                    <span class="leading-tight">
+                        Struk otomatis dikirim ke printer di background. <b class="text-[#5F7F42]">Musik kafe tetap mengalun tanpa jeda.</b>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Footer Actions -->
+            <div class="p-4 bg-[#2A211A] border-t border-[#3A3026] flex items-center justify-between gap-2.5">
+                <div class="flex items-center gap-2">
+                    <button type="button"
+                            @click="reprintReceipt()"
+                            title="Cetak ulang struk thermal"
+                            class="px-3 py-2 bg-[#1F1812] hover:bg-[#3A3026] border border-[#3A3026] text-[#F7F3EC] font-mono text-xs uppercase tracking-wider transition-colors flex items-center gap-1.5 cursor-pointer">
+                        <span>🖨️</span>
+                        <span>Cetak Ulang</span>
+                    </button>
+                    <button type="button"
+                            @click="if(completedOrder?.receipt_url) window.open(completedOrder.receipt_url, '_blank')"
+                            title="Buka struk di tab baru"
+                            class="px-3 py-2 bg-[#1F1812] hover:bg-[#3A3026] border border-[#3A3026] text-[#8A7B66] hover:text-[#F7F3EC] font-mono text-xs uppercase tracking-wider transition-colors flex items-center gap-1 cursor-pointer">
+                        <span>Lihat Struk</span>
+                        <span>↗</span>
+                    </button>
+                </div>
+                <button type="button"
+                        @click="closeSuccessModal()"
+                        class="flex-1 max-w-[200px] bg-[#D9973E] hover:bg-[#B5762A] text-[#1F1812] font-mono text-xs uppercase tracking-[0.15em] font-bold py-2.5 px-4 transition-colors shadow-md text-center cursor-pointer">
+                    ✓ Selesai (ESC)
+                </button>
+            </div>
+
+        </div>
+    </div>
 </div>
 
 <script>
@@ -359,6 +460,8 @@ function pos() {
         customerName: '',
         error: '',
         submitting: false,
+        showSuccessModal: false,
+        completedOrder: null,
 
         get filteredMenus() {
             return this.menus.filter(m => {
@@ -408,8 +511,15 @@ function pos() {
                 this.paid = 0;
             }
         },
-        clearCart() {
-            if (confirm('Kosongkan semua pesanan di tiket ini?')) {
+        async clearCart() {
+            const ok = await window.customConfirm({
+                title: 'Kosongkan Pesanan',
+                message: 'Hapus semua pesanan ini?',
+                type: 'danger',
+                confirmText: 'Kosongkan',
+                cancelText: 'Batal'
+            });
+            if (ok) {
                 this.items = [];
                 this.discount = 0;
                 this.paid = 0;
@@ -417,6 +527,36 @@ function pos() {
         },
         setExactPaid() {
             this.paid = this.total;
+        },
+        async toggleStock(menu) {
+            try {
+                const res = await fetch('{{ url('/kasir/menu') }}/' + menu.id + '/toggle', {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    menu.available = data.is_available;
+                    if (!menu.available) {
+                        const idx = this.items.findIndex(i => i.id === menu.id);
+                        if (idx !== -1) {
+                            this.items.splice(idx, 1);
+                        }
+                    }
+                    if (window.customToast) {
+                        window.customToast({
+                            message: data.message,
+                            type: menu.available ? 'success' : 'warning'
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error('Toggle stock error:', e);
+            }
         },
         setCash(amount) {
             this.paid = amount;
@@ -480,7 +620,15 @@ function pos() {
                 }
 
                 if (data && data.receipt_url) {
-                    window.location = data.receipt_url;
+                    this.completedOrder = data;
+                    this.showSuccessModal = true;
+                    // Cetak struk otomatis di background via hidden iframe tanpa reload / navigasi halaman
+                    this.printReceiptSilently(data.receipt_url);
+                    // Reset keranjang untuk transaksi berikutnya
+                    this.items = [];
+                    this.discount = 0;
+                    this.paid = 0;
+                    this.customerName = '';
                 } else {
                     this.error = 'Respon server tidak valid atau data struk kosong.';
                 }
@@ -490,6 +638,44 @@ function pos() {
             } finally {
                 this.submitting = false;
             }
+        },
+
+        printReceiptSilently(url) {
+            let frame = document.getElementById('pos-receipt-frame');
+            if (!frame) {
+                frame = document.createElement('iframe');
+                frame.id = 'pos-receipt-frame';
+                frame.style.position = 'fixed';
+                frame.style.right = '0';
+                frame.style.bottom = '0';
+                frame.style.width = '1px';
+                frame.style.height = '1px';
+                frame.style.opacity = '0.01';
+                frame.style.border = '0';
+                frame.style.pointerEvents = 'none';
+                document.body.appendChild(frame);
+            }
+            frame.src = 'about:blank';
+            setTimeout(() => {
+                frame.src = url;
+            }, 50);
+        },
+
+        reprintReceipt() {
+            if (this.completedOrder && this.completedOrder.receipt_url) {
+                this.printReceiptSilently(this.completedOrder.receipt_url);
+                if (window.customToast) {
+                    window.customToast({
+                        message: 'Mengirim perintah cetak struk...',
+                        type: 'info'
+                    });
+                }
+            }
+        },
+
+        closeSuccessModal() {
+            this.showSuccessModal = false;
+            this.completedOrder = null;
         },
     };
 }

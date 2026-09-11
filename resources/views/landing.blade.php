@@ -57,7 +57,7 @@
                         <div class="p-5">
                             <div class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#8A7B66]">{{ $menu->category->name }}</div>
                             <h3 class="mt-1 text-lg tracking-tight font-medium">{{ $menu->name }}</h3>
-                            <p class="mt-2 text-sm text-[#8A7B66] leading-relaxed h-9 line-clamp-2">{{ $menu->description ?? '' }}</p>
+                            <p class="mt-2 text-sm text-[#8A7B66] leading-relaxed break-words">{{ $menu->description ?? '' }}</p>
                         </div>
                     </div>
                     <div class="px-5 pb-5 flex items-center justify-between">

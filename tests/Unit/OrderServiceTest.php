@@ -2,14 +2,14 @@
 
 namespace Tests\Unit;
 
-use Illuminate\Support\Collection;
+use App\Services\OrderService;
 use Tests\TestCase;
 
 class OrderServiceTest extends TestCase
 {
     public function test_calculates_totals_discount_and_change(): void
     {
-        $svc = new \App\Services\OrderService();
+        $svc = new OrderService;
 
         $lines = collect([
             ['price' => 28000, 'qty' => 2],  // 56000
@@ -27,7 +27,7 @@ class OrderServiceTest extends TestCase
     {
         $this->expectException(\InvalidArgumentException::class);
 
-        (new \App\Services\OrderService())->calculate(
+        (new OrderService)->calculate(
             collect([['price' => 20000, 'qty' => 1]]),
             discount: 30000,
             paid: 20000
@@ -38,7 +38,7 @@ class OrderServiceTest extends TestCase
     {
         $this->expectException(\InvalidArgumentException::class);
 
-        (new \App\Services\OrderService())->calculate(
+        (new OrderService)->calculate(
             collect([['price' => 20000, 'qty' => 1]]),
             discount: 0,
             paid: 10000
