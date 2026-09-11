@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id" class="h-full">
+<html lang="id" class="h-full w-full overflow-hidden">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +7,27 @@
     <link rel="icon" type="image/svg+xml" href="{{ asset('images/logo-mark.svg') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
+        html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            min-width: 100vw !important;
+            min-height: 100vh !important;
+            max-width: 100vw !important;
+            max-height: 100vh !important;
+            overflow: hidden !important;
+            box-sizing: border-box !important;
+            background-color: #0E0906;
+        }
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+        #steam-canvas {
+            display: block;
+            width: 100% !important;
+            height: 100% !important;
+        }
         @keyframes spinSlow {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
@@ -83,7 +104,7 @@
         }
     </style>
 </head>
-<body class="bg-[#0E0906] text-[#F7F3EC] h-full overflow-hidden antialiased font-sans select-none relative"
+<body class="bg-[#0E0906] text-[#F7F3EC] w-screen h-screen min-w-full min-h-screen overflow-hidden antialiased font-sans select-none relative m-0 p-0"
       x-data="{
         nowPlaying: {{ json_encode($playerState['now_playing']) }},
         queue: {{ json_encode($playerState['queue']) }},
@@ -113,140 +134,152 @@
             // Inisialisasi Kanvas Partikel Kopi Hangat
             this.initParticles();
 
-            // Tampilkan card fly awal jika sudah ada pesanan yang siap saat halaman dimuat
-            if (Array.isArray(this.readyOrders) && this.readyOrders.length > 0) {
-                this.readyOrders.slice(0, 3).forEach((o, i) => {
-                    setTimeout(() => this.pushFlyingCard(o), i * 350);
-                });
-            }
-
-            // Dengarkan BroadcastChannel untuk sinkronisasi seketika (0ms)
+            // Dengarkan sinkronisasi BroadcastChannel dari Sound Station utama
             if (typeof BroadcastChannel !== 'undefined') {
-                const channel = new BroadcastChannel('cafe_soundstation_sync');
-                channel.addEventListener('message', (e) => {
-                    if (!e.data) return;
-
-                    if (e.data.type === 'STATE_UPDATE' && e.data.state) {
-                        const s = e.data.state;
-                        if (s.currentTrack) {
-                            this.nowPlaying = s.currentTrack;
-                        }
-                        if (typeof s.queueCount !== 'undefined') {
-                            this.queueCount = s.queueCount;
-                        }
-                        if (Array.isArray(s.queue)) {
-                            this.queue = s.queue;
-                        }
+                const bc = new BroadcastChannel('cafe_soundstation_sync');
+                bc.onmessage = (e) => {
+                    const data = e.data;
+                    if (data.type === 'SYNC_STATE') {
+                        this.applySyncData(data);
+                    } else if (data.type === 'TRACK_CHANGED') {
+                        this.nowPlaying = data.track;
+                        this.isPlaying = true;
+                    } else if (data.type === 'QUEUE_UPDATED') {
+                        this.fetchStatus();
+                    } else if (data.type === 'ORDER_READY') {
+                        this.triggerNewReadyOrderNotification(data.orderId, data.isRecall);
                     }
-
-                    if (e.data.type === 'TIME_SYNC' && e.data.data) {
-                        const t = e.data.data;
-                        this.playbackCurrentTime = t.currentTime || 0;
-                        this.playbackDuration = t.duration || 0;
-                        this.playbackProgressPercent = t.progressPercent || 0;
-                        this.playbackCurrentTimeFormatted = t.currentTimeFormatted || '00:00';
-                        this.playbackDurationFormatted = t.durationFormatted || '00:00';
-                        if (typeof t.isPlaying !== 'undefined') {
-                            this.isPlaying = t.isPlaying;
-                        }
-                    }
-
-                    if (e.data.type === 'ORDER_READY') {
-                        this.fetchStatus(true);
-                    }
-                });
+                };
             }
 
-            // Interpolasi visual 1 detik untuk pergerakan detik real-time di TV Display
-            setInterval(() => {
-                if (this.isPlaying && this.playbackDuration > 0 && this.playbackCurrentTime < this.playbackDuration) {
-                    this.playbackCurrentTime = Math.min(this.playbackDuration, this.playbackCurrentTime + 1);
-                    const m = Math.floor(this.playbackCurrentTime / 60);
-                    const s = Math.floor(this.playbackCurrentTime % 60);
-                    this.playbackCurrentTimeFormatted = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
-                    this.playbackProgressPercent = (this.playbackCurrentTime / this.playbackDuration) * 100;
-                }
-            }, 1000);
+            // Dengarkan event window kustom
+            window.addEventListener('soundstation:sync', (e) => {
+                this.applySyncData(e.detail);
+            });
 
-            // Polling status antrean kafe & pesanan siap secara realtime
-            this.fetchStatus(false);
-            setInterval(() => this.fetchStatus(false), 3000);
+            // Polling status lagu & pesanan siap setiap 3 detik
+            this.fetchStatus();
+            setInterval(() => this.fetchStatus(), 3000);
+
+            // Progress bar interpolator (60fps halus)
+            setInterval(() => {
+                if (this.isPlaying && this.playbackDuration > 0) {
+                    this.playbackCurrentTime = Math.min(this.playbackCurrentTime + 0.1, this.playbackDuration);
+                    this.playbackProgressPercent = Math.min(100, (this.playbackCurrentTime / this.playbackDuration) * 100);
+                    this.playbackCurrentTimeFormatted = this.formatSeconds(Math.floor(this.playbackCurrentTime));
+                }
+            }, 100);
         },
 
         toggleDisplayMode() {
             this.displayMode = this.displayMode === 'visualizer' ? 'video' : 'visualizer';
-            try {
-                localStorage.setItem('tv_display_mode', this.displayMode);
-            } catch (e) {}
+            localStorage.setItem('tv_display_mode', this.displayMode);
         },
 
-        async fetchStatus(isTriggered = false) {
+        applySyncData(data) {
+            if (data.nowPlaying !== undefined) this.nowPlaying = data.nowPlaying;
+            if (data.isPlaying !== undefined) this.isPlaying = data.isPlaying;
+            if (data.currentTime !== undefined) {
+                this.playbackCurrentTime = Number(data.currentTime);
+                this.playbackCurrentTimeFormatted = this.formatSeconds(Math.floor(this.playbackCurrentTime));
+            }
+            if (data.duration !== undefined) {
+                this.playbackDuration = Number(data.duration);
+                this.playbackDurationFormatted = this.formatSeconds(Math.floor(this.playbackDuration));
+            }
+            if (data.progressPercent !== undefined) {
+                this.playbackProgressPercent = Number(data.progressPercent);
+            }
+        },
+
+        async fetchStatus() {
             try {
-                const res = await fetch('{{ route('music.status') }}');
-                const data = await res.json();
-                if (data.now_playing) {
-                    this.nowPlaying = data.now_playing;
+                const res = await fetch('{{ route('music.status') }}', {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                if (!res.ok) {
+                    return;
                 }
+                const data = await res.json();
+                this.nowPlaying = data.now_playing;
                 this.queue = data.queue || [];
                 this.queueCount = data.queue_count || 0;
 
-                const incomingReady = data.ready_orders || [];
-                this.handleReadyOrdersUpdate(incomingReady, isTriggered);
-                this.readyOrders = incomingReady;
+                // Cek pesanan siap baru
+                if (data.ready_orders) {
+                    this.checkNewReadyOrders(data.ready_orders);
+                }
+            } catch (e) {
+                console.error('[TV Display] Sync Error:', e);
+            }
+        },
+
+        checkNewReadyOrders(newOrders) {
+            this.readyOrders = newOrders;
+            newOrders.forEach(order => {
+                if (!this.knownReadyIds.includes(order.id)) {
+                    this.knownReadyIds.push(order.id);
+                    this.spawnFlyingCard(order);
+                }
+            });
+        },
+
+        async triggerNewReadyOrderNotification(orderId, isRecall = false) {
+            try {
+                const res = await fetch('{{ route('music.status') }}', {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                this.readyOrders = data.ready_orders || [];
+                const matched = this.readyOrders.find(o => o.id === orderId);
+                if (matched) {
+                    this.spawnFlyingCard(matched, isRecall);
+                }
             } catch (e) {}
         },
 
-        handleReadyOrdersUpdate(newList, isTriggered = false) {
-            if (!Array.isArray(newList)) return;
-
-            const currentIds = newList.map(o => o.id);
-            const newlyReady = newList.filter(o => !this.knownReadyIds.includes(o.id));
-
-            if (newlyReady.length > 0) {
-                // Ada pesanan baru yang siap -> Card Fly meluncur masuk dengan suara
-                newlyReady.forEach((order, index) => {
-                    setTimeout(() => {
-                        this.pushFlyingCard(order);
-                    }, index * 300);
-                });
-                this.playReadyChime();
-            } else if (isTriggered && newList.length > 0) {
-                this.pushFlyingCard(newList[newList.length - 1]);
-                this.playReadyChime();
-            }
-
-            // Bersihkan kartu yang sudah tidak berstatus ready di server
-            this.activeFlyingCards = this.activeFlyingCards.filter(card => currentIds.includes(card.id));
-            this.knownReadyIds = currentIds;
-        },
-
-        pushFlyingCard(order) {
-            if (!order) return;
-            // Hindari duplikasi ID kartu
+        spawnFlyingCard(order, isRecall = false) {
             this.activeFlyingCards = this.activeFlyingCards.filter(c => c.id !== order.id);
-            this.activeFlyingCards.unshift(order);
+            const cardObj = {
+                ...order,
+                isRecall: isRecall,
+                uniqueKey: Date.now() + '-' + order.id
+            };
+            this.activeFlyingCards.push(cardObj);
 
-            // Maksimal 3 card fly tampil bersamaan agar layar tetap rapi
-            if (this.activeFlyingCards.length > 3) {
-                this.activeFlyingCards = this.activeFlyingCards.slice(0, 3);
-            }
+            this.playReadyChime();
 
-            // Auto-dismiss setelah 15 detik
             setTimeout(() => {
-                this.dismissFlyingCard(order.id);
-            }, 15000);
+                this.activeFlyingCards = this.activeFlyingCards.filter(c => c.uniqueKey !== cardObj.uniqueKey);
+            }, 18000);
         },
 
-        dismissFlyingCard(orderId) {
-            this.activeFlyingCards = this.activeFlyingCards.filter(c => c.id !== orderId);
+        dismissFlyingCard(cardKey) {
+            this.activeFlyingCards = this.activeFlyingCards.filter(c => c.uniqueKey !== cardKey);
         },
 
         showAllReadyCards() {
-            if (!this.readyOrders || this.readyOrders.length === 0) return;
-            this.readyOrders.slice(0, 3).forEach((o, i) => {
-                setTimeout(() => this.pushFlyingCard(o), i * 250);
+            if (this.readyOrders.length === 0) return;
+            this.activeFlyingCards = [];
+            this.readyOrders.forEach((ro, idx) => {
+                setTimeout(() => {
+                    this.spawnFlyingCard(ro);
+                }, idx * 250);
             });
-            this.playReadyChime();
+        },
+
+        formatSeconds(sec) {
+            if (!sec || isNaN(sec)) return '00:00';
+            const m = Math.floor(sec / 60);
+            const s = Math.floor(sec % 60);
+            return (m < 10 ? '0' + m : m) + ':' + (s < 10 ? '0' + s : s);
         },
 
         playReadyChime() {
@@ -344,20 +377,23 @@
         }
       }">
 
-    <!-- LAYER 1: DYNAMIC BLURRED ALBUM ARTWORK WALLPAPER -->
-    <div class="absolute inset-0 bg-cover bg-center filter blur-3xl opacity-30 scale-110 transition-all duration-1000 pointer-events-none"
-         :style="nowPlaying && nowPlaying.thumbnail_url ? 'background-image: url(' + nowPlaying.thumbnail_url + ');' : ''">
+    <!-- BACKGROUND AMBIENT LAYERS (Strictly contained, no overflow on right/bottom) -->
+    <div class="fixed inset-0 w-full h-full overflow-hidden pointer-events-none z-0" style="contain: strict;">
+        <!-- LAYER 1: DYNAMIC BLURRED ALBUM ARTWORK WALLPAPER -->
+        <div class="absolute inset-0 bg-cover bg-center filter blur-3xl opacity-30 scale-105 transition-all duration-1000"
+             :style="nowPlaying && nowPlaying.thumbnail_url ? 'background-image: url(' + nowPlaying.thumbnail_url + ');' : ''">
+        </div>
+
+        <!-- LAYER 2: DEEP AMBIENT RADIAL VIGNETTE -->
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(20,14,10,0.65)_0%,rgba(10,7,5,0.96)_100%)]"></div>
+
+        <!-- LAYER 3: FLOATING GOLDEN COFFEE STEAM PARTICLES -->
+        <canvas id="steam-canvas" class="absolute inset-0 w-full h-full block"></canvas>
+
+        <!-- LAYER 4: AMBIENT PULSING GLOW ORBS -->
+        <div class="absolute -top-24 -left-24 w-80 h-80 bg-[#D9973E]/15 rounded-full blur-[100px] animate-pulse-glow"></div>
+        <div class="absolute -bottom-24 -right-24 w-80 h-80 bg-[#5F7F42]/15 rounded-full blur-[100px] animate-pulse-glow" style="animation-delay: 4s;"></div>
     </div>
-
-    <!-- LAYER 2: DEEP AMBIENT RADIAL VIGNETTE -->
-    <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(20,14,10,0.65)_0%,rgba(10,7,5,0.96)_100%)] pointer-events-none"></div>
-
-    <!-- LAYER 3: FLOATING GOLDEN COFFEE STEAM PARTICLES -->
-    <canvas id="steam-canvas" class="absolute inset-0 pointer-events-none z-0"></canvas>
-
-    <!-- LAYER 4: AMBIENT PULSING GLOW ORBS -->
-    <div class="absolute -top-32 -left-32 w-96 h-96 bg-[#D9973E]/15 rounded-full blur-[120px] pointer-events-none animate-pulse-glow"></div>
-    <div class="absolute -bottom-32 -right-32 w-96 h-96 bg-[#5F7F42]/15 rounded-full blur-[120px] pointer-events-none animate-pulse-glow" style="animation-delay: 4s;"></div>
 
     <!-- CARD FLY: FLOATING READY ORDERS NOTIFICATION OVERLAY -->
     <div class="fixed bottom-6 sm:bottom-8 right-6 sm:right-8 z-50 flex flex-col gap-3 max-w-sm sm:max-w-md w-[calc(100%-3rem)] pointer-events-none">
@@ -378,46 +414,44 @@
 
                         <div class="min-w-0">
                             <div class="flex items-center gap-2">
-                                <span class="font-mono text-[10px] uppercase tracking-[0.2em] font-bold text-[#5F7F42] bg-[#5F7F42]/20 px-2 py-0.5 rounded border border-[#5F7F42]/30">
-                                    📢 PESANAN SIAP!
-                                </span>
-                                <span class="font-mono text-[10px] text-[#D9973E] uppercase"
-                                      x-text="order.order_type === 'dine_in' ? 'Dine In' : 'Take Away'"></span>
+                                <span class="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-[#5F7F42] text-[#140E0A] font-bold"
+                                      x-text="order.isRecall ? 'PANGGILAN ULANG' : 'PESANAN SUDAH SIAP'"></span>
+                                <span class="text-[10px] font-mono text-[#A89A85]" x-text="order.elapsed_minutes ? (order.elapsed_minutes + ' mnt') : 'Baru saja'"></span>
                             </div>
-                            <h3 class="text-xl sm:text-2xl font-serif font-bold text-[#F7F3EC] mt-1 truncate"
-                                x-text="'Kak ' + (order.customer_name || 'Pelanggan')"></h3>
-                            <div class="text-xs text-[#A89A85] flex items-center gap-2 mt-0.5 font-mono">
-                                <span>Nomor: <b class="text-[#D9973E] text-sm" x-text="order.code"></b></span>
-                                <span>&bull;</span>
-                                <span class="text-[11px] text-[#A6D388]">Silakan ambil di kasir</span>
+
+                            <h4 class="text-lg sm:text-xl font-bold font-serif text-white mt-1 leading-snug truncate"
+                                x-text="order.customer_name ? ('Kak ' + order.customer_name) : 'Pelanggan'"></h4>
+
+                            <div class="text-xs text-[#5F7F42] font-mono font-bold mt-0.5">
+                                Kode Tiket: <span class="text-[#D9973E] tracking-wider" x-text="order.code"></span>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Dismiss Button -->
-                    <button type="button" @click="dismissFlyingCard(order.id)"
-                            class="text-[#A89A85] hover:text-white bg-white/10 hover:bg-white/20 p-1.5 rounded-lg transition shrink-0 font-mono text-xs"
-                            title="Tutup Card Fly">
+                    <!-- Close Button -->
+                    <button type="button" @click="dismissFlyingCard(order.uniqueKey)"
+                            class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-[#A89A85] hover:text-white flex items-center justify-center text-sm transition shrink-0">
                         ✕
                     </button>
+                </div>
+
+                <!-- Callout Subtext -->
+                <div class="mt-3 pt-2.5 border-t border-[#3A3026]/80 flex items-center justify-between text-xs text-[#C4B6A3]">
+                    <span class="flex items-center gap-1.5 font-medium">
+                        <span>☕</span>
+                        <span>Silakan ambil di <strong>Meja Kasir</strong> sekarang</span>
+                    </span>
+                    <span class="text-[10px] text-[#A89A85] font-mono uppercase">Terima Kasih</span>
                 </div>
             </div>
         </template>
     </div>
 
-    <!-- Hidden fallback for testing assertion and accessibility -->
-    <div class="sr-only" aria-hidden="true">
-        @foreach($readyOrders ?? [] as $readyOrder)
-            <span>{{ $readyOrder->customer_name }}</span>
-            <span>{{ $readyOrder->code }}</span>
-        @endforeach
-    </div>
-
-    <!-- CONTENT WRAPPER -->
-    <div class="h-full flex flex-col justify-between p-6 sm:p-8 lg:p-10 relative z-10">
+    <!-- CONTENT WRAPPER (Fills full viewport without dead space) -->
+    <div class="w-full h-full min-h-screen max-h-screen flex flex-col justify-between p-4 sm:p-6 lg:p-8 xl:p-10 relative z-10 box-border overflow-hidden">
 
         <!-- TOP BAR: BRANDING, CLOCK, READY TICKER & MODE TOGGLE -->
-        <header class="flex items-center justify-between border-b border-[#3A3026]/80 pb-5 shrink-0">
+        <header class="w-full flex items-center justify-between border-b border-[#3A3026]/80 pb-4 shrink-0">
             <!-- Brand & Tagline -->
             <div class="flex items-center gap-3">
                 <img src="{{ asset('images/logo-light.svg') }}" alt="{{ config('cafe.name') }}" class="h-9 w-auto">
@@ -464,22 +498,22 @@
             </div>
         </header>
 
-        <!-- MAIN STAGE: NOW PLAYING & RIGHT COLUMN (SPLIT / TABS) -->
-        <main class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center my-auto py-4">
+        <!-- MAIN STAGE: NOW PLAYING & RIGHT COLUMN (Dynamically fills vertical space) -->
+        <main class="w-full flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 xl:gap-10 items-center my-auto py-2 sm:py-3">
 
             <!-- LEFT COL: NOW PLAYING HERO (7 cols) -->
-            <div class="lg:col-span-7">
+            <div class="lg:col-span-7 flex flex-col justify-center">
 
                 <!-- 1. MODE VISUALIZER: 3D VINYL TURNTABLE & SPECTRUM EQUALIZER -->
-                <div x-show="displayMode === 'visualizer'" class="flex flex-col sm:flex-row items-center gap-8">
+                <div x-show="displayMode === 'visualizer'" class="flex flex-col sm:flex-row items-center gap-6 sm:gap-8 xl:gap-10">
                     <!-- VINYL RECORD TURNTABLE -->
-                    <div class="relative shrink-0 w-52 h-52 sm:w-64 sm:h-64 lg:w-72 lg:h-72">
+                    <div class="relative shrink-0 w-56 h-56 sm:w-64 sm:h-64 md:w-72 md:h-72 lg:w-80 lg:h-80 xl:w-96 xl:h-96">
                         <div class="w-full h-full rounded-full bg-gradient-to-tr from-[#120D09] via-[#221711] to-[#120D09] border-4 border-[#3A3026] shadow-[0_20px_60px_rgba(0,0,0,0.8)] flex items-center justify-center p-3 relative overflow-hidden"
                              :class="isPlaying ? 'animate-spin-slow' : ''">
 
                             <!-- VINYL GROOVES -->
-                            <div class="w-full h-full rounded-full border border-dashed border-[#443527] flex items-center justify-center p-5">
-                                <div class="w-full h-full rounded-full border border-dashed border-[#554637] flex items-center justify-center p-6">
+                            <div class="w-full h-full rounded-full border border-dashed border-[#443527] flex items-center justify-center p-4 sm:p-5">
+                                <div class="w-full h-full rounded-full border border-dashed border-[#554637] flex items-center justify-center p-5 sm:p-6">
                                     <!-- CENTER ALBUM COVER LABEL -->
                                     <div class="w-full h-full rounded-full border-2 border-[#D9973E]/40 overflow-hidden flex items-center justify-center bg-[#140E0A] shadow-inner relative">
                                         <template x-if="nowPlaying && nowPlaying.thumbnail_url">
@@ -497,26 +531,26 @@
                         </div>
 
                         <!-- CENTER METALLIC PIN -->
-                        <div class="absolute inset-0 m-auto w-7 h-7 rounded-full bg-gradient-to-tr from-[#D9973E] to-[#F7F3EC] border-2 border-[#140E0A] shadow-md"></div>
+                        <div class="absolute inset-0 m-auto w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-tr from-[#D9973E] to-[#F7F3EC] border-2 border-[#140E0A] shadow-md"></div>
                     </div>
 
                     <!-- NOW PLAYING METADATA -->
-                    <div class="min-w-0 text-center sm:text-left flex-1">
+                    <div class="min-w-0 text-center sm:text-left flex-1 w-full max-w-xl xl:max-w-2xl">
                         <div class="inline-flex items-center gap-2 px-3 py-1 bg-[#D9973E]/15 border border-[#D9973E]/40 text-[#D9973E] font-mono text-xs uppercase tracking-[0.2em] mb-3 rounded-full">
                             <span class="w-1.5 h-1.5 rounded-full bg-[#D9973E] animate-ping"></span>
                             <span x-text="isPlaying ? 'NOW PLAYING' : 'AUDIO PAUSED'"></span>
                         </div>
 
-                        <h2 class="text-2xl sm:text-4xl font-serif font-bold text-[#F7F3EC] leading-tight tracking-tight line-clamp-2 drop-shadow-md"
+                        <h2 class="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-serif font-bold text-[#F7F3EC] leading-tight tracking-tight line-clamp-2 drop-shadow-md"
                             x-text="nowPlaying ? (nowPlaying.song_title || nowPlaying.title) : 'Playlist Bawaan KopiKita'">
                         </h2>
 
-                        <p class="text-base sm:text-xl text-[#D5CCC0] mt-1.5 font-mono truncate"
+                        <p class="text-base sm:text-lg lg:text-xl text-[#D5CCC0] mt-1.5 font-mono truncate"
                            x-text="nowPlaying ? (nowPlaying.artist || 'Artis Musik') : 'Chill Lo-Fi / Jazz Cafe Vibes'">
                         </p>
 
                         <!-- TIMELINE PROGRESS BAR -->
-                        <div class="mt-4 max-w-md">
+                        <div class="mt-4 w-full">
                             <div class="w-full bg-[#2A211A] h-2.5 rounded-full overflow-hidden border border-[#3A3026]">
                                 <div class="bg-gradient-to-r from-[#D9973E] via-[#E5A955] to-[#5F7F42] h-full transition-all duration-300 rounded-full shadow-[0_0_12px_rgba(217,151,62,0.6)]"
                                      :style="'width: ' + playbackProgressPercent + '%'"></div>
@@ -528,12 +562,12 @@
                             </div>
                         </div>
 
-                        <!-- 36-BAND LIVE SOUND SPECTRUM EQUALIZER WAVE -->
-                        <div class="mt-4 max-w-md flex items-end gap-1 h-7 pt-1 overflow-hidden">
-                            <template x-for="i in 36" :key="i">
-                                <div class="w-1.5 rounded-t bg-gradient-to-t from-[#D9973E] to-[#5F7F42] transition-all duration-150"
+                        <!-- 42-BAND LIVE SOUND SPECTRUM EQUALIZER WAVE -->
+                        <div class="mt-4 w-full flex items-end gap-1 h-8 pt-1 overflow-hidden">
+                            <template x-for="i in 42" :key="i">
+                                <div class="flex-1 min-w-[2px] rounded-t bg-gradient-to-t from-[#D9973E] to-[#5F7F42] transition-all duration-150"
                                      :class="isPlaying ? 'eq-bar' : 'h-1 opacity-40'"
-                                     :style="isPlaying ? 'animation-delay: ' + ((i * 45) % 800) + 'ms; animation-duration: ' + (0.7 + ((i * 37) % 600) / 1000) + 's;' : ''">
+                                     :style="isPlaying ? 'animation-delay: ' + ((i * 38) % 800) + 'ms; animation-duration: ' + (0.65 + ((i * 31) % 650) / 1000) + 's;' : ''">
                                 </div>
                             </template>
                         </div>
@@ -549,7 +583,7 @@
                 </div>
 
                 <!-- 2. MODE VIDEO: CINEMATIC YOUTUBE PLAYER SCREEN -->
-                <div x-show="displayMode === 'video'" class="space-y-4">
+                <div x-show="displayMode === 'video'" class="space-y-4 w-full">
                     <div class="w-full aspect-video rounded-2xl overflow-hidden border-2 border-[#3A3026] shadow-[0_20px_60px_rgba(0,0,0,0.9)] bg-black relative group">
                         <template x-if="nowPlaying && nowPlaying.youtube_id">
                             <iframe :src="'https://www.youtube-nocookie.com/embed/' + nowPlaying.youtube_id + '?autoplay=1&mute=1&controls=0&loop=1&playlist=' + nowPlaying.youtube_id"
@@ -573,7 +607,7 @@
                     </div>
 
                     <!-- Video Track Info Bar -->
-                    <div class="flex items-center justify-between gap-4 p-3 bg-[#1F1812]/80 border border-[#3A3026] rounded-xl backdrop-blur">
+                    <div class="flex items-center justify-between gap-4 p-3 bg-[#1F1812]/80 border border-[#3A3026] rounded-xl backdrop-blur w-full">
                         <div class="min-w-0">
                             <h3 class="font-serif font-bold text-base text-[#F7F3EC] truncate"
                                 x-text="nowPlaying ? (nowPlaying.song_title || nowPlaying.title) : 'Lagu Kafe'"></h3>
@@ -586,11 +620,32 @@
 
             </div>
 
-            <!-- RIGHT COL: UP NEXT QUEUE (5 cols, Dedicated Without Tabs) -->
-            <div class="lg:col-span-5 bg-[#17110C]/90 border border-[#3A3026] rounded-2xl p-6 shadow-2xl backdrop-blur-xl flex flex-col h-[380px]">
+            <!-- RIGHT COL: LIVE READY ORDERS & UP NEXT QUEUE (5 cols, fills height harmoniously) -->
+            <div class="lg:col-span-5 bg-[#17110C]/90 border border-[#3A3026] rounded-2xl p-5 sm:p-6 shadow-2xl backdrop-blur-xl flex flex-col h-full min-h-[420px] max-h-[580px] xl:max-h-[640px] w-full justify-between">
 
-                <!-- QUEUE HEADER -->
-                <div class="flex items-center justify-between border-b border-[#3A3026] pb-3 mb-4 shrink-0">
+                <!-- TOP SECTION: PESANAN SIAP (TAMPIL DI ATAS JIKA ADA PESANAN SIAP) -->
+                <template x-if="readyOrders.length > 0">
+                    <div class="mb-4 bg-gradient-to-r from-[#1E2E17] to-[#142010] border-2 border-[#5F7F42] rounded-xl p-3.5 shadow-lg shrink-0">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2.5 h-2.5 rounded-full bg-[#5F7F42] animate-ping"></span>
+                                <span class="font-mono text-xs font-bold text-[#5F7F42] uppercase tracking-wider">🔔 Pesanan Siap di Kasir</span>
+                            </div>
+                            <span class="font-mono text-[11px] font-bold text-[#F7F3EC] bg-[#5F7F42]/30 px-2 py-0.5 rounded-full" x-text="readyOrders.length + ' Pesanan'"></span>
+                        </div>
+                        <div class="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
+                            <template x-for="ro in readyOrders" :key="ro.id">
+                                <div class="px-2.5 py-1 bg-[#25391C] border border-[#5F7F42]/60 rounded-lg text-xs font-mono text-white flex items-center gap-1.5 shadow-sm">
+                                    <span class="font-bold text-[#D9973E]" x-text="ro.code"></span>
+                                    <span class="text-white/80" x-text="ro.customer_name ? ('(' + ro.customer_name + ')') : ''"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- QUEUE SECTION HEADER -->
+                <div class="flex items-center justify-between border-b border-[#3A3026] pb-3 mb-3 shrink-0">
                     <div class="flex items-center gap-2.5">
                         <span class="w-2.5 h-2.5 rounded-full bg-[#D9973E] animate-pulse"></span>
                         <h3 class="font-mono text-xs uppercase tracking-[0.2em] font-bold text-[#F7F3EC]">Antrean Lagu Berikutnya</h3>
@@ -601,18 +656,18 @@
                     <span class="font-mono text-[10px] text-[#7A6A58] uppercase tracking-widest hidden sm:inline">UP NEXT QUEUE</span>
                 </div>
 
-                <!-- QUEUE LIST -->
-                <div class="space-y-2.5 overflow-y-auto pr-1 flex-1">
+                <!-- QUEUE LIST (FLEX-1 EXPANDABLE) -->
+                <div class="space-y-2 overflow-y-auto pr-1 flex-1 min-h-[160px]">
                     <template x-if="queue.length === 0">
-                        <div class="h-full flex flex-col items-center justify-center text-center py-10 text-[#7A6A58] font-mono text-xs">
+                        <div class="h-full flex flex-col items-center justify-center text-center py-8 text-[#7A6A58] font-mono text-xs">
                             <span class="text-3xl mb-2 opacity-50">☕</span>
                             <span>Antrean request lagu sedang kosong.</span>
                             <span class="text-[10px] mt-1 text-[#554637]">Scan QR di bawah untuk me-request lagu pertamamu!</span>
                         </div>
                     </template>
 
-                    <template x-for="(item, index) in queue.slice(0, 6)" :key="item.id">
-                        <div class="flex items-center justify-between p-3 bg-[#221912] border border-[#3A3026]/70 rounded-lg hover:border-[#D9973E]/50 transition">
+                    <template x-for="(item, index) in queue.slice(0, 8)" :key="item.id">
+                        <div class="flex items-center justify-between p-2.5 bg-[#221912] border border-[#3A3026]/70 rounded-lg hover:border-[#D9973E]/50 transition">
                             <div class="flex items-center gap-3 min-w-0">
                                 <span class="font-mono font-bold text-[#D9973E] text-sm w-5 text-center shrink-0" x-text="'#' + (index + 1)"></span>
                                 <div class="min-w-0">
@@ -628,15 +683,21 @@
                     </template>
                 </div>
 
+                <!-- SUBTLE CARD FOOTNOTE -->
+                <div class="mt-3 pt-2 border-t border-[#3A3026]/60 flex items-center justify-between text-[10px] font-mono text-[#7A6A58] shrink-0">
+                    <span>* Lagu berputar bergiliran sesuai antrean</span>
+                    <span class="text-[#D9973E]/80">Auto-skip jika video diblokir</span>
+                </div>
+
             </div>
 
         </main>
 
         <!-- FOOTER: QR CODE TO REQUEST MUSIC & BRANDING -->
-        <footer class="border-t border-[#3A3026]/80 pt-5 flex flex-col sm:flex-row items-center justify-between gap-6 shrink-0">
-            <div class="flex items-center gap-5">
+        <footer class="w-full border-t border-[#3A3026]/80 pt-3 sm:pt-4 flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6 shrink-0">
+            <div class="flex items-center gap-4 sm:gap-5">
                 <div class="p-2 bg-white border border-[#3A3026] rounded-lg shrink-0 shadow-lg">
-                    <img src="{{ \App\Support\QrCode::dataUri(route('music.request'), 130) }}" width="68" height="68" alt="QR Request Musik">
+                    <img src="{{ \App\Support\QrCode::dataUri(route('music.request'), 130) }}" width="64" height="64" alt="QR Request Musik">
                 </div>
                 <div>
                     <div class="font-serif font-bold text-base sm:text-lg text-[#F7F3EC]">Punya Struk Belanja?</div>
