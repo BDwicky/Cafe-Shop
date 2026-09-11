@@ -536,7 +536,7 @@
     </div>
 
     <!-- MODAL EDIT LAGU BAWAAN KAFE -->
-    <div x-show="editingTrack"
+    <div x-show="isEditingTrack"
          x-cloak
          class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
          @keydown.escape.window="closeEditModal()">
@@ -561,7 +561,7 @@
                         Judul Lagu <span class="text-red-500">*</span>
                     </label>
                     <input type="text" name="title" required
-                           x-model="editingTrack ? editingTrack.title : ''"
+                           x-model="editForm.title"
                            class="w-full px-3 py-2 bg-[#F7F3EC] border border-[#D5CCC0] text-xs text-[#1F1812] focus:outline-none focus:border-[#D9973E]">
                 </div>
 
@@ -570,7 +570,7 @@
                         Nama Artis (Opsional)
                     </label>
                     <input type="text" name="artist"
-                           x-model="editingTrack ? editingTrack.artist : ''"
+                           x-model="editForm.artist"
                            placeholder="Kosongkan jika tidak ada"
                            class="w-full px-3 py-2 bg-[#F7F3EC] border border-[#D5CCC0] text-xs text-[#1F1812] focus:outline-none focus:border-[#D9973E]">
                 </div>
@@ -580,7 +580,7 @@
                         Link atau ID Video YouTube
                     </label>
                     <input type="text" name="youtube_url"
-                           x-model="editingTrack ? editingTrack.youtube_url : ''"
+                           x-model="editForm.youtube_url"
                            placeholder="Contoh: https://youtu.be/... atau ID YouTube 11 digit"
                            class="w-full px-3 py-2 bg-[#F7F3EC] border border-[#D5CCC0] text-xs text-[#1F1812] focus:outline-none focus:border-[#D9973E]">
                     <p class="text-[10px] text-[#7A6A58] mt-1 font-mono">
@@ -593,7 +593,7 @@
                         Urutan Putar (Sort Order)
                     </label>
                     <input type="number" name="sort_order" min="0"
-                           x-model="editingTrack ? editingTrack.sort_order : 0"
+                           x-model="editForm.sort_order"
                            class="w-28 px-3 py-1.5 bg-[#F7F3EC] border border-[#D5CCC0] text-xs text-[#1F1812] focus:outline-none focus:border-[#D9973E]">
                 </div>
 
@@ -643,22 +643,30 @@ function musicStationPage() {
         inspectedVideo: null,
         inspectError: null,
 
-        editingTrack: null,
+        isEditingTrack: false,
+        editForm: {
+            id: null,
+            title: '',
+            artist: '',
+            youtube_url: '',
+            sort_order: 0
+        },
         editUpdateUrl: '',
 
         openEditModal(track) {
-            this.editingTrack = {
+            this.editForm = {
                 id: track.id,
-                title: track.title,
+                title: track.title || '',
                 artist: track.artist || '',
                 youtube_url: 'https://youtu.be/' + track.youtube_id,
                 sort_order: track.sort_order || 0
             };
             this.editUpdateUrl = '{{ url('/kasir/music/default-tracks') }}/' + track.id;
+            this.isEditingTrack = true;
         },
 
         closeEditModal() {
-            this.editingTrack = null;
+            this.isEditingTrack = false;
         },
 
         voiceAnnouncerEnabled: true,
