@@ -45,33 +45,57 @@
 
     <!-- HOST STATUS BADGE (DEDICATED HOST VS REMOTE CONTROLLER) -->
     <div class="mb-2">
-        <template x-if="isDedicatedPage">
-            <div class="flex items-center justify-between text-[8px] font-mono text-[#5F7F42] bg-[#5F7F42]/10 border border-[#5F7F42]/30 px-1.5 py-0.5 rounded">
-                <span class="flex items-center gap-1 font-bold">
+        <!-- 1. Tab Ini adalah Host di Halaman Dedicated Sound Station -->
+        <template x-if="isMasterHost && isDedicatedPage">
+            <div class="flex items-center justify-between text-[8px] font-mono text-[#5F7F42] bg-[#5F7F42]/10 border border-[#5F7F42]/30 px-2 py-0.5 rounded">
+                <span class="flex items-center gap-1.5 font-bold">
                     <span class="w-1.5 h-1.5 rounded-full bg-[#5F7F42] animate-pulse"></span>
                     <span>Host Pemutar Kafe (Anti-Mati)</span>
                 </span>
                 <span class="text-[#8A7B66]">👑 Master</span>
             </div>
         </template>
-        <template x-if="!isDedicatedPage && hasDedicatedHost">
-            <div class="flex items-center justify-between text-[8px] font-mono text-[#5F7F42] bg-[#5F7F42]/10 border border-[#5F7F42]/30 px-1.5 py-0.5 rounded">
-                <span class="flex items-center gap-1">
+
+        <!-- 2. Tab Ini adalah Host di Halaman POS Biasa (Kasir, KDS, Orders) -->
+        <template x-if="isMasterHost && !isDedicatedPage">
+            <div class="flex items-center justify-between text-[8px] font-mono text-[#5F7F42] bg-[#5F7F42]/10 border border-[#5F7F42]/30 px-2 py-0.5 rounded">
+                <span class="flex items-center gap-1.5 font-bold">
                     <span class="w-1.5 h-1.5 rounded-full bg-[#5F7F42] animate-pulse"></span>
-                    <span>Host Musik Aktif di Tab Lain</span>
+                    <span>Pemutar Aktif di Tab Ini</span>
                 </span>
-                <span class="text-[#D9973E] font-bold">Remote</span>
+                <span class="text-[#D9973E] font-bold">🔊 Host</span>
             </div>
         </template>
-        <template x-if="!isDedicatedPage && !hasDedicatedHost">
-            <div class="flex items-center justify-between text-[8px] font-mono text-[#A89A85] bg-[#1F1812] border border-[#2A211A] px-1.5 py-0.5 rounded">
-                <span class="flex items-center gap-1">
-                    <span class="w-1.5 h-1.5 rounded-full bg-[#D9973E]"></span>
-                    <span>Player Standalone</span>
+
+        <!-- 3. Tab Lain adalah Host (Tab Ini adalah Remote Controller) -->
+        <template x-if="!isMasterHost && hasActiveHost">
+            <div class="flex items-center justify-between text-[8px] font-mono text-[#A89A85] bg-[#1F1812] border border-[#2A211A] px-2 py-0.5 rounded">
+                <span class="flex items-center gap-1.5 min-w-0 mr-1.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-[#5F7F42] shrink-0 animate-pulse"></span>
+                    <span class="truncate">Host: <strong class="text-[#F7F3EC]" x-text="activeHostPageTitle || 'Tab Lain'"></strong></span>
                 </span>
-                <a href="{{ route('kasir.music.index') }}" target="_blank" class="text-[#D9973E] hover:underline font-bold">
-                    Jadikan Tab Host ↗
-                </a>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <span class="text-[#D9973E] font-semibold">📡 Remote</span>
+                    <button type="button" @click.stop="claimMasterHost(true)"
+                            class="text-[7.5px] px-1.5 py-0.2 bg-[#2A211A] hover:bg-[#3A3026] text-[#D9973E] border border-[#3A3026] hover:border-[#D9973E]/40 rounded transition"
+                            title="Jadikan tab ini sebagai pemutar audio utama">
+                        Jadikan Host
+                    </button>
+                </div>
+            </div>
+        </template>
+
+        <!-- 4. Sedang Menghubungkan / Tidak Ada Host Aktif -->
+        <template x-if="!isMasterHost && !hasActiveHost">
+            <div class="flex items-center justify-between text-[8px] font-mono text-[#A89A85] bg-[#1F1812] border border-[#2A211A] px-2 py-0.5 rounded">
+                <span class="flex items-center gap-1.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-[#D9973E] animate-ping"></span>
+                    <span>Menghubungkan Pemutar...</span>
+                </span>
+                <button type="button" @click.stop="claimMasterHost(true)"
+                        class="text-[7.5px] px-1.5 py-0.2 bg-[#D9973E] text-[#1F1812] font-bold rounded hover:bg-[#c4842e] transition">
+                    Aktifkan Host
+                </button>
             </div>
         </template>
     </div>
@@ -353,32 +377,194 @@ function navbarMusicWidget() {
         isAnnouncing: false,
         duckedVolume: 12,
 
-        isDedicatedPage: window.location.pathname.includes('/kasir/music') && !window.location.pathname.includes('/mini'),
+        isDedicatedPage: (window.location.pathname.replace(/\/$/, '') === '/kasir/music') && !window.location.pathname.includes('/mini'),
         isMasterHost: false,
-        hasDedicatedHost: false,
+        hasActiveHost: false,
+        activeHostTabId: null,
+        activeHostPageTitle: '',
         lastHostHeartbeatTime: 0,
+        myTabId: (window.SoundStationHub && window.SoundStationHub.tabId) ? window.SoundStationHub.tabId : ('tab_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now()),
+        heartbeatTimer: null,
+        watchdogTimer: null,
+
+        getPageLabel() {
+            const p = window.location.pathname;
+            if (p.includes('/kasir/music')) return 'Sound Station';
+            if (p.includes('/kasir/kitchen')) return 'Dapur KDS';
+            if (p.includes('/kasir/orders')) return 'Riwayat Pesanan';
+            if (p.includes('/kasir/menu')) return 'Kelola Menu';
+            if (p.includes('/kasir/laporan')) return 'Laporan';
+            return 'Kasir POS';
+        },
+
+        claimMasterHost(force = false) {
+            const myPriority = this.isDedicatedPage ? 100 : 10;
+
+            if (!force && !this.isDedicatedPage) {
+                try {
+                    const saved = JSON.parse(localStorage.getItem('pos_soundstation_active_host') || '{}');
+                    if (saved.tabId && saved.tabId !== this.myTabId && (Date.now() - (saved.timestamp || 0) < 2500)) {
+                        if ((saved.priority || 0) >= myPriority) {
+                            this.isMasterHost = false;
+                            this.hasActiveHost = true;
+                            this.activeHostTabId = saved.tabId;
+                            this.activeHostPageTitle = saved.pageTitle || 'Tab Lain';
+                            return;
+                        }
+                    }
+                } catch (e) {}
+            }
+
+            this.isMasterHost = true;
+            this.hasActiveHost = true;
+            this.activeHostTabId = this.myTabId;
+            this.activeHostPageTitle = this.getPageLabel();
+
+            const hostData = {
+                tabId: this.myTabId,
+                priority: myPriority,
+                isDedicated: this.isDedicatedPage,
+                pageTitle: this.getPageLabel(),
+                timestamp: Date.now()
+            };
+
+            try {
+                localStorage.setItem('pos_soundstation_active_host', JSON.stringify(hostData));
+            } catch (e) {}
+
+            if (window.SoundStationHub && window.SoundStationHub.channel) {
+                try {
+                    window.SoundStationHub.channel.postMessage({
+                        type: 'CLAIM_HOST',
+                        force: force,
+                        tabId: this.myTabId,
+                        priority: myPriority,
+                        isDedicated: this.isDedicatedPage,
+                        pageTitle: this.getPageLabel(),
+                        timestamp: Date.now()
+                    });
+                } catch (e) {}
+            }
+
+            if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
+            this.broadcastHostHeartbeat();
+            this.heartbeatTimer = setInterval(() => this.broadcastHostHeartbeat(), 1000);
+
+            this.loadYouTubeApi();
+
+            if (this.player && this.playerReady) {
+                if (this.currentTrack && this.currentTrack.youtube_id) {
+                    const sec = Math.max(0, Math.floor(this.currentTime || 0));
+                    this.player.loadVideoById({
+                        videoId: this.currentTrack.youtube_id,
+                        startSeconds: sec
+                    });
+                    if (this.isPlaying) {
+                        this.player.playVideo();
+                    } else {
+                        this.player.pauseVideo();
+                    }
+                }
+            }
+        },
+
+        stepDownToRemote(newHostTitle = 'Tab Lain', newHostTabId = null) {
+            if (this.heartbeatTimer) {
+                clearInterval(this.heartbeatTimer);
+                this.heartbeatTimer = null;
+            }
+
+            this.isMasterHost = false;
+            this.hasActiveHost = true;
+            this.activeHostPageTitle = newHostTitle;
+            this.activeHostTabId = newHostTabId;
+
+            if (this.player && typeof this.player.stopVideo === 'function') {
+                try {
+                    this.player.stopVideo();
+                } catch (e) {}
+            }
+        },
+
+        scheduleTakeoverElection() {
+            if (this.isMasterHost) return;
+
+            const baseDelay = this.isDedicatedPage ? 20 : 120;
+            const jitter = Math.abs(this.myTabId.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % 250);
+            const delay = baseDelay + (this.isDedicatedPage ? 0 : jitter);
+
+            setTimeout(() => {
+                if (this.isMasterHost) return;
+                try {
+                    const saved = JSON.parse(localStorage.getItem('pos_soundstation_active_host') || '{}');
+                    if (saved.tabId && saved.tabId !== this.myTabId && (Date.now() - (saved.timestamp || 0) < 2200)) {
+                        this.hasActiveHost = true;
+                        this.activeHostTabId = saved.tabId;
+                        this.activeHostPageTitle = saved.pageTitle || 'Tab Lain';
+                        return;
+                    }
+                } catch (e) {}
+
+                this.claimMasterHost(false);
+            }, delay);
+        },
+
+        broadcastHostHeartbeat() {
+            if (!this.isMasterHost) return;
+
+            const hostData = {
+                type: 'HOST_HEARTBEAT',
+                tabId: this.myTabId,
+                priority: this.isDedicatedPage ? 100 : 10,
+                isDedicated: this.isDedicatedPage,
+                pageTitle: this.getPageLabel(),
+                timestamp: Date.now()
+            };
+
+            try {
+                localStorage.setItem('pos_soundstation_active_host', JSON.stringify(hostData));
+            } catch (e) {}
+
+            if (window.SoundStationHub && window.SoundStationHub.channel) {
+                try {
+                    window.SoundStationHub.channel.postMessage(hostData);
+                } catch (e) {}
+            }
+        },
 
         initWidget() {
             window.SoundStation = this;
 
+            // Muat cached playback state segera untuk visual instan
+            try {
+                const cachedState = JSON.parse(localStorage.getItem('pos_soundstation_state') || '{}');
+                if (cachedState.currentTrack) this.currentTrack = cachedState.currentTrack;
+                if (typeof cachedState.currentTime !== 'undefined') this.currentTime = cachedState.currentTime;
+                if (typeof cachedState.duration !== 'undefined') this.duration = cachedState.duration;
+                if (typeof cachedState.progressPercent !== 'undefined') this.progressPercent = cachedState.progressPercent;
+                if (cachedState.currentTimeFormatted) this.currentTimeFormatted = cachedState.currentTimeFormatted;
+                if (cachedState.durationFormatted) this.durationFormatted = cachedState.durationFormatted;
+                if (typeof cachedState.isPlaying !== 'undefined') this.isPlaying = cachedState.isPlaying;
+            } catch (e) {}
+
             // 1. Tentukan status awal Master Host
-            if (this.isDedicatedPage) {
-                this.isMasterHost = true;
-                this.broadcastHostHeartbeat();
-                setInterval(() => this.broadcastHostHeartbeat(), 1500);
-            } else {
-                // Periksa apakah ada host dedicated yang aktif
-                try {
-                    const savedHost = JSON.parse(localStorage.getItem('pos_soundstation_active_host') || '{}');
-                    if (savedHost.isDedicated && Date.now() - (savedHost.timestamp || 0) < 3500) {
-                        this.hasDedicatedHost = true;
-                        this.isMasterHost = false;
-                    } else {
-                        this.isMasterHost = true; // Fallback jika tab music belum dibuka
-                    }
-                } catch (e) {
-                    this.isMasterHost = true;
+            try {
+                const savedHost = JSON.parse(localStorage.getItem('pos_soundstation_active_host') || '{}');
+                const isSavedHostActive = savedHost.tabId && (Date.now() - (savedHost.timestamp || 0) < 2500);
+
+                if (this.isDedicatedPage) {
+                    this.claimMasterHost(false);
+                } else if (isSavedHostActive) {
+                    this.isMasterHost = false;
+                    this.hasActiveHost = true;
+                    this.activeHostTabId = savedHost.tabId;
+                    this.activeHostPageTitle = savedHost.pageTitle || 'Tab Lain';
+                    this.lastHostHeartbeatTime = savedHost.timestamp;
+                } else {
+                    this.claimMasterHost(false);
                 }
+            } catch (e) {
+                this.claimMasterHost(false);
             }
 
             // Dengarkan pesan heartbeat, time sync, dan state
@@ -387,22 +573,32 @@ function navbarMusicWidget() {
                     if (!e.data) return;
 
                     if (e.data.type === 'HOST_HEARTBEAT') {
-                        if (e.data.isDedicated && !this.isDedicatedPage) {
-                            this.hasDedicatedHost = true;
+                        if (e.data.tabId !== this.myTabId) {
+                            this.hasActiveHost = true;
+                            this.activeHostTabId = e.data.tabId;
+                            this.activeHostPageTitle = e.data.pageTitle || 'Tab Lain';
                             this.lastHostHeartbeatTime = Date.now();
+
                             if (this.isMasterHost) {
-                                // Handover ke dedicated host
-                                this.isMasterHost = false;
-                                if (this.player && typeof this.player.pauseVideo === 'function') {
-                                    this.player.pauseVideo();
+                                const myPriority = this.isDedicatedPage ? 100 : 10;
+                                const otherPriority = e.data.priority || 0;
+                                if (otherPriority > myPriority || (otherPriority === myPriority && e.data.tabId < this.myTabId)) {
+                                    this.stepDownToRemote(e.data.pageTitle, e.data.tabId);
                                 }
                             }
                         }
+                    } else if (e.data.type === 'CLAIM_HOST') {
+                        if (e.data.tabId !== this.myTabId) {
+                            const myPriority = this.isDedicatedPage ? 100 : 10;
+                            const otherPriority = e.data.priority || 0;
+                            if (e.data.force || otherPriority > myPriority || (otherPriority === myPriority && e.data.tabId < this.myTabId)) {
+                                this.stepDownToRemote(e.data.pageTitle, e.data.tabId);
+                            }
+                        }
                     } else if (e.data.type === 'HOST_CLOSED') {
-                        if (!this.isDedicatedPage) {
-                            this.hasDedicatedHost = false;
-                            this.isMasterHost = true;
-                            this.initPlayer();
+                        if (e.data.tabId === this.activeHostTabId || !this.isMasterHost) {
+                            this.hasActiveHost = false;
+                            this.scheduleTakeoverElection();
                         }
                     } else if (e.data.type === 'NEW_REQUEST_SUBMITTED') {
                         if (this.isMasterHost) {
@@ -447,16 +643,26 @@ function navbarMusicWidget() {
                 });
             }
 
-            // Watchdog check apakah dedicated host masih hidup
-            setInterval(() => {
-                if (!this.isDedicatedPage && this.hasDedicatedHost) {
-                    if (Date.now() - this.lastHostHeartbeatTime > 4000) {
-                        this.hasDedicatedHost = false;
-                        this.isMasterHost = true;
-                        this.initPlayer();
+            // Watchdog check apakah host masih hidup
+            this.watchdogTimer = setInterval(() => {
+                if (!this.isMasterHost) {
+                    try {
+                        const saved = JSON.parse(localStorage.getItem('pos_soundstation_active_host') || '{}');
+                        const now = Date.now();
+                        if (saved.tabId && (now - (saved.timestamp || 0) < 2500)) {
+                            this.hasActiveHost = true;
+                            this.activeHostTabId = saved.tabId;
+                            this.activeHostPageTitle = saved.pageTitle || 'Tab Lain';
+                            this.lastHostHeartbeatTime = saved.timestamp;
+                        } else {
+                            this.hasActiveHost = false;
+                            this.scheduleTakeoverElection();
+                        }
+                    } catch (e) {
+                        this.scheduleTakeoverElection();
                     }
                 }
-            }, 2500);
+            }, 1500);
 
             // Inisialisasi YouTube player jika tab ini adalah master host
             if (this.isMasterHost) {
@@ -487,35 +693,34 @@ function navbarMusicWidget() {
                 }
             }, 1000);
 
-            // Informasikan jika tab host ditutup
-            if (this.isDedicatedPage) {
-                window.addEventListener('beforeunload', () => {
+            // Simpan state dan informasikan jika tab host ditutup
+            window.addEventListener('beforeunload', () => {
+                if (this.isMasterHost) {
                     try {
+                        localStorage.setItem('pos_soundstation_state', JSON.stringify({
+                            isPlaying: this.isPlaying,
+                            currentTrack: this.currentTrack,
+                            currentTime: this.currentTime,
+                            duration: this.duration,
+                            volume: this.volume,
+                            isMuted: this.isMuted,
+                            queueCount: this.queueCount,
+                            voiceAnnouncerEnabled: this.voiceAnnouncerEnabled
+                        }));
                         localStorage.removeItem('pos_soundstation_active_host');
+
                         if (window.SoundStationHub && window.SoundStationHub.channel) {
-                            window.SoundStationHub.channel.postMessage({ type: 'HOST_CLOSED' });
+                            window.SoundStationHub.channel.postMessage({
+                                type: 'HOST_CLOSED',
+                                tabId: this.myTabId,
+                                lastTrack: this.currentTrack,
+                                lastTime: this.currentTime,
+                                wasPlaying: this.isPlaying
+                            });
                         }
                     } catch (e) {}
-                });
-            }
-        },
-
-        broadcastHostHeartbeat() {
-            if (window.SoundStationHub && window.SoundStationHub.channel) {
-                try {
-                    window.SoundStationHub.channel.postMessage({
-                        type: 'HOST_HEARTBEAT',
-                        isDedicated: true,
-                        tabId: window.SoundStationHub.tabId,
-                        timestamp: Date.now()
-                    });
-                    localStorage.setItem('pos_soundstation_active_host', JSON.stringify({
-                        isDedicated: true,
-                        tabId: window.SoundStationHub.tabId,
-                        timestamp: Date.now()
-                    }));
-                } catch (e) {}
-            }
+                }
+            });
         },
 
         loadYouTubeApi() {
@@ -556,12 +761,30 @@ function navbarMusicWidget() {
                     'onReady': () => {
                         this.playerReady = true;
                         this.player.setVolume(this.volume);
-                        this.playNextTrack();
+                        if (this.isMuted) this.player.mute();
+
+                        if (this.currentTrack && this.currentTrack.youtube_id) {
+                            const startSec = Math.max(0, Math.floor(this.currentTime || 0));
+                            this.player.loadVideoById({
+                                videoId: this.currentTrack.youtube_id,
+                                startSeconds: startSec
+                            });
+                            if (this.isPlaying) {
+                                this.player.playVideo();
+                            } else {
+                                this.player.pauseVideo();
+                            }
+                        } else {
+                            this.playNextTrack();
+                        }
                     },
                     'onError': (event) => {
+                        if (!this.isMasterHost) return;
                         this.handlePlayerError(event.data);
                     },
                     'onStateChange': (event) => {
+                        if (!this.isMasterHost) return;
+
                         // 1 = PLAYING, 2 = PAUSED, 0 = ENDED, 3 = BUFFERING
                         if (event.data === 1) {
                             this.clearPlaybackWatchdog();
