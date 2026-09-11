@@ -1860,32 +1860,12 @@ function navbarMusicWidget() {
                     finish();
                 };
 
-                // Putar sesuai model suara yang dikonfigurasi
-                if (cfg.voice_model === 'mbak_google' || !cfg.voice_model) {
-                    try {
-                        const ttsUrl = '{{ route('music.tts') }}?text=' + encodeURIComponent(text);
-                        const googleAudio = new Audio(ttsUrl);
-                        googleAudio.playbackRate = parseFloat(cfg.rate) || 1.0;
-
-                        googleAudio.onended = safeFinish;
-                        googleAudio.onerror = () => {
-                            console.warn('[Announcer] Google TTS offline/gagal, fallback ke Web Speech lokal.');
-                            this.speakConfiguredSpeech(text, cfg, safeFinish);
-                        };
-
-                        const playPromise = googleAudio.play();
-                        if (playPromise !== undefined) {
-                            playPromise.catch((err) => {
-                                console.warn('[Announcer] Google Audio play error:', err);
-                                this.speakConfiguredSpeech(text, cfg, safeFinish);
-                            });
-                        }
-                    } catch (e) {
-                        this.speakConfiguredSpeech(text, cfg, safeFinish);
-                    }
-                } else {
-                    this.speakConfiguredSpeech(text, cfg, safeFinish);
-                }
+                // Putar suara announcer sesuai model yang dikonfigurasi
+                this.playConfiguredAnnouncer({
+                    text: text,
+                    cfg: cfg,
+                    onEnd: safeFinish
+                });
             }, chimeDelay);
         },
 
@@ -1950,7 +1930,103 @@ function navbarMusicWidget() {
             } catch (e) {}
         },
 
-        speakConfiguredSpeech(text, cfg, callback) {
+        async playConfiguredAnnouncer({ text, cfg, onEnd }) {
+            const model = cfg.voice_model || 'mbak_google';
+            const rate = parseFloat(cfg.rate) || 1.0;
+            const pitch = parseFloat(cfg.pitch) || 1.0;
+
+            // Opsi 6: Suara spesifik perangkat (Web Speech API)
+            if (model === 'device_voice') {
+                this.speakDeviceSpeech(text, cfg.device_voice_name, rate, pitch, onEnd);
+                return;
+            }
+
+            // Tentukan parameter bahasa Google TTS & filter nada
+            let lang = 'id';
+            let sampleText = text;
+            let pitchMultiplier = 1.0;
+            let filterType = null;
+
+            if (model === 'english_cafe') {
+                lang = 'en';
+                if (!/order for|ready at the counter/i.test(sampleText)) {
+                    sampleText = 'Order for customer, ready for pickup at the counter.';
+                }
+            } else if (model === 'google_local') {
+                lang = 'jv'; // Aksen medok lokal nusantara
+            } else if (model === 'ms_gadis') {
+                lang = 'id';
+                pitchMultiplier = 1.14; // Nada lebih tinggi, feminin & manis
+                filterType = 'highshelf';
+            } else if (model === 'ms_ardi') {
+                lang = 'id';
+                pitchMultiplier = 0.82; // Nada bariton pria barista
+                filterType = 'lowpass';
+            } else {
+                // mbak_google
+                lang = 'id';
+                pitchMultiplier = 1.0;
+            }
+
+            // Gunakan URL relatif terhadap window.location.origin agar tidak ada masalah domain/port
+            const ttsUrl = window.location.origin + '/music/tts?lang=' + lang + '&text=' + encodeURIComponent(sampleText);
+
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                const ctx = new AudioCtx();
+                const response = await fetch(ttsUrl);
+                if (!response.ok) throw new Error('HTTP status ' + response.status);
+
+                const arrayBuffer = await response.arrayBuffer();
+                const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+
+                const source = ctx.createBufferSource();
+                source.buffer = audioBuffer;
+
+                source.playbackRate.value = Math.max(0.5, Math.min(2.0, rate * pitchMultiplier));
+
+                if (filterType === 'lowpass') {
+                    const biquad = ctx.createBiquadFilter();
+                    biquad.type = 'lowpass';
+                    biquad.frequency.value = 2600;
+                    source.connect(biquad);
+                    biquad.connect(ctx.destination);
+                } else if (filterType === 'highshelf') {
+                    const biquad = ctx.createBiquadFilter();
+                    biquad.type = 'highshelf';
+                    biquad.frequency.value = 3200;
+                    biquad.gain.value = 5;
+                    source.connect(biquad);
+                    biquad.connect(ctx.destination);
+                } else {
+                    source.connect(ctx.destination);
+                }
+
+                source.onended = () => {
+                    try { ctx.close(); } catch (e) {}
+                    if (onEnd) onEnd();
+                };
+
+                source.start(0);
+            } catch (err) {
+                console.warn('[Announcer Widget] Fallback ke audio standar:', err);
+                try {
+                    const fallbackAudio = new Audio(ttsUrl);
+                    fallbackAudio.playbackRate = rate;
+                    fallbackAudio.onended = () => { if (onEnd) onEnd(); };
+                    fallbackAudio.onerror = () => {
+                        this.speakDeviceSpeech(sampleText, cfg.device_voice_name, rate, pitch, onEnd);
+                    };
+                    fallbackAudio.play().catch(() => {
+                        this.speakDeviceSpeech(sampleText, cfg.device_voice_name, rate, pitch, onEnd);
+                    });
+                } catch (e) {
+                    this.speakDeviceSpeech(sampleText, cfg.device_voice_name, rate, pitch, onEnd);
+                }
+            }
+        },
+
+        speakDeviceSpeech(text, deviceVoiceName, rate, pitch, callback) {
             if (!('speechSynthesis' in window)) {
                 if (callback) callback();
                 return;
@@ -1959,40 +2035,12 @@ function navbarMusicWidget() {
             try {
                 window.speechSynthesis.cancel();
                 const utter = new SpeechSynthesisUtterance(text);
-                utter.rate = parseFloat(cfg.rate) || 1.0;
-                utter.pitch = parseFloat(cfg.pitch) || 1.0;
+                utter.rate = parseFloat(rate) || 1.0;
+                utter.pitch = parseFloat(pitch) || 1.0;
 
                 const voices = window.speechSynthesis.getVoices() || [];
-
-                if (cfg.voice_model === 'ms_gadis') {
-                    utter.lang = 'id-ID';
-                    const v = voices.find(x => (x.name || '').toLowerCase().includes('gadis'))
-                        || voices.find(x => (x.lang || '').toLowerCase().includes('id'));
-                    if (v) utter.voice = v;
-                } else if (cfg.voice_model === 'ms_ardi') {
-                    utter.lang = 'id-ID';
-                    const v = voices.find(x => (x.name || '').toLowerCase().includes('ardi'))
-                        || voices.find(x => (x.lang || '').toLowerCase().includes('id'));
-                    if (v) utter.voice = v;
-                } else if (cfg.voice_model === 'google_local') {
-                    utter.lang = 'id-ID';
-                    const v = voices.find(x => (x.name || '').toLowerCase().includes('google') && (x.lang || '').toLowerCase().includes('id'))
-                        || voices.find(x => (x.lang || '').toLowerCase().includes('id'));
-                    if (v) utter.voice = v;
-                } else if (cfg.voice_model === 'english_cafe') {
-                    utter.lang = 'en-US';
-                    const v = voices.find(x => (x.name || '').toLowerCase().includes('natural') && (x.lang || '').toLowerCase().startsWith('en'))
-                        || voices.find(x => (x.lang || '').toLowerCase().startsWith('en'));
-                    if (v) utter.voice = v;
-                } else if (cfg.voice_model === 'device_voice' && cfg.device_voice_name) {
-                    const v = voices.find(x => x.name === cfg.device_voice_name);
-                    if (v) {
-                        utter.voice = v;
-                        utter.lang = v.lang;
-                    }
-                } else {
-                    utter.lang = 'id-ID';
-                    const v = voices.find(x => (x.lang || '').toLowerCase().includes('id'));
+                if (deviceVoiceName) {
+                    const v = voices.find(x => x.name === deviceVoiceName);
                     if (v) utter.voice = v;
                 }
 

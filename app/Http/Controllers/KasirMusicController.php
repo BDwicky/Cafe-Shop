@@ -759,12 +759,17 @@ class KasirMusicController extends Controller
             abort(400, 'Teks suara wajib diisi.');
         }
 
+        $lang = trim((string) $request->query('lang', 'id'));
+        if (! in_array($lang, ['id', 'jv', 'su', 'en', 'ja'], true)) {
+            $lang = 'id';
+        }
+
         // Batasi panjang maksimal 200 karakter
         $text = mb_substr($text, 0, 200);
 
-        $cacheKey = 'tts_google_voice_'.md5($text);
-        $audioData = Cache::remember($cacheKey, 86400 * 7, function () use ($text) {
-            $url = 'https://translate.google.com/translate_tts?ie=UTF-8&tl=id&client=tw-ob&q='.urlencode($text);
+        $cacheKey = 'tts_google_voice_'.$lang.'_'.md5($text);
+        $audioData = Cache::remember($cacheKey, 86400 * 7, function () use ($text, $lang) {
+            $url = 'https://translate.google.com/translate_tts?ie=UTF-8&tl='.$lang.'&client=tw-ob&q='.urlencode($text);
             try {
                 $response = Http::withHeaders([
                     'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
