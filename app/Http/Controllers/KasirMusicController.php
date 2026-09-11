@@ -28,7 +28,7 @@ class KasirMusicController extends Controller
         $defaultTracks = MusicDefaultTrack::orderBy('sort_order')->orderBy('id')->get();
         $recentHistory = MusicRequest::whereIn('status', ['played', 'skipped', 'rejected'])
             ->latest('updated_at')
-            ->limit(15)
+            ->limit(30)
             ->get();
 
         return view('kasir.music', compact('state', 'defaultTracks', 'recentHistory'));
@@ -98,6 +98,64 @@ class KasirMusicController extends Controller
         }
 
         return back()->with('success', 'Lagu request berhasil ditolak.');
+    }
+
+    /**
+     * Masukkan lagu dari riwayat request pelanggan ke dalam playlist bawaan kafe.
+     */
+    public function addRequestToDefault(MusicRequest $musicRequest): JsonResponse|RedirectResponse
+    {
+        if (! $musicRequest->youtube_id) {
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Lagu request tidak memiliki ID YouTube yang valid.',
+                ], 422);
+            }
+
+            return back()->withErrors(['message' => 'Lagu request tidak memiliki ID YouTube yang valid.']);
+        }
+
+        // Cek apakah lagu ini sudah ada di playlist bawaan
+        $existing = MusicDefaultTrack::where('youtube_id', $musicRequest->youtube_id)->first();
+        if ($existing) {
+            if (! $existing->is_active) {
+                $existing->update(['is_active' => true]);
+            }
+
+            if (request()->expectsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'already_exists' => true,
+                    'message' => "Lagu \"{$existing->title}\" sudah ada di playlist bawaan (status aktif).",
+                    'track' => $existing,
+                ]);
+            }
+
+            return back()->with('info', "Lagu \"{$existing->title}\" sudah ada di playlist bawaan.");
+        }
+
+        $maxOrder = MusicDefaultTrack::max('sort_order') ?? 0;
+
+        $track = MusicDefaultTrack::create([
+            'title' => $musicRequest->song_title ?: 'Lagu Pilihan',
+            'artist' => $musicRequest->artist,
+            'youtube_id' => $musicRequest->youtube_id,
+            'duration_seconds' => $musicRequest->duration_seconds ?? 0,
+            'sort_order' => $maxOrder + 1,
+            'is_active' => true,
+        ]);
+
+        if (request()->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'already_exists' => false,
+                'message' => "Lagu \"{$track->title}\" berhasil ditambahkan ke playlist bawaan.",
+                'track' => $track,
+            ]);
+        }
+
+        return back()->with('success', "Lagu \"{$track->title}\" berhasil ditambahkan ke playlist bawaan.");
     }
 
     /**

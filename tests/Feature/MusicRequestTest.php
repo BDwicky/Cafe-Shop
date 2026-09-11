@@ -835,4 +835,71 @@ class MusicRequestTest extends TestCase
         $this->assertEquals(2, $track1->fresh()->sort_order);
         $this->assertEquals(3, $track2->fresh()->sort_order);
     }
+
+    public function test_kasir_can_add_history_request_to_default_playlist(): void
+    {
+        $user = User::factory()->create();
+        $order = Order::factory()->create();
+
+        $musicRequest = MusicRequest::create([
+            'order_id' => $order->id,
+            'customer_name' => 'Budi Meja 4',
+            'song_title' => 'Sialan',
+            'artist' => 'Juicy Luicy',
+            'youtube_id' => 'vX123456789',
+            'duration_seconds' => 210,
+            'status' => 'played',
+        ]);
+
+        $response = $this->actingAs($user)->postJson(route('kasir.music.requests.add_to_default', $musicRequest));
+
+        $response->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('already_exists', false)
+            ->assertJsonPath('track.title', 'Sialan')
+            ->assertJsonPath('track.artist', 'Juicy Luicy')
+            ->assertJsonPath('track.youtube_id', 'vX123456789');
+
+        $this->assertDatabaseHas('music_default_tracks', [
+            'title' => 'Sialan',
+            'artist' => 'Juicy Luicy',
+            'youtube_id' => 'vX123456789',
+            'is_active' => true,
+        ]);
+    }
+
+    public function test_kasir_adding_existing_history_track_reactivates_it_and_avoids_duplicate(): void
+    {
+        $user = User::factory()->create();
+        $order = Order::factory()->create();
+
+        $existing = MusicDefaultTrack::create([
+            'title' => 'Sialan',
+            'artist' => 'Juicy Luicy',
+            'youtube_id' => 'vX123456789',
+            'duration_seconds' => 210,
+            'sort_order' => 1,
+            'is_active' => false,
+        ]);
+
+        $musicRequest = MusicRequest::create([
+            'order_id' => $order->id,
+            'customer_name' => 'Budi Meja 4',
+            'song_title' => 'Sialan',
+            'artist' => 'Juicy Luicy',
+            'youtube_id' => 'vX123456789',
+            'duration_seconds' => 210,
+            'status' => 'played',
+        ]);
+
+        $response = $this->actingAs($user)->postJson(route('kasir.music.requests.add_to_default', $musicRequest));
+
+        $response->assertOk()
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('already_exists', true)
+            ->assertJsonPath('track.id', $existing->id);
+
+        $this->assertEquals(1, MusicDefaultTrack::where('youtube_id', 'vX123456789')->count());
+        $this->assertTrue($existing->fresh()->is_active);
+    }
 }

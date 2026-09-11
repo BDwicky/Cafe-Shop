@@ -58,6 +58,7 @@ Route::middleware('auth')->prefix('kasir')->name('kasir.')->group(function () {
         Route::post('/next-track', [KasirMusicController::class, 'nextTrack'])->name('next');
         Route::post('/requests/{musicRequest}/skip', [KasirMusicController::class, 'skip'])->name('skip');
         Route::post('/requests/{musicRequest}/reject', [KasirMusicController::class, 'reject'])->name('reject');
+        Route::post('/requests/{musicRequest}/add-to-default', [KasirMusicController::class, 'addRequestToDefault'])->name('requests.add_to_default');
         Route::get('/sidebar-counts', [KasirMusicController::class, 'sidebarCounts'])->name('sidebar_counts');
         Route::get('/default-tracks', [KasirMusicController::class, 'defaultTracksJson'])->name('default.list');
         Route::post('/default-tracks', [KasirMusicController::class, 'storeDefaultTrack'])->name('default.store');

@@ -661,16 +661,24 @@
                     <!-- TAB 3: RIWAYAT PEMUTARAN -->
                     <div x-show="activeTab === 'history'" class="space-y-3">
                         <div class="flex items-center justify-between pb-2 border-b border-[#E0D8CC]/70">
-                            <span class="font-mono text-xs uppercase tracking-wider font-bold text-[#1F1812]">Riwayat Lagu Request Terakhir</span>
-                            <span class="text-[10px] font-mono text-[#7A6A58]">{{ count($recentHistory) }} Riwayat</span>
+                            <div>
+                                <span class="font-mono text-xs uppercase tracking-wider font-bold text-[#1F1812]">Riwayat Lagu Request Terakhir</span>
+                                <p class="text-[11px] text-[#7A6A58] mt-0.5">Daftar lagu yang pernah diminta pelanggan. Klik <b>+ Playlist Bawaan</b> untuk menyimpan lagu favorit ke koleksi kafe.</p>
+                            </div>
+                            <span class="text-[10px] font-mono text-[#7A6A58] shrink-0">{{ count($recentHistory) }} Riwayat</span>
                         </div>
                         <div class="space-y-2">
                             @forelse ($recentHistory as $hist)
-                                <div class="p-3 bg-[#F7F3EC] border border-[#E0D8CC] flex items-center justify-between gap-3 text-xs">
+                                <div class="p-3 bg-[#F7F3EC] border border-[#E0D8CC] hover:border-[#D9973E]/50 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                                     <div class="min-w-0 flex-1">
-                                        <div class="font-medium text-[#1F1812] truncate">{{ $hist->song_title }}</div>
-                                        <div class="text-[#7A6A58] text-[11px] truncate">
-                                            Peminta: {{ $hist->customer_name ?: 'Pelanggan' }} &bull; {{ $hist->updated_at->format('H:i') }}
+                                        <div class="font-medium text-[#1F1812] truncate flex items-center gap-2">
+                                            <span class="truncate">{{ $hist->song_title }}</span>
+                                            @if ($hist->artist)
+                                                <span class="text-[#7A6A58] text-[11px] font-normal truncate">({{ $hist->artist }})</span>
+                                            @endif
+                                        </div>
+                                        <div class="text-[#7A6A58] text-[11px] truncate mt-0.5">
+                                            Peminta: <span class="font-medium text-[#1F1812]">{{ $hist->customer_name ?: 'Pelanggan' }}</span> &bull; {{ $hist->updated_at->format('H:i') }}
                                         </div>
                                         @if ($hist->notes)
                                             <div class="text-[10px] text-amber-700 mt-0.5 truncate flex items-center gap-1 font-mono">
@@ -679,12 +687,48 @@
                                             </div>
                                         @endif
                                     </div>
-                                    <span class="font-mono text-[10px] uppercase px-2 py-0.5 border
-                                        @if($hist->status === 'played') bg-blue-50 text-blue-700 border-blue-200
-                                        @elseif($hist->status === 'skipped') bg-yellow-50 text-yellow-700 border-yellow-200
-                                        @else bg-red-50 text-red-700 border-red-200 @endif">
-                                        {{ strtoupper($hist->status) }}
-                                    </span>
+
+                                    <div class="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                                        <span class="font-mono text-[10px] uppercase px-2 py-0.5 border
+                                            @if($hist->status === 'played') bg-blue-50 text-blue-700 border-blue-200
+                                            @elseif($hist->status === 'skipped') bg-yellow-50 text-yellow-700 border-yellow-200
+                                            @else bg-red-50 text-red-700 border-red-200 @endif">
+                                            {{ strtoupper($hist->status) }}
+                                        </span>
+
+                                        @if ($hist->youtube_id)
+                                            <!-- TOMBOL PUTAR LANGSUNG -->
+                                            <button type="button"
+                                                    @click="playHistoryTrackDirect({{ json_encode([
+                                                        'id' => $hist->id,
+                                                        'title' => $hist->song_title,
+                                                        'artist' => $hist->artist ?: 'YouTube',
+                                                        'youtube_id' => $hist->youtube_id,
+                                                        'duration_seconds' => $hist->duration_seconds ?? 0,
+                                                        'type' => 'history'
+                                                    ]) }})"
+                                                    title="Putar langsung lagu ini sekarang"
+                                                    class="px-2 py-1 bg-white hover:bg-[#1F1812] text-[#1F1812] hover:text-[#F7F3EC] border border-[#D5CCC0] rounded font-mono text-[11px] transition flex items-center gap-1 shadow-xs cursor-pointer active:scale-95">
+                                                <span>▶</span>
+                                                <span class="hidden md:inline">Putar</span>
+                                            </button>
+
+                                            <!-- TOMBOL MASUKKAN KE PLAYLIST BAWAAN -->
+                                            <button type="button"
+                                                    @click="addRequestToDefault({{ $hist->id }}, '{{ addslashes($hist->song_title) }}')"
+                                                    :disabled="addingToDefaultId === {{ $hist->id }} || isInDefaultPlaylist('{{ $hist->youtube_id }}')"
+                                                    class="px-2.5 py-1 font-mono text-[11px] rounded transition flex items-center gap-1.5 shadow-xs"
+                                                    :class="isInDefaultPlaylist('{{ $hist->youtube_id }}')
+                                                        ? 'bg-[#5F7F42]/10 text-[#5F7F42] border border-[#5F7F42]/30 cursor-default font-semibold'
+                                                        : 'bg-white hover:bg-[#D9973E] text-[#1F1812] hover:text-[#1F1812] border border-[#D5CCC0] hover:border-[#D9973E] font-medium cursor-pointer active:scale-95'"
+                                                    :title="isInDefaultPlaylist('{{ $hist->youtube_id }}') ? 'Lagu ini sudah ada di playlist bawaan' : 'Tambahkan lagu ini ke playlist bawaan kafe'">
+                                                <span x-show="addingToDefaultId === {{ $hist->id }}" class="animate-spin text-xs">⟳</span>
+                                                <span x-show="addingToDefaultId !== {{ $hist->id }} && isInDefaultPlaylist('{{ $hist->youtube_id }}')">✓</span>
+                                                <span x-show="addingToDefaultId !== {{ $hist->id }} && !isInDefaultPlaylist('{{ $hist->youtube_id }}')">＋</span>
+                                                <span x-text="isInDefaultPlaylist('{{ $hist->youtube_id }}') ? 'Di Playlist' : 'Playlist Bawaan'"></span>
+                                            </button>
+                                        @endif
+                                    </div>
                                 </div>
                             @empty
                                 <div class="text-center py-10 text-[#A89A85] font-mono text-xs bg-[#F7F3EC] border border-[#E0D8CC]">
@@ -807,6 +851,7 @@ function musicStationPage() {
         isSubmittingBatch: false,
         isSavingEdit: false,
         isSkipping: false,
+        addingToDefaultId: null,
 
         importMode: 'single', // 'single' atau 'batch'
         importLink: '',
@@ -1230,6 +1275,63 @@ function musicStationPage() {
                     duration: 2500
                 });
             }
+        },
+
+        isInDefaultPlaylist(youtubeId) {
+            if (!youtubeId || !Array.isArray(this.defaultTracks)) return false;
+            return this.defaultTracks.some(t => t.youtube_id === youtubeId);
+        },
+
+        async addRequestToDefault(requestId, songTitle) {
+            if (this.addingToDefaultId) return;
+            this.addingToDefaultId = requestId;
+
+            try {
+                const res = await fetch('{{ url('/kasir/music/requests') }}/' + requestId + '/add-to-default', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    }
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    if (data.track) {
+                        const existingIdx = this.defaultTracks.findIndex(t => t.youtube_id === data.track.youtube_id);
+                        if (existingIdx !== -1) {
+                            this.defaultTracks[existingIdx].is_active = true;
+                        } else {
+                            this.defaultTracks.push(data.track);
+                        }
+                    } else {
+                        await this.fetchDefaultTracks();
+                    }
+
+                    if (window.customToast) {
+                        window.customToast({
+                            message: data.message || `Lagu "${songTitle}" berhasil ditambahkan ke playlist bawaan.`,
+                            type: 'success'
+                        });
+                    }
+                } else {
+                    const err = data.message || 'Gagal menambahkan lagu ke playlist bawaan.';
+                    if (window.customToast) {
+                        window.customToast({ message: err, type: 'danger' });
+                    }
+                }
+            } catch (e) {
+                if (window.customToast) {
+                    window.customToast({ message: 'Terjadi kesalahan jaringan.', type: 'danger' });
+                }
+            } finally {
+                this.addingToDefaultId = null;
+            }
+        },
+
+        playHistoryTrackDirect(track) {
+            if (!track) return;
+            this.playDefaultTrackDirect(track);
         },
 
         onTrackDragStart(event, index) {
