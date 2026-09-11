@@ -33,6 +33,12 @@ class MusicRequestController extends Controller
         $playerState = $this->musicService->getPlayerState();
         $playback = Cache::get('soundstation_playback_state');
 
+        if ($playback && (! isset($playback['duration']) || (float) $playback['duration'] <= 0)) {
+            if (! empty($playerState['now_playing']['duration_seconds'])) {
+                $playback['duration'] = (float) $playerState['now_playing']['duration_seconds'];
+            }
+        }
+
         return view('music.request', compact('code', 'initialValidation', 'playerState', 'playback'));
     }
 
@@ -174,6 +180,12 @@ class MusicRequestController extends Controller
         $state = $this->musicService->getPlayerState();
         $readyOrders = Order::prepReady()->select('id', 'code', 'customer_name', 'order_type', 'prep_status')->get();
         $playback = Cache::get('soundstation_playback_state');
+
+        if ($playback && (! isset($playback['duration']) || (float) $playback['duration'] <= 0)) {
+            if (! empty($state['now_playing']['duration_seconds'])) {
+                $playback['duration'] = (float) $state['now_playing']['duration_seconds'];
+            }
+        }
 
         return response()->json([
             'now_playing' => $state['now_playing'],

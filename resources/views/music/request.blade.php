@@ -36,9 +36,9 @@
         isPlaying: false,
 
         formatSeconds(sec) {
-            if (!sec || isNaN(sec)) return '00:00';
-            const m = Math.floor(sec / 60);
-            const s = Math.floor(sec % 60);
+            const num = Math.max(0, Math.floor(Number(sec) || 0));
+            const m = Math.floor(num / 60);
+            const s = num % 60;
             return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
         },
 
@@ -48,18 +48,35 @@
             }
 
             // Sinkronisasi status playback awal jika tersedia dari cache server
+            let initialDur = Number(this.initialPlayback?.duration || 0);
+            if (initialDur <= 0 && this.nowPlaying && Number(this.nowPlaying.duration_seconds || 0) > 0) {
+                initialDur = Number(this.nowPlaying.duration_seconds);
+            }
+            this.playbackDuration = initialDur;
+            this.playbackDurationFormatted = this.formatSeconds(this.playbackDuration);
+
             if (this.initialPlayback) {
-                const elapsed = this.initialPlayback.updated_at ? Math.max(0, (Date.now() - this.initialPlayback.updated_at) / 1000) : 0;
-                this.playbackDuration = Number(this.initialPlayback.duration || 0);
-                this.isPlaying = !!this.initialPlayback.is_playing;
-                this.playbackCurrentTime = Math.min(this.playbackDuration, Number(this.initialPlayback.current_time || 0) + (this.isPlaying ? elapsed : 0));
+                this.isPlaying = typeof this.initialPlayback.is_playing !== 'undefined' ? !!this.initialPlayback.is_playing : true;
+                let elapsed = 0;
+                const serverUpdated = Number(this.initialPlayback.updated_at || 0);
+                if (serverUpdated > 0) {
+                    const diffSec = (Date.now() - serverUpdated) / 1000;
+                    if (diffSec >= 0 && diffSec <= 15) {
+                        elapsed = diffSec;
+                    }
+                }
+                let cur = Number(this.initialPlayback.current_time || 0) + (this.isPlaying ? elapsed : 0);
+                if (this.playbackDuration > 0) {
+                    cur = Math.min(this.playbackDuration, Math.max(0, cur));
+                }
+                this.playbackCurrentTime = cur;
                 this.playbackProgressPercent = this.playbackDuration > 0 ? (this.playbackCurrentTime / this.playbackDuration) * 100 : 0;
-                this.playbackCurrentTimeFormatted = this.formatSeconds(Math.floor(this.playbackCurrentTime));
-                this.playbackDurationFormatted = this.formatSeconds(Math.floor(this.playbackDuration));
-            } else if (this.nowPlaying && this.nowPlaying.duration_seconds) {
-                this.playbackDuration = Number(this.nowPlaying.duration_seconds);
-                this.playbackDurationFormatted = this.formatSeconds(this.playbackDuration);
+                this.playbackCurrentTimeFormatted = this.formatSeconds(this.playbackCurrentTime);
+            } else if (this.nowPlaying) {
                 this.isPlaying = true;
+                this.playbackCurrentTime = 0;
+                this.playbackProgressPercent = 0;
+                this.playbackCurrentTimeFormatted = '00:00';
             }
 
             // Dengarkan BroadcastChannel untuk sinkronisasi seketika (0ms)
@@ -83,11 +100,12 @@
 
                     if (e.data.type === 'TIME_SYNC' && e.data.data) {
                         const t = e.data.data;
+                        const dur = Number(t.duration || 0) > 0 ? Number(t.duration) : (this.nowPlaying?.duration_seconds || this.playbackDuration);
+                        this.playbackDuration = dur;
                         this.playbackCurrentTime = Number(t.currentTime || 0);
-                        this.playbackDuration = Number(t.duration || 0);
                         this.playbackProgressPercent = Number(t.progressPercent || 0);
-                        this.playbackCurrentTimeFormatted = t.currentTimeFormatted || this.formatSeconds(Math.floor(this.playbackCurrentTime));
-                        this.playbackDurationFormatted = t.durationFormatted || this.formatSeconds(Math.floor(this.playbackDuration));
+                        this.playbackCurrentTimeFormatted = t.currentTimeFormatted || this.formatSeconds(this.playbackCurrentTime);
+                        this.playbackDurationFormatted = t.durationFormatted || this.formatSeconds(this.playbackDuration);
                         if (typeof t.isPlaying !== 'undefined') {
                             this.isPlaying = !!t.isPlaying;
                         }
@@ -319,19 +337,42 @@
                     this.queueCount = data.queue_count || 0;
 
                     // Sinkronisasi playback state dari server (untuk HP/perangkat pelanggan tanpa BroadcastChannel)
-                    if (data.playback) {
-                        const elapsed = data.playback.updated_at ? Math.max(0, (Date.now() - data.playback.updated_at) / 1000) : 0;
-                        this.playbackDuration = Number(data.playback.duration || 0);
-                        this.isPlaying = !!data.playback.is_playing;
-                        this.playbackCurrentTime = Math.min(this.playbackDuration, Number(data.playback.current_time || 0) + (this.isPlaying ? elapsed : 0));
-                        this.playbackProgressPercent = this.playbackDuration > 0 ? (this.playbackCurrentTime / this.playbackDuration) * 100 : 0;
-                        this.playbackCurrentTimeFormatted = this.formatSeconds(Math.floor(this.playbackCurrentTime));
-                        this.playbackDurationFormatted = this.formatSeconds(Math.floor(this.playbackDuration));
-                    } else if (data.now_playing && data.now_playing.duration_seconds) {
-                        this.playbackDuration = Number(data.now_playing.duration_seconds);
+                    let targetDuration = 0;
+                    if (data.playback && Number(data.playback.duration || 0) > 0) {
+                        targetDuration = Number(data.playback.duration);
+                    } else if (data.now_playing && Number(data.now_playing.duration_seconds || 0) > 0) {
+                        targetDuration = Number(data.now_playing.duration_seconds);
+                    } else if (this.nowPlaying && Number(this.nowPlaying.duration_seconds || 0) > 0) {
+                        targetDuration = Number(this.nowPlaying.duration_seconds);
+                    }
+
+                    if (targetDuration > 0) {
+                        this.playbackDuration = targetDuration;
                         this.playbackDurationFormatted = this.formatSeconds(this.playbackDuration);
+                    }
+
+                    if (data.playback) {
+                        this.isPlaying = typeof data.playback.is_playing !== 'undefined' ? !!data.playback.is_playing : true;
+                        let elapsed = 0;
+                        const serverUpdated = Number(data.playback.updated_at || 0);
+                        if (serverUpdated > 0) {
+                            const diffSec = (Date.now() - serverUpdated) / 1000;
+                            if (diffSec >= 0 && diffSec <= 15) {
+                                elapsed = diffSec;
+                            }
+                        }
+
+                        let cur = Number(data.playback.current_time || 0) + (this.isPlaying ? elapsed : 0);
+                        if (this.playbackDuration > 0) {
+                            cur = Math.min(this.playbackDuration, Math.max(0, cur));
+                        }
+                        this.playbackCurrentTime = cur;
+                        this.playbackProgressPercent = this.playbackDuration > 0 ? (this.playbackCurrentTime / this.playbackDuration) * 100 : 0;
+                        this.playbackCurrentTimeFormatted = this.formatSeconds(this.playbackCurrentTime);
+                    } else if (data.now_playing) {
+                        this.isPlaying = true;
                         if (!this.playbackCurrentTime || this.playbackCurrentTime === 0) {
-                            this.isPlaying = true;
+                            this.playbackCurrentTimeFormatted = '00:00';
                         }
                     }
 

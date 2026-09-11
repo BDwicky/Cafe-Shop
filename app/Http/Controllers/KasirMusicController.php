@@ -324,6 +324,11 @@ class KasirMusicController extends Controller
         $currentTrack = $request->input('current_track');
 
         $existing = Cache::get('soundstation_playback_state', []);
+
+        if ($duration <= 0 && is_array($currentTrack) && ! empty($currentTrack['duration_seconds'])) {
+            $duration = (float) $currentTrack['duration_seconds'];
+        }
+
         $state = [
             'current_time' => $currentTime,
             'duration' => $duration > 0 ? $duration : ($existing['duration'] ?? 0),

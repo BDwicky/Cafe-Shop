@@ -1109,6 +1109,11 @@ function navbarMusicWidget() {
                         return;
                     }
 
+                    // Pastikan jika durasi YouTube belum terbaca (0), gunakan durasi dari track metadata
+                    if (dur <= 0 && this.currentTrack && this.currentTrack.duration_seconds) {
+                        dur = Number(this.currentTrack.duration_seconds);
+                    }
+
                     this.currentTime = ct;
                     this.duration = dur;
                     this.progressPercent = dur > 0 ? Math.min(100, Math.max(0, (ct / dur) * 100)) : 0;
@@ -1148,7 +1153,7 @@ function navbarMusicWidget() {
                         body: JSON.stringify({
                             client_id: this.myTabId,
                             current_time: this.currentTime,
-                            duration: this.duration,
+                            duration: this.duration > 0 ? this.duration : (this.currentTrack?.duration_seconds || 0),
                             is_playing: this.isPlaying,
                             current_track: this.currentTrack
                         })

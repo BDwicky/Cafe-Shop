@@ -457,14 +457,13 @@
                                 <div class="flex items-center gap-2 shrink-0">
                                     <!-- EDIT -->
                                     <button type="button"
-                                            @click="openEditModal({
-                                                id: {{ $track->id }},
-                                                title: @js($track->title),
-                                                artist: @js($track->artist ?? ''),
-                                                youtube_id: @js($track->youtube_id),
-                                                sort_order: {{ $track->sort_order ?? 0 }}
-                                            })"
-                                            class="px-2 py-1 font-mono text-[10px] uppercase border border-[#D5CCC0] text-[#1F1812] hover:bg-[#E8DFD3] transition flex items-center gap-1">
+                                            @click="openEditModal($el.dataset)"
+                                            data-id="{{ $track->id }}"
+                                            data-title="{{ e($track->title) }}"
+                                            data-artist="{{ e($track->artist ?? '') }}"
+                                            data-youtube-id="{{ $track->youtube_id }}"
+                                            data-sort-order="{{ $track->sort_order ?? 0 }}"
+                                            class="px-2 py-1 font-mono text-[10px] uppercase border border-[#D5CCC0] text-[#1F1812] hover:bg-[#E8DFD3] transition flex items-center gap-1 cursor-pointer">
                                         <span>✏️</span>
                                         <span>Edit</span>
                                     </button>
@@ -619,12 +618,12 @@ function musicStationPage() {
         volume: parseInt(localStorage.getItem('pos_music_volume') || '75'),
         isMuted: false,
 
-        currentTrack: null,
+        currentTrack: {{ json_encode($state['now_playing']) }},
         currentTime: 0,
-        duration: 0,
+        duration: {{ $state['now_playing']['duration_seconds'] ?? 0 }},
         progressPercent: 0,
         currentTimeFormatted: '00:00',
-        durationFormatted: '00:00',
+        durationFormatted: '{{ isset($state['now_playing']['duration_seconds']) && $state['now_playing']['duration_seconds'] > 0 ? sprintf('%02d:%02d', floor($state['now_playing']['duration_seconds'] / 60), $state['now_playing']['duration_seconds'] % 60) : '00:00' }}',
 
         queue: {{ json_encode($state['queue']) }},
         queueCount: {{ $state['queue_count'] }},
@@ -653,15 +652,17 @@ function musicStationPage() {
         },
         editUpdateUrl: '',
 
-        openEditModal(track) {
+        openEditModal(data) {
+            const id = data.id;
+            const youtubeId = data.youtubeId || data.youtube_id || '';
             this.editForm = {
-                id: track.id,
-                title: track.title || '',
-                artist: track.artist || '',
-                youtube_url: 'https://youtu.be/' + track.youtube_id,
-                sort_order: track.sort_order || 0
+                id: Number(id),
+                title: data.title || '',
+                artist: data.artist || '',
+                youtube_url: youtubeId ? ('https://youtu.be/' + youtubeId) : '',
+                sort_order: Number(data.sortOrder ?? data.sort_order ?? 0)
             };
-            this.editUpdateUrl = '{{ url('/kasir/music/default-tracks') }}/' + track.id;
+            this.editUpdateUrl = '{{ url('/kasir/music/default-tracks') }}/' + id;
             this.isEditingTrack = true;
         },
 
