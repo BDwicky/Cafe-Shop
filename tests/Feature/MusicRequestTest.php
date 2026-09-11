@@ -612,4 +612,154 @@ class MusicRequestTest extends TestCase
                 'prep_status' => 'ready',
             ]);
     }
+
+    public function test_kasir_can_claim_master_host_and_retrieve_playback_state(): void
+    {
+        $user = User::factory()->create();
+
+        // Siapkan playback state yang tersimpan sebelumnya
+        Cache::put('soundstation_playback_state', [
+            'current_time' => 85.5,
+            'duration' => 240,
+            'is_playing' => true,
+        ]);
+
+        $response = $this->actingAs($user)->postJson(route('kasir.music.master.claim'), [
+            'client_id' => 'tab_device_a_123',
+            'device_id' => 'device_tablet_pos',
+            'device_name' => 'Tablet Kasir',
+            'page_title' => 'Sound Station',
+            'priority' => 100,
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('status', 'granted')
+            ->assertJsonPath('master.client_id', 'tab_device_a_123')
+            ->assertJsonPath('master.device_name', 'Tablet Kasir')
+            ->assertJsonPath('playback_state.current_time', 85.5);
+    }
+
+    public function test_kasir_claim_rejected_if_another_host_active_with_higher_priority_unless_forced(): void
+    {
+        $user = User::factory()->create();
+
+        // Host aktif di Device A dengan priority 100 (dedicated page)
+        Cache::put('soundstation_master_host', [
+            'client_id' => 'tab_device_a_123',
+            'device_name' => 'PC Kasir Utama',
+            'page_title' => 'Sound Station',
+            'priority' => 100,
+            'claimed_at' => now()->timestamp,
+            'updated_at' => now()->timestamp,
+        ], 30);
+
+        // Device B coba klaim tanpa force dengan priority lebih rendah (10)
+        $response = $this->actingAs($user)->postJson(route('kasir.music.master.claim'), [
+            'client_id' => 'tab_device_b_456',
+            'device_name' => 'Tablet POS',
+            'priority' => 10,
+            'force' => false,
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('status', 'rejected')
+            ->assertJsonPath('current_master.client_id', 'tab_device_a_123');
+
+        // Device B klaim dengan force = true (ambil alih)
+        $responseForce = $this->actingAs($user)->postJson(route('kasir.music.master.claim'), [
+            'client_id' => 'tab_device_b_456',
+            'device_name' => 'Tablet POS',
+            'priority' => 10,
+            'force' => true,
+        ]);
+
+        $responseForce->assertOk()
+            ->assertJsonPath('status', 'granted')
+            ->assertJsonPath('master.client_id', 'tab_device_b_456');
+    }
+
+    public function test_master_heartbeat_returns_preempted_when_another_client_took_over(): void
+    {
+        $user = User::factory()->create();
+
+        // Device B mengambil alih master host
+        Cache::put('soundstation_master_host', [
+            'client_id' => 'tab_device_b_456',
+            'device_name' => 'Tablet POS',
+            'page_title' => 'Sound Station',
+            'priority' => 100,
+            'claimed_at' => now()->timestamp,
+            'updated_at' => now()->timestamp,
+        ], 30);
+
+        // Device A (bekas master) mengirim heartbeat
+        $response = $this->actingAs($user)->postJson(route('kasir.music.master.heartbeat'), [
+            'client_id' => 'tab_device_a_123',
+            'current_time' => 90.0,
+            'duration' => 240,
+            'is_playing' => true,
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('status', 'preempted')
+            ->assertJsonPath('current_master.client_id', 'tab_device_b_456');
+    }
+
+    public function test_remote_device_can_send_command_and_master_receives_in_heartbeat(): void
+    {
+        $user = User::factory()->create();
+
+        // Device B (Master) terdaftar
+        Cache::put('soundstation_master_host', [
+            'client_id' => 'tab_device_b_456',
+            'device_name' => 'Tablet POS',
+            'page_title' => 'Sound Station',
+            'priority' => 100,
+            'claimed_at' => now()->timestamp,
+            'updated_at' => now()->timestamp,
+        ], 30);
+
+        // Device A (Remote) mengirim perintah SKIP via API
+        $cmdResponse = $this->actingAs($user)->postJson(route('kasir.music.master.command'), [
+            'command' => 'SKIP',
+            'data' => [],
+        ]);
+
+        $cmdResponse->assertOk()
+            ->assertJsonPath('status', 'queued');
+
+        // Device B (Master) mengirim heartbeat, harus menerima perintah SKIP
+        $heartbeatResponse = $this->actingAs($user)->postJson(route('kasir.music.master.heartbeat'), [
+            'client_id' => 'tab_device_b_456',
+            'current_time' => 50,
+        ]);
+
+        $heartbeatResponse->assertOk()
+            ->assertJsonPath('status', 'ok');
+
+        $commands = $heartbeatResponse->json('commands');
+        $this->assertNotEmpty($commands);
+        $this->assertEquals('SKIP', $commands[0]['command']);
+    }
+
+    public function test_kasir_can_release_master_host(): void
+    {
+        $user = User::factory()->create();
+
+        Cache::put('soundstation_master_host', [
+            'client_id' => 'tab_device_b_456',
+            'device_name' => 'Tablet POS',
+            'claimed_at' => now()->timestamp,
+            'updated_at' => now()->timestamp,
+        ], 30);
+
+        $response = $this->actingAs($user)->postJson(route('kasir.music.master.release'), [
+            'client_id' => 'tab_device_b_456',
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('status', 'released');
+
+        $this->assertNull(Cache::get('soundstation_master_host'));
+    }
 }

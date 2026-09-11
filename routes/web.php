@@ -68,6 +68,13 @@ Route::middleware('auth')->prefix('kasir')->name('kasir.')->group(function () {
         Route::get('/pending-announcements', [KasirMusicController::class, 'pendingAnnouncements'])->name('announcements.pending');
         Route::post('/orders/{order}/announced', [KasirMusicController::class, 'markAnnounced'])->name('announcements.mark');
         Route::post('/playback-sync', [KasirMusicController::class, 'syncPlayback'])->name('playback.sync');
+
+        // Sinkronisasi & Ambil Alih Master Host Antar-Device (Multi-Device Preemption & Remote)
+        Route::post('/master-host/claim', [KasirMusicController::class, 'claimMasterHost'])->name('master.claim');
+        Route::post('/master-host/heartbeat', [KasirMusicController::class, 'masterHeartbeat'])->name('master.heartbeat');
+        Route::get('/master-host/status', [KasirMusicController::class, 'masterStatus'])->name('master.status');
+        Route::post('/master-host/command', [KasirMusicController::class, 'sendRemoteCommand'])->name('master.command');
+        Route::post('/master-host/release', [KasirMusicController::class, 'releaseMasterHost'])->name('master.release');
     });
 
     // Kelola menu & kategori

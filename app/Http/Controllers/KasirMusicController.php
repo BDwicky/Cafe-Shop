@@ -288,4 +288,191 @@ class KasirMusicController extends Controller
 
         return response()->json(['status' => 'ok']);
     }
+
+    /**
+     * Klaim status Master Host (pemutar audio utama).
+     * Jika perangkat lain memaksa (force) atau memiliki prioritas lebih tinggi (halaman dedicated /kasir/music),
+     * status master dipindahkan ke perangkat pemanggil.
+     */
+    public function claimMasterHost(Request $request): JsonResponse
+    {
+        $clientId = $request->string('client_id')->toString();
+        $deviceId = $request->string('device_id')->toString();
+        $deviceName = $request->string('device_name', 'Perangkat Lain')->toString();
+        $pageTitle = $request->string('page_title', 'Sound Station')->toString();
+        $priority = $request->integer('priority', 10);
+        $force = $request->boolean('force');
+
+        if (empty($clientId)) {
+            return response()->json(['status' => 'error', 'message' => 'client_id wajib diisi'], 422);
+        }
+
+        $existingMaster = Cache::get('soundstation_master_host');
+        $now = now()->timestamp;
+
+        // Cek jika master sebelumnya masih aktif
+        if ($existingMaster && ! empty($existingMaster['client_id']) && $existingMaster['client_id'] !== $clientId) {
+            $isFresh = ($now - ($existingMaster['updated_at'] ?? 0)) < 15;
+
+            if ($isFresh && ! $force) {
+                $existingPriority = $existingMaster['priority'] ?? 10;
+                if ($existingPriority >= $priority) {
+                    return response()->json([
+                        'status' => 'rejected',
+                        'message' => 'Master host sedang dipegang oleh perangkat lain.',
+                        'current_master' => $existingMaster,
+                        'playback_state' => Cache::get('soundstation_playback_state'),
+                    ]);
+                }
+            }
+        }
+
+        $newMaster = [
+            'client_id' => $clientId,
+            'device_id' => $deviceId,
+            'device_name' => $deviceName,
+            'page_title' => $pageTitle,
+            'priority' => $priority,
+            'claimed_at' => $now,
+            'updated_at' => $now,
+        ];
+
+        Cache::put('soundstation_master_host', $newMaster, now()->addSeconds(30));
+
+        return response()->json([
+            'status' => 'granted',
+            'master' => $newMaster,
+            'playback_state' => Cache::get('soundstation_playback_state'),
+        ]);
+    }
+
+    /**
+     * Heartbeat dari Master Host pemutar audio.
+     * Mengirimkan detak playback (waktu & status) sekaligus memeriksa
+     * apakah hak master telah diambil alih oleh perangkat lain (preempted).
+     * Juga mengambil antrean perintah remote jika ada.
+     */
+    public function masterHeartbeat(Request $request): JsonResponse
+    {
+        $clientId = $request->string('client_id')->toString();
+        if (empty($clientId)) {
+            return response()->json(['status' => 'error', 'message' => 'client_id wajib diisi'], 422);
+        }
+
+        $now = now()->timestamp;
+        $existingMaster = Cache::get('soundstation_master_host');
+
+        // Jika master di cache bukan tab/client ini, maka tab ini telah diambil alih (preempted)
+        if ($existingMaster && ! empty($existingMaster['client_id']) && $existingMaster['client_id'] !== $clientId) {
+            return response()->json([
+                'status' => 'preempted',
+                'message' => 'Pemutar audio utama telah diambil alih oleh perangkat lain.',
+                'current_master' => $existingMaster,
+                'playback_state' => Cache::get('soundstation_playback_state'),
+            ]);
+        }
+
+        // Perbarui masa aktif master host
+        if (! $existingMaster || empty($existingMaster['client_id'])) {
+            $existingMaster = [
+                'client_id' => $clientId,
+                'device_id' => $request->string('device_id')->toString(),
+                'device_name' => $request->string('device_name', 'Perangkat Kasir')->toString(),
+                'page_title' => $request->string('page_title', 'Sound Station')->toString(),
+                'priority' => $request->integer('priority', 10),
+                'claimed_at' => $now,
+            ];
+        }
+
+        $existingMaster['updated_at'] = $now;
+        Cache::put('soundstation_master_host', $existingMaster, now()->addSeconds(30));
+
+        // Perbarui playback state jika dikirim
+        if ($request->has('current_time')) {
+            $state = [
+                'current_time' => $request->float('current_time', 0),
+                'duration' => $request->float('duration', 0),
+                'is_playing' => $request->boolean('is_playing'),
+                'current_track' => $request->input('current_track'),
+                'updated_at' => (int) round(microtime(true) * 1000),
+                'client_id' => $clientId,
+            ];
+            Cache::put('soundstation_playback_state', $state, now()->addMinutes(2));
+        }
+
+        // Ambil dan bersihkan perintah remote (pending commands)
+        $commands = Cache::pull('soundstation_pending_commands', []);
+
+        return response()->json([
+            'status' => 'ok',
+            'commands' => is_array($commands) ? array_values($commands) : [],
+        ]);
+    }
+
+    /**
+     * Dapatkan status Master Host saat ini (untuk perangkat remote & display).
+     */
+    public function masterStatus(): JsonResponse
+    {
+        $master = Cache::get('soundstation_master_host');
+        $playbackState = Cache::get('soundstation_playback_state');
+
+        $isMasterAlive = false;
+        if ($master && ! empty($master['updated_at'])) {
+            $isMasterAlive = (now()->timestamp - $master['updated_at']) < 20;
+        }
+
+        return response()->json([
+            'has_master' => $isMasterAlive,
+            'master' => $isMasterAlive ? $master : null,
+            'playback_state' => $playbackState,
+        ]);
+    }
+
+    /**
+     * Kirim remote control command dari perangkat remote (misal HP / Tablet) ke Master Host.
+     */
+    public function sendRemoteCommand(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'command' => 'required|string|max:50',
+            'data' => 'nullable|array',
+        ]);
+
+        $commands = Cache::get('soundstation_pending_commands', []);
+        if (! is_array($commands)) {
+            $commands = [];
+        }
+
+        $commands[] = [
+            'id' => uniqid('cmd_', true),
+            'command' => $validated['command'],
+            'data' => $validated['data'] ?? [],
+            'created_at' => now()->timestamp,
+        ];
+
+        // Batasi maksimal 20 perintah antrean dan simpan selama 30 detik
+        $commands = array_slice($commands, -20);
+        Cache::put('soundstation_pending_commands', $commands, now()->addSeconds(30));
+
+        return response()->json([
+            'status' => 'queued',
+            'message' => 'Perintah remote berhasil dikirim ke pemutar utama.',
+        ]);
+    }
+
+    /**
+     * Lepaskan status Master Host (misal saat tab ditutup / kasir logout).
+     */
+    public function releaseMasterHost(Request $request): JsonResponse
+    {
+        $clientId = $request->string('client_id')->toString();
+        $existingMaster = Cache::get('soundstation_master_host');
+
+        if ($existingMaster && (! empty($clientId) && ($existingMaster['client_id'] ?? null) === $clientId)) {
+            Cache::forget('soundstation_master_host');
+        }
+
+        return response()->json(['status' => 'released']);
+    }
 }
