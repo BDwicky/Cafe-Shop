@@ -815,4 +815,24 @@ class MusicRequestTest extends TestCase
         $this->assertEquals(95.0, $state['current_time']);
         $this->assertTrue($state['is_playing']);
     }
+
+    public function test_kasir_can_reorder_default_tracks(): void
+    {
+        $user = User::factory()->create();
+
+        $track1 = MusicDefaultTrack::factory()->create(['sort_order' => 1]);
+        $track2 = MusicDefaultTrack::factory()->create(['sort_order' => 2]);
+        $track3 = MusicDefaultTrack::factory()->create(['sort_order' => 3]);
+
+        $response = $this->actingAs($user)->postJson(route('kasir.music.default.reorder'), [
+            'track_ids' => [$track3->id, $track1->id, $track2->id],
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertEquals(1, $track3->fresh()->sort_order);
+        $this->assertEquals(2, $track1->fresh()->sort_order);
+        $this->assertEquals(3, $track2->fresh()->sort_order);
+    }
 }

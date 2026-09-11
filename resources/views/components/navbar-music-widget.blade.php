@@ -1346,7 +1346,47 @@ function navbarMusicWidget() {
                 case 'REFRESH_QUEUE':
                     this.refreshQueue();
                     break;
+                case 'PLAY_TRACK':
+                    if (data.track) {
+                        this.playDirectTrack(data.track);
+                    }
+                    break;
             }
+        },
+
+        playDirectTrack(track) {
+            if (!track || !track.youtube_id) return;
+            const isLiveTrack = (track.duration_seconds >= 86400) || (track.title && /live|radio|24\/7/i.test(track.title));
+            this.currentTrack = {
+                id: track.id,
+                title: track.title,
+                artist: track.artist || 'Playlist Kafe',
+                youtube_id: track.youtube_id,
+                duration_seconds: track.duration_seconds || 0,
+                type: 'default_track'
+            };
+            this.currentRequestId = null;
+            this.lastDefaultTrackId = track.id;
+            try {
+                localStorage.setItem('pos_soundstation_last_default_id', track.id);
+            } catch (e) {}
+
+            this.currentTime = 0;
+            this.duration = track.duration_seconds || 0;
+            this.progressPercent = 0;
+            this.isLive = isLiveTrack;
+            this._trackStartedAt = Date.now();
+            this.currentTimeFormatted = '00:00';
+            this.durationFormatted = isLiveTrack ? 'RADIO 24/7' : this.formatTime(track.duration_seconds || 0);
+
+            if (this.player && this.playerReady) {
+                this.player.loadVideoById(track.youtube_id);
+                this.player.playVideo();
+                this.isPlaying = true;
+                document.title = '♫ ' + track.title + ' — POS';
+            }
+            this.broadcastSync();
+            this.broadcastTimeSync();
         },
 
         fadeAudio(fromVol, toVol, durationMs = 5000) {

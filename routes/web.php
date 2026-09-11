@@ -62,6 +62,7 @@ Route::middleware('auth')->prefix('kasir')->name('kasir.')->group(function () {
         Route::get('/default-tracks', [KasirMusicController::class, 'defaultTracksJson'])->name('default.list');
         Route::post('/default-tracks', [KasirMusicController::class, 'storeDefaultTrack'])->name('default.store');
         Route::post('/default-tracks/batch', [KasirMusicController::class, 'storeBatchDefaultTracks'])->name('default.store_batch');
+        Route::post('/default-tracks/reorder', [KasirMusicController::class, 'reorderDefaultTracks'])->name('default.reorder');
         Route::get('/inspect-link', [KasirMusicController::class, 'inspectLink'])->name('inspect');
         Route::patch('/default-tracks/{track}/toggle', [KasirMusicController::class, 'toggleDefaultTrack'])->name('default.toggle');
         Route::put('/default-tracks/{track}', [KasirMusicController::class, 'updateDefaultTrack'])->name('default.update');

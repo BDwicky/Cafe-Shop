@@ -275,6 +275,26 @@ class KasirMusicController extends Controller
     }
 
     /**
+     * Perbarui urutan (sort_order) lagu-lagu di playlist bawaan kafe secara massal (Drag and Drop).
+     */
+    public function reorderDefaultTracks(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'track_ids' => ['required', 'array'],
+            'track_ids.*' => ['integer', 'exists:music_default_tracks,id'],
+        ]);
+
+        foreach ($data['track_ids'] as $index => $id) {
+            MusicDefaultTrack::where('id', $id)->update(['sort_order' => $index + 1]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Urutan playlist bawaan berhasil disimpan.',
+        ]);
+    }
+
+    /**
      * Aktifkan / Nonaktifkan lagu bawaan kafe.
      */
     public function toggleDefaultTrack(Request $request, MusicDefaultTrack $track): JsonResponse|RedirectResponse

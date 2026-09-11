@@ -69,6 +69,19 @@
         .eq-bar {
             animation: eqBarBounce 1.2s ease-in-out infinite alternate;
         }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none !important;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none !important;
+            scrollbar-width: none !important;
+        }
+        #tv-player-wrap iframe, #tv-yt-player {
+            width: 100% !important;
+            height: 100% !important;
+            border: none !important;
+            pointer-events: none !important;
+        }
         @keyframes cardFlyIn {
             0% {
                 opacity: 0;
@@ -130,6 +143,12 @@
         playbackDurationFormatted: '00:00',
         isPlaying: false,
 
+        // YOUTUBE TV VIDEO PLAYER INSTANCE (100% SYNC DENGAN AUDIO KASIR)
+        tvPlayer: null,
+        tvPlayerReady: false,
+        currentTvVideoId: '',
+        _isManualPausing: false,
+
         init() {
             this.isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
             const updateFs = () => {
@@ -167,17 +186,21 @@
                         if (typeof t.isPlaying !== 'undefined') {
                             this.isPlaying = !!t.isPlaying;
                         }
+                        this.syncTvPlayerState();
                     } else if (data.type === 'STATE_UPDATE' && data.state) {
                         const s = data.state;
                         if (s.currentTrack) this.nowPlaying = s.currentTrack;
                         if (typeof s.isPlaying !== 'undefined') this.isPlaying = !!s.isPlaying;
                         if (typeof s.queueCount !== 'undefined') this.queueCount = s.queueCount;
                         if (Array.isArray(s.queue)) this.queue = s.queue;
+                        this.syncTvPlayerState();
                     } else if (data.type === 'SYNC_STATE') {
                         this.applySyncData(data);
+                        this.syncTvPlayerState();
                     } else if (data.type === 'TRACK_CHANGED') {
                         this.nowPlaying = data.track;
                         this.isPlaying = true;
+                        this.syncTvPlayerState();
                     } else if (data.type === 'QUEUE_UPDATED') {
                         this.fetchStatus();
                     } else if (data.type === 'ORDER_READY') {
@@ -189,6 +212,7 @@
             // Dengarkan event window kustom
             window.addEventListener('soundstation:sync', (e) => {
                 this.applySyncData(e.detail);
+                this.syncTvPlayerState();
             });
             window.addEventListener('soundstation:timesync', (e) => {
                 if (e.detail) {
@@ -200,12 +224,16 @@
                     this.playbackCurrentTimeFormatted = t.currentTimeFormatted || this.formatSeconds(this.playbackCurrentTime);
                     this.playbackDurationFormatted = t.durationFormatted || this.formatSeconds(this.playbackDuration);
                     if (typeof t.isPlaying !== 'undefined') this.isPlaying = !!t.isPlaying;
+                    this.syncTvPlayerState();
                 }
             });
 
             // Polling status lagu & pesanan siap setiap 3 detik
             this.fetchStatus();
             setInterval(() => this.fetchStatus(), 3000);
+
+            // Muat YouTube Iframe API untuk sinkronisasi Live Video Mode dengan Audio Kasir
+            this.loadYouTubeApi();
 
             // Progress bar interpolator (60fps halus)
             setInterval(() => {
@@ -215,32 +243,148 @@
                     this.playbackCurrentTimeFormatted = this.formatSeconds(Math.floor(this.playbackCurrentTime));
                 }
             }, 100);
+
+            // Sinkronisasi Video TV dengan status playback audio Kasir setiap 1 detik
+            setInterval(() => {
+                this.syncTvPlayerState();
+            }, 1000);
         },
 
-        toggleDisplayMode() {
-            this.displayMode = this.displayMode === 'visualizer' ? 'video' : 'visualizer';
-            localStorage.setItem('tv_display_mode', this.displayMode);
-        },
-
-        toggleFullscreen() {
-            if (!document.fullscreenElement) {
-                const el = document.documentElement;
-                if (el.requestFullscreen) {
-                    el.requestFullscreen().catch(() => {});
-                } else if (el.webkitRequestFullscreen) {
-                    el.webkitRequestFullscreen();
-                } else if (el.msRequestFullscreen) {
-                    el.msRequestFullscreen();
-                }
-            } else {
-                if (document.exitFullscreen) {
-                    document.exitFullscreen().catch(() => {});
-                } else if (document.webkitExitFullscreen) {
-                    document.webkitExitFullscreen();
-                } else if (document.msExitFullscreen) {
-                    document.msExitFullscreen();
+        loadYouTubeApi() {
+            if (!window.YT) {
+                if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
+                    const tag = document.createElement('script');
+                    tag.src = 'https://www.youtube.com/iframe_api';
+                    const firstScriptTag = document.getElementsByTagName('script')[0];
+                    if (firstScriptTag && firstScriptTag.parentNode) {
+                        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+                    } else {
+                        document.head.appendChild(tag);
+                    }
                 }
             }
+            if (window.YT && window.YT.Player) {
+                this.initTvPlayer();
+            } else {
+                const prevHandler = window.onYouTubeIframeAPIReady;
+                window.onYouTubeIframeAPIReady = () => {
+                    if (typeof prevHandler === 'function') {
+                        try { prevHandler(); } catch (e) {}
+                    }
+                    this.initTvPlayer();
+                };
+            }
+        },
+
+        initTvPlayer() {
+            if (this.tvPlayer) return;
+            const targetEl = document.getElementById('tv-yt-player');
+            if (!targetEl) return;
+
+            const initialVideoId = this.nowPlaying ? this.nowPlaying.youtube_id : '';
+            this.currentTvVideoId = initialVideoId;
+
+            try {
+                this.tvPlayer = new YT.Player('tv-yt-player', {
+                    height: '100%',
+                    width: '100%',
+                    videoId: initialVideoId || undefined,
+                    playerVars: {
+                        autoplay: 1,
+                        controls: 0,
+                        disablekb: 1,
+                        fs: 0,
+                        modestbranding: 1,
+                        rel: 0,
+                        playsinline: 1,
+                        mute: 1, // TV selalu hening secara default agar audio utama tetap diputar oleh tab Kasir
+                        origin: window.location.origin
+                    },
+                    events: {
+                        onReady: (event) => {
+                            this.tvPlayerReady = true;
+                            event.target.mute();
+
+                            if (this.nowPlaying && this.nowPlaying.youtube_id) {
+                                const startSec = Math.max(0, Math.floor(this.playbackCurrentTime || 0));
+                                if (startSec > 0 && startSec < 86400) {
+                                    event.target.loadVideoById({
+                                        videoId: this.nowPlaying.youtube_id,
+                                        startSeconds: startSec
+                                    });
+                                } else {
+                                    event.target.loadVideoById(this.nowPlaying.youtube_id);
+                                }
+                                if (this.isPlaying) {
+                                    event.target.playVideo();
+                                } else {
+                                    event.target.pauseVideo();
+                                }
+                            }
+                        },
+                        onStateChange: (event) => {
+                            // Jika video di-pause YouTube atau buffer tetapi musik kasir sedang jalan,
+                            // sinkronkan kembali tanpa desync
+                            if (event.data === YT.PlayerState.PAUSED && this.isPlaying && !this._isManualPausing) {
+                                setTimeout(() => {
+                                    if (this.isPlaying && this.tvPlayer && typeof this.tvPlayer.playVideo === 'function') {
+                                        this.syncTvPlayerState();
+                                    }
+                                }, 600);
+                            }
+                        }
+                    }
+                });
+            } catch (e) {
+                console.warn('[TV YouTube Init Error]', e);
+            }
+        },
+
+        syncTvPlayerState() {
+            if (!this.tvPlayer || !this.tvPlayerReady) {
+                if (!this.tvPlayer) this.loadYouTubeApi();
+                return;
+            }
+            if (!this.nowPlaying || !this.nowPlaying.youtube_id) return;
+
+            try {
+                // 1. Sinkronisasi ganti lagu jika videoId berbeda
+                if (this.currentTvVideoId !== this.nowPlaying.youtube_id) {
+                    this.currentTvVideoId = this.nowPlaying.youtube_id;
+                    const startSec = Math.max(0, Math.floor(this.playbackCurrentTime || 0));
+                    if (startSec > 0 && startSec < 86400) {
+                        this.tvPlayer.loadVideoById({
+                            videoId: this.nowPlaying.youtube_id,
+                            startSeconds: startSec
+                        });
+                    } else {
+                        this.tvPlayer.loadVideoById(this.nowPlaying.youtube_id);
+                    }
+                }
+
+                // 2. Sinkronisasi Play / Pause state secara real-time
+                const state = (typeof this.tvPlayer.getPlayerState === 'function') ? this.tvPlayer.getPlayerState() : -1;
+                if (this.isPlaying) {
+                    if (state === YT.PlayerState.PAUSED || state === YT.PlayerState.CUED) {
+                        this.tvPlayer.playVideo();
+                    }
+                } else {
+                    if (state === YT.PlayerState.PLAYING || state === YT.PlayerState.BUFFERING) {
+                        this._isManualPausing = true;
+                        this.tvPlayer.pauseVideo();
+                        setTimeout(() => { this._isManualPausing = false; }, 400);
+                    }
+                }
+
+                // 3. Sinkronisasi Time Drift (apabila video TV ketinggalan atau mendahului > 2.5 detik)
+                if (this.isPlaying && typeof this.tvPlayer.getCurrentTime === 'function' && this.playbackDuration > 0 && this.playbackCurrentTime < 86400) {
+                    const tvCurTime = this.tvPlayer.getCurrentTime() || 0;
+                    const drift = Math.abs(tvCurTime - this.playbackCurrentTime);
+                    if (drift > 2.5) {
+                        this.tvPlayer.seekTo(this.playbackCurrentTime, true);
+                    }
+                }
+            } catch (e) {}
         },
 
         applySyncData(data) {
@@ -501,6 +645,12 @@
             try {
                 localStorage.setItem('tv_display_mode', this.displayMode);
             } catch (e) {}
+            if (this.displayMode === 'video') {
+                this.$nextTick(() => {
+                    this.loadYouTubeApi();
+                    this.syncTvPlayerState();
+                });
+            }
         },
 
         toggleFullscreen() {
@@ -747,27 +897,36 @@
                     </div>
                 </div>
 
-                <!-- 2. MODE VIDEO: CINEMATIC YOUTUBE PLAYER SCREEN -->
+                <!-- 2. MODE VIDEO: CINEMATIC YOUTUBE PLAYER SCREEN (100% SYNC DENGAN AUDIO KASIR) -->
                 <div x-show="displayMode === 'video'" class="space-y-4 w-full">
                     <div class="w-full aspect-video rounded-2xl overflow-hidden border-2 border-[#3A3026] shadow-[0_20px_60px_rgba(0,0,0,0.9)] bg-black relative group">
-                        <template x-if="nowPlaying && nowPlaying.youtube_id">
-                            <iframe :src="'https://www.youtube-nocookie.com/embed/' + nowPlaying.youtube_id + '?autoplay=1&mute=1&controls=0&loop=1&playlist=' + nowPlaying.youtube_id"
-                                    class="w-full h-full rounded-xl"
-                                    frameborder="0"
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                    allowfullscreen>
-                            </iframe>
-                        </template>
-                        <template x-if="!nowPlaying || !nowPlaying.youtube_id">
-                            <div class="w-full h-full flex flex-col items-center justify-center bg-[#140E0A] text-[#A89A85]">
-                                <span class="text-5xl mb-2 text-[#D9973E]">🎬</span>
-                                <span class="font-mono text-xs">Memuat tayangan video...</span>
+                        <!-- YOUTUBE VIDEO HOST (POINTER-EVENTS-NONE AGAR TIDAK BISA DI-PAUSE SECARA MANUAL DI LAYAR TV) -->
+                        <div class="w-full h-full relative">
+                            <div id="tv-player-wrap" class="w-full h-full pointer-events-none" x-show="nowPlaying && nowPlaying.youtube_id">
+                                <div id="tv-yt-player" class="w-full h-full"></div>
                             </div>
-                        </template>
+
+                            <template x-if="!nowPlaying || !nowPlaying.youtube_id">
+                                <div class="w-full h-full flex flex-col items-center justify-center bg-[#140E0A] text-[#A89A85]">
+                                    <span class="text-5xl mb-2 text-[#D9973E]">🎬</span>
+                                    <span class="font-mono text-xs">Memuat tayangan video...</span>
+                                </div>
+                            </template>
+
+                            <!-- OVERLAY INDIKATOR KETIKA KASIR MENJEDA MUSIK -->
+                            <div x-show="!isPlaying && nowPlaying"
+                                 class="absolute inset-0 bg-black/65 backdrop-blur-xs flex items-center justify-center pointer-events-none transition-opacity">
+                                <div class="px-5 py-2.5 bg-[#1F1812]/95 border border-[#D9973E]/60 rounded-full text-[#D9973E] font-mono text-xs font-bold flex items-center gap-2 shadow-2xl animate-pulse">
+                                    <span class="w-2 h-2 rounded-full bg-[#D9973E] animate-ping"></span>
+                                    <span>⏸️ AUDIO & VIDEO TERJEDA DI KASIR</span>
+                                </div>
+                            </div>
+                        </div>
 
                         <!-- Video Overlay Badge -->
-                        <div class="absolute top-3 left-3 px-3 py-1 bg-black/70 border border-white/10 rounded-full font-mono text-[10px] text-[#D9973E] uppercase tracking-widest backdrop-blur-md">
-                            🎬 LIVE VIDEO DISPLAY
+                        <div class="absolute top-3 left-3 px-3 py-1 bg-black/70 border border-white/10 rounded-full font-mono text-[10px] text-[#D9973E] uppercase tracking-widest backdrop-blur-md pointer-events-none flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 rounded-full bg-[#D9973E] animate-pulse"></span>
+                            <span>LIVE CINEMATIC SYNC</span>
                         </div>
                     </div>
 
@@ -779,7 +938,7 @@
                             <div class="text-xs text-[#A89A85] font-mono truncate"
                                  x-text="nowPlaying ? (nowPlaying.artist || 'Artis') : '-'"></div>
                         </div>
-                        <div class="font-mono text-xs text-[#D9973E] shrink-0" x-text="playbackCurrentTimeFormatted + ' / ' + playbackDurationFormatted"></div>
+                        <div class="font-mono text-xs text-[#D9973E] shrink-0 font-bold" x-text="playbackCurrentTimeFormatted + ' / ' + playbackDurationFormatted"></div>
                     </div>
                 </div>
 
@@ -821,8 +980,8 @@
                     <span class="font-mono text-[10px] text-[#7A6A58] uppercase tracking-widest hidden sm:inline">UP NEXT QUEUE</span>
                 </div>
 
-                <!-- QUEUE LIST (FLEX-1 EXPANDABLE) -->
-                <div class="space-y-2 overflow-y-auto pr-1 flex-1 min-h-[160px]">
+                <!-- QUEUE LIST (FLEX-1 EXPANDABLE, INVISIBLE SCROLL) -->
+                <div class="space-y-1.5 overflow-y-auto pr-0 flex-1 min-h-[140px] no-scrollbar">
                     <template x-if="queue.length === 0">
                         <div class="h-full flex flex-col items-center justify-center text-center py-8 text-[#7A6A58] font-mono text-xs">
                             <span class="text-3xl mb-2 opacity-50">☕</span>
@@ -831,18 +990,18 @@
                         </div>
                     </template>
 
-                    <template x-for="(item, index) in queue.slice(0, 8)" :key="item.id">
-                        <div class="flex items-center justify-between py-1.5 px-2.5 bg-[#1F1711] border border-[#3A3026]/70 rounded-md hover:border-[#D9973E]/50 transition">
-                            <div class="flex items-center gap-2.5 min-w-0">
-                                <span class="font-mono font-bold text-[#D9973E] text-xs w-4 text-center shrink-0" x-text="'#' + (index + 1)"></span>
+                    <template x-for="(item, index) in queue" :key="item.id">
+                        <div class="flex items-center justify-between py-1 px-2.5 bg-[#1F1711] border border-[#3A3026]/70 rounded hover:border-[#D9973E]/50 transition">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <span class="font-mono font-bold text-[#D9973E] text-[10px] w-3.5 text-center shrink-0" x-text="'#' + (index + 1)"></span>
                                 <div class="min-w-0">
-                                    <div class="text-xs font-medium text-[#F7F3EC] truncate leading-tight" x-text="item.song_title"></div>
-                                    <div class="text-[10px] text-[#A89A85] truncate" x-text="item.artist || 'Artis YouTube'"></div>
+                                    <div class="text-[11px] font-medium text-[#F7F3EC] truncate leading-snug" x-text="item.song_title"></div>
+                                    <div class="text-[9px] text-[#A89A85] truncate leading-tight" x-text="item.artist || 'Artis YouTube'"></div>
                                 </div>
                             </div>
                             <div class="text-right shrink-0 ml-2">
-                                <div class="font-mono text-[9px] text-[#A89A85] truncate max-w-[90px]" x-text="item.customer_name || 'Pelanggan'"></div>
-                                <span class="font-mono text-[8px] uppercase tracking-wider text-[#5F7F42] bg-[#5F7F42]/10 px-1 py-0.2 rounded border border-[#5F7F42]/20">Next</span>
+                                <div class="font-mono text-[8.5px] text-[#A89A85] truncate max-w-[85px]" x-text="item.customer_name || 'Pelanggan'"></div>
+                                <span class="font-mono text-[7.5px] uppercase tracking-wider text-[#5F7F42] bg-[#5F7F42]/10 px-1 py-0.2 rounded border border-[#5F7F42]/20">Next</span>
                             </div>
                         </div>
                     </template>

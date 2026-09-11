@@ -561,60 +561,100 @@
 
                         <!-- LIST DAFTAR LAGU BAWAAN (REAKTIF REALTIME TANPA RELOAD) -->
                         <div class="space-y-2">
+                            <div class="flex items-center justify-between text-[11px] font-mono text-[#7A6A58] pb-1 border-b border-[#E0D8CC]/70">
+                                <span>Tarik ⋮⋮ untuk ubah urutan &bull; Klik ▶ Putar langsung</span>
+                                <span x-text="defaultTracks.length + ' Lagu'"></span>
+                            </div>
+
                             <template x-if="defaultTracks.length === 0">
                                 <div class="p-6 bg-[#F7F3EC] border border-[#E0D8CC] text-center text-xs font-mono text-[#7A6A58]">
                                     Belum ada lagu di playlist bawaan. Tempel link YouTube di atas untuk menambahkan.
                                 </div>
                             </template>
 
-                            <template x-for="track in defaultTracks" :key="track.id">
-                                <div class="p-2.5 bg-white border border-[#E0D8CC] flex items-center justify-between gap-3 text-xs transition hover:border-[#D9973E]/50">
-                                    <div class="min-w-0 flex-1">
-                                        <div class="font-bold text-[#1F1812] truncate flex items-center gap-2">
-                                            <span x-text="track.title"></span>
-                                            <template x-if="track.duration_seconds > 0 && track.duration_seconds < 86400 && !(track.title && (track.title.toLowerCase().includes('radio') || track.title.toLowerCase().includes('live 24/7') || track.title.toLowerCase().includes('[live]')))">
-                                                <span class="font-mono text-[10px] text-[#5F7F42] bg-[#5F7F42]/10 border border-[#5F7F42]/20 px-1.5 py-0.2 rounded"
-                                                      x-text="'⏱️ ' + formatTime(track.duration_seconds)"></span>
-                                            </template>
-                                            <template x-if="track.duration_seconds >= 86400 || (track.title && (track.title.toLowerCase().includes('radio') || track.title.toLowerCase().includes('live 24/7') || track.title.toLowerCase().includes('[live]')))">
-                                                <span class="font-mono text-[10px] text-[#D9973E] bg-[#D9973E]/15 border border-[#D9973E]/30 px-1.5 py-0.2 rounded inline-flex items-center gap-1 font-bold">
-                                                    <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
-                                                    <span>RADIO 24/7</span>
-                                                </span>
-                                            </template>
+                            <div class="max-h-[380px] xl:max-h-[430px] overflow-y-auto pr-1.5 space-y-2">
+                                <template x-for="(track, index) in defaultTracks" :key="track.id">
+                                    <div draggable="true"
+                                         @dragstart="onTrackDragStart($event, index)"
+                                         @dragover.prevent="onTrackDragOver($event, index)"
+                                         @dragenter.prevent="dragOverIndex = index"
+                                         @dragleave="dragOverIndex = (dragOverIndex === index ? null : dragOverIndex)"
+                                         @drop="onTrackDrop($event, index)"
+                                         @dragend="onTrackDragEnd($event)"
+                                         class="p-2.5 bg-white border flex items-center justify-between gap-2.5 text-xs transition select-none"
+                                         :class="{
+                                             'border-[#D9973E] bg-[#D9973E]/10 shadow-md ring-2 ring-[#D9973E]/30': dragOverIndex === index,
+                                             'opacity-40 border-dashed border-[#D9973E]': draggedIndex === index,
+                                             'border-[#E0D8CC] hover:border-[#D9973E]/50': dragOverIndex !== index && draggedIndex !== index,
+                                             'border-l-4 border-l-[#D9973E] bg-[#D9973E]/5': currentTrack && currentTrack.id === track.id && currentTrack.type === 'default_track'
+                                         }">
+                                        
+                                        <!-- DRAG HANDLE & NUMBER -->
+                                        <div class="flex items-center gap-1.5 shrink-0 cursor-grab active:cursor-grabbing text-[#A89A85] hover:text-[#1F1812] px-1 py-1"
+                                             title="Tahan dan geser untuk memindahkan urutan lagu">
+                                            <span class="text-sm font-bold leading-none tracking-tighter select-none">⋮⋮</span>
+                                            <span class="font-mono text-[11px] font-semibold text-[#7A6A58] w-4 text-center" x-text="index + 1"></span>
                                         </div>
-                                        <div class="text-[#7A6A58] text-[11px] truncate mt-0.5">
-                                            <span x-text="track.artist || 'Artis Kafe'"></span> &bull; <span class="font-mono text-[10px]" x-text="'ID: ' + track.youtube_id"></span>
+
+                                        <div class="min-w-0 flex-1">
+                                            <div class="font-bold text-[#1F1812] truncate flex items-center gap-2">
+                                                <span x-text="track.title"></span>
+                                                <template x-if="track.duration_seconds > 0 && track.duration_seconds < 86400 && !(track.title && (track.title.toLowerCase().includes('radio') || track.title.toLowerCase().includes('live 24/7') || track.title.toLowerCase().includes('[live]')))">
+                                                    <span class="font-mono text-[10px] text-[#5F7F42] bg-[#5F7F42]/10 border border-[#5F7F42]/20 px-1.5 py-0.2 rounded"
+                                                          x-text="'⏱️ ' + formatTime(track.duration_seconds)"></span>
+                                                </template>
+                                                <template x-if="track.duration_seconds >= 86400 || (track.title && (track.title.toLowerCase().includes('radio') || track.title.toLowerCase().includes('live 24/7') || track.title.toLowerCase().includes('[live]')))">
+                                                    <span class="font-mono text-[10px] text-[#D9973E] bg-[#D9973E]/15 border border-[#D9973E]/30 px-1.5 py-0.2 rounded inline-flex items-center gap-1 font-bold">
+                                                        <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
+                                                        <span>RADIO 24/7</span>
+                                                    </span>
+                                                </template>
+                                            </div>
+                                            <div class="text-[#7A6A58] text-[11px] truncate mt-0.5">
+                                                <span x-text="track.artist || 'Artis Kafe'"></span> &bull; <span class="font-mono text-[10px]" x-text="'ID: ' + track.youtube_id"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="flex items-center gap-1.5 shrink-0">
+                                            <!-- PLAY DIRECT -->
+                                            <button type="button"
+                                                    @click="playDefaultTrackDirect(track)"
+                                                    title="Putar lagu ini sekarang"
+                                                    class="px-2.5 py-1 font-mono text-[10px] uppercase font-bold border transition flex items-center gap-1 cursor-pointer"
+                                                    :class="(currentTrack && currentTrack.id === track.id && isPlaying)
+                                                        ? 'bg-[#D9973E] text-[#1F1812] border-[#D9973E] shadow-[0_0_8px_rgba(217,151,62,0.35)]'
+                                                        : 'bg-[#1F1812] text-[#F7F3EC] border-[#1F1812] hover:bg-[#D9973E] hover:text-[#1F1812]'">
+                                                <span x-text="(currentTrack && currentTrack.id === track.id && isPlaying) ? '▶ Diputar' : '▶ Putar'"></span>
+                                            </button>
+
+                                            <!-- EDIT -->
+                                            <button type="button"
+                                                    @click="openEditModal(track)"
+                                                    class="px-2.5 py-1 font-mono text-[10px] uppercase border border-[#D5CCC0] text-[#1F1812] hover:bg-[#E8DFD3] transition flex items-center gap-1 cursor-pointer">
+                                                <span>✏️</span>
+                                                <span>Edit</span>
+                                            </button>
+
+                                            <!-- TOGGLE ACTIVE -->
+                                            <button type="button"
+                                                    @click="toggleTrack(track)"
+                                                    class="px-2.5 py-1 font-mono text-[10px] uppercase border transition cursor-pointer"
+                                                    :class="track.is_active ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' : 'bg-gray-100 text-gray-500 border-gray-300 hover:bg-gray-200'"
+                                                    :title="track.is_active ? 'Klik untuk nonaktifkan' : 'Klik untuk aktifkan'">
+                                                <span x-text="track.is_active ? '✓ Aktif' : 'Nonaktif'"></span>
+                                            </button>
+
+                                            <!-- DELETE -->
+                                            <button type="button"
+                                                    @click="deleteTrack(track)"
+                                                    title="Hapus lagu ini dari playlist bawaan"
+                                                    class="px-2.5 py-1 font-mono text-[10px] uppercase text-red-600 border border-red-200 hover:bg-red-50 transition cursor-pointer">
+                                                ✕ Hapus
+                                            </button>
                                         </div>
                                     </div>
-                                    <div class="flex items-center gap-1.5 shrink-0">
-                                        <!-- EDIT -->
-                                        <button type="button"
-                                                @click="openEditModal(track)"
-                                                class="px-2.5 py-1 font-mono text-[10px] uppercase border border-[#D5CCC0] text-[#1F1812] hover:bg-[#E8DFD3] transition flex items-center gap-1 cursor-pointer">
-                                            <span>✏️</span>
-                                            <span>Edit</span>
-                                        </button>
-
-                                        <!-- TOGGLE ACTIVE -->
-                                        <button type="button"
-                                                @click="toggleTrack(track)"
-                                                class="px-2.5 py-1 font-mono text-[10px] uppercase border transition cursor-pointer"
-                                                :class="track.is_active ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' : 'bg-gray-100 text-gray-500 border-gray-300 hover:bg-gray-200'"
-                                                :title="track.is_active ? 'Klik untuk nonaktifkan' : 'Klik untuk aktifkan'">
-                                            <span x-text="track.is_active ? '✓ Aktif' : 'Nonaktif'"></span>
-                                        </button>
-
-                                        <!-- DELETE -->
-                                        <button type="button"
-                                                @click="deleteTrack(track)"
-                                                title="Hapus lagu ini dari playlist bawaan"
-                                                class="px-2.5 py-1 font-mono text-[10px] uppercase text-red-600 border border-red-200 hover:bg-red-50 transition cursor-pointer">
-                                            ✕ Hapus
-                                        </button>
-                                    </div>
-                                </div>
-                            </template>
+                                </template>
+                            </div>
                         </div>
                     </div>
 
@@ -761,6 +801,8 @@ function musicStationPage() {
         // DEFAULT TRACKS STATE (AJAX NO REFRESH)
         defaultTracks: {!! json_encode($defaultTracks) !!},
         batchUrls: '',
+        draggedIndex: null,
+        dragOverIndex: null,
         isSubmittingSingle: false,
         isSubmittingBatch: false,
         isSavingEdit: false,
@@ -1171,6 +1213,84 @@ function musicStationPage() {
                 if (window.customToast) {
                     window.customToast({ message: 'Terjadi kesalahan jaringan saat menghapus lagu.', type: 'danger' });
                 }
+            }
+        },
+
+        playDefaultTrackDirect(track) {
+            if (!track) return;
+            if (window.SoundStation && window.SoundStation.isMasterHost) {
+                window.SoundStation.playDirectTrack(track);
+            } else if (window.SoundStationHub) {
+                window.SoundStationHub.sendCommand('PLAY_TRACK', { track: track });
+            }
+            if (window.customToast) {
+                window.customToast({
+                    message: '▶ Memutar "' + track.title + '" sekarang...',
+                    type: 'success',
+                    duration: 2500
+                });
+            }
+        },
+
+        onTrackDragStart(event, index) {
+            this.draggedIndex = index;
+            if (event.dataTransfer) {
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', index);
+            }
+        },
+
+        onTrackDragOver(event, index) {
+            if (this.draggedIndex === null || this.draggedIndex === index) return;
+            this.dragOverIndex = index;
+        },
+
+        async onTrackDrop(event, targetIndex) {
+            event.preventDefault();
+            if (this.draggedIndex === null || this.draggedIndex === targetIndex) {
+                this.draggedIndex = null;
+                this.dragOverIndex = null;
+                return;
+            }
+
+            const item = this.defaultTracks.splice(this.draggedIndex, 1)[0];
+            this.defaultTracks.splice(targetIndex, 0, item);
+
+            this.draggedIndex = null;
+            this.dragOverIndex = null;
+
+            await this.saveTracksOrder();
+        },
+
+        onTrackDragEnd(event) {
+            this.draggedIndex = null;
+            this.dragOverIndex = null;
+        },
+
+        async saveTracksOrder() {
+            const trackIds = this.defaultTracks.map(t => t.id);
+            try {
+                const res = await fetch('{{ route('kasir.music.default.reorder') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ track_ids: trackIds })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    if (window.customToast) {
+                        window.customToast({
+                            message: '✓ Urutan playlist berhasil diperbarui.',
+                            type: 'success',
+                            duration: 2000
+                        });
+                    }
+                }
+            } catch (e) {
+                console.error('Gagal menyimpan urutan:', e);
             }
         },
 
