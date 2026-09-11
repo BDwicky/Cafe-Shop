@@ -1360,8 +1360,10 @@ function navbarMusicWidget() {
             this.currentTrack = {
                 id: track.id,
                 title: track.title,
+                song_title: track.title,
                 artist: track.artist || 'Playlist Kafe',
                 youtube_id: track.youtube_id,
+                thumbnail_url: 'https://img.youtube.com/vi/' + track.youtube_id + '/hqdefault.jpg',
                 duration_seconds: track.duration_seconds || 0,
                 type: 'default_track'
             };
@@ -1380,7 +1382,7 @@ function navbarMusicWidget() {
             this.durationFormatted = isLiveTrack ? 'RADIO 24/7' : this.formatTime(track.duration_seconds || 0);
 
             if (!this.isMasterHost) {
-                this.claimMasterHost(false);
+                this.claimMasterHost(true);
             }
 
             if (this.player && this.playerReady) {
@@ -1391,8 +1393,25 @@ function navbarMusicWidget() {
             } else {
                 this.loadYouTubeApi();
             }
+
             this.broadcastSync();
             this.broadcastTimeSync();
+
+            // SINKRONKAN KE BACKEND SERVER (AGAR /music/request & /music/display LANGSUNG TERBARUKAN)
+            fetch('{{ route('kasir.music.playback.sync') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    client_id: this.myTabId,
+                    current_time: 0,
+                    duration: track.duration_seconds || 0,
+                    is_playing: true,
+                    current_track: this.currentTrack
+                })
+            }).catch(() => {});
         },
 
         fadeAudio(fromVol, toVol, durationMs = 5000) {

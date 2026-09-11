@@ -387,13 +387,36 @@ class MusicService
         /** @var MusicRequest|null $playingRequest */
         $playingRequest = MusicRequest::playing()->latest('played_at')->first();
 
-        /** @var Collection<int, MusicRequest> $queue */
-        $queue = MusicRequest::queued()->get();
-
-        $defaultTracksCount = MusicDefaultTrack::active()->count();
+        $playbackState = Cache::get('soundstation_playback_state');
+        $cachedCurrentTrack = Cache::get('soundstation_current_track');
 
         $nowPlaying = null;
-        if ($playingRequest) {
+
+        // 1. Cek apakah kasir sengaja memutar lagu bawaan secara manual
+        $explicitDefaultTrack = null;
+        if (! empty($playbackState['current_track']) && is_array($playbackState['current_track'])) {
+            if (($playbackState['current_track']['type'] ?? '') === 'default_track') {
+                $explicitDefaultTrack = $playbackState['current_track'];
+            }
+        } elseif (! empty($cachedCurrentTrack['type']) && $cachedCurrentTrack['type'] === 'default_track') {
+            $explicitDefaultTrack = $cachedCurrentTrack;
+        }
+
+        if ($explicitDefaultTrack) {
+            // Kasir memutar lagu bawaan secara langsung -> bersihkan request customer playing lama jika ada
+            if ($playingRequest) {
+                $playingRequest->update(['status' => 'played', 'finished_at' => now()]);
+                $playingRequest = null;
+            }
+            $nowPlaying = $explicitDefaultTrack;
+            if (! isset($nowPlaying['song_title']) && isset($nowPlaying['title'])) {
+                $nowPlaying['song_title'] = $nowPlaying['title'];
+            }
+            if (empty($nowPlaying['thumbnail_url']) && ! empty($nowPlaying['youtube_id'])) {
+                $nowPlaying['thumbnail_url'] = "https://img.youtube.com/vi/{$nowPlaying['youtube_id']}/hqdefault.jpg";
+            }
+            Cache::put('soundstation_current_track', $nowPlaying, now()->addHours(8));
+        } elseif ($playingRequest) {
             $nowPlaying = [
                 'type' => 'customer_request',
                 'id' => $playingRequest->id,
@@ -408,7 +431,7 @@ class MusicService
             ];
             Cache::put('soundstation_current_track', $nowPlaying, now()->addHours(8));
         } else {
-            $cached = Cache::get('soundstation_current_track');
+            $cached = $cachedCurrentTrack ?: Cache::get('soundstation_current_track');
             if ($cached && ! empty($cached['title'])) {
                 $nowPlaying = $cached;
                 if (! isset($nowPlaying['song_title']) && isset($nowPlaying['title'])) {
@@ -434,9 +457,14 @@ class MusicService
             }
         }
 
+        /** @var Collection<int, MusicRequest> $queue */
+        $queue = MusicRequest::queued()->get();
+
+        $defaultTracksCount = MusicDefaultTrack::active()->count();
+
         return [
             'now_playing' => $nowPlaying,
-            'now_playing_type' => $playingRequest ? 'request' : 'default',
+            'now_playing_type' => ($nowPlaying && ($nowPlaying['type'] ?? '') === 'customer_request') ? 'request' : 'default',
             'queue' => $queue,
             'queue_count' => $queue->count(),
             'default_tracks_count' => $defaultTracksCount,

@@ -94,12 +94,19 @@
                         const s = e.data.state;
                         if (s.currentTrack) {
                             this.nowPlaying = s.currentTrack;
+                            if (s.currentTrack.duration_seconds) {
+                                this.playbackDuration = Number(s.currentTrack.duration_seconds);
+                                this.playbackDurationFormatted = this.formatSeconds(this.playbackDuration);
+                            }
                         }
                         if (typeof s.queueCount !== 'undefined') {
                             this.queueCount = s.queueCount;
                         }
                         if (Array.isArray(s.queue)) {
                             this.queue = s.queue;
+                        }
+                        if (typeof s.isPlaying !== 'undefined') {
+                            this.isPlaying = !!s.isPlaying;
                         }
                     }
 

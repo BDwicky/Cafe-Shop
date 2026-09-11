@@ -439,6 +439,20 @@ class KasirMusicController extends Controller
 
         Cache::put('soundstation_playback_state', $state, now()->addMinutes(2));
 
+        if ($currentTrack && is_array($currentTrack)) {
+            if (! isset($currentTrack['song_title']) && isset($currentTrack['title'])) {
+                $currentTrack['song_title'] = $currentTrack['title'];
+            }
+            if (empty($currentTrack['thumbnail_url']) && ! empty($currentTrack['youtube_id'])) {
+                $currentTrack['thumbnail_url'] = "https://img.youtube.com/vi/{$currentTrack['youtube_id']}/hqdefault.jpg";
+            }
+            Cache::put('soundstation_current_track', $currentTrack, now()->addHours(8));
+
+            if (! empty($currentTrack['type']) && $currentTrack['type'] === 'default_track') {
+                MusicRequest::playing()->update(['status' => 'played', 'finished_at' => now()]);
+            }
+        }
+
         return response()->json(['status' => 'ok']);
     }
 
@@ -553,16 +567,31 @@ class KasirMusicController extends Controller
         Cache::put('soundstation_master_host', $existingMaster, now()->addSeconds(30));
 
         // Perbarui playback state jika dikirim
-        if ($request->has('current_time')) {
+        if ($request->has('current_time') || $request->has('current_track')) {
+            $currentTrack = $request->input('current_track');
             $state = [
                 'current_time' => $request->float('current_time', 0),
                 'duration' => $request->float('duration', 0),
                 'is_playing' => $request->boolean('is_playing'),
-                'current_track' => $request->input('current_track'),
+                'current_track' => $currentTrack,
                 'updated_at' => (int) round(microtime(true) * 1000),
                 'client_id' => $clientId,
             ];
             Cache::put('soundstation_playback_state', $state, now()->addMinutes(2));
+
+            if ($currentTrack && is_array($currentTrack)) {
+                if (! isset($currentTrack['song_title']) && isset($currentTrack['title'])) {
+                    $currentTrack['song_title'] = $currentTrack['title'];
+                }
+                if (empty($currentTrack['thumbnail_url']) && ! empty($currentTrack['youtube_id'])) {
+                    $currentTrack['thumbnail_url'] = "https://img.youtube.com/vi/{$currentTrack['youtube_id']}/hqdefault.jpg";
+                }
+                Cache::put('soundstation_current_track', $currentTrack, now()->addHours(8));
+
+                if (! empty($currentTrack['type']) && $currentTrack['type'] === 'default_track') {
+                    MusicRequest::playing()->update(['status' => 'played', 'finished_at' => now()]);
+                }
+            }
         }
 
         // Ambil dan bersihkan perintah remote (pending commands)
