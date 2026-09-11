@@ -82,11 +82,17 @@
             </button>
         </div>
 
-        <!-- SOUND ALERT TOGGLE & REFRESH -->
-        <div class="flex items-center gap-3">
+        <!-- SOUND ALERT TOGGLE, FULLSCREEN & REFRESH -->
+        <div class="flex items-center gap-2 sm:gap-3">
             <button type="button" @click="soundEnabled = !soundEnabled"
                     class="px-3 py-1.5 border border-[#3A3026] text-xs font-mono text-[#A89A85] hover:text-[#F7F3EC] transition flex items-center gap-1.5">
                 <span x-text="soundEnabled ? '🔔 Alert On' : '🔕 Alert Off'"></span>
+            </button>
+            <button type="button" @click="toggleFullscreen()"
+                    class="px-3 py-1.5 bg-[#2A211A] border border-[#3A3026] hover:border-[#D9973E] text-xs font-mono text-[#D9973E] hover:text-[#F7F3EC] transition flex items-center gap-1.5 shadow-sm active:scale-95"
+                    :title="isFullscreen ? 'Keluar dari Layar Penuh (Esc)' : 'Layar Penuh Tablet / Kiosk (F11)'">
+                <span x-text="isFullscreen ? '⤢' : '⛶'"></span>
+                <span class="hidden sm:inline" x-text="isFullscreen ? 'Normal' : 'Fullscreen'"></span>
             </button>
             <button type="button" @click="fetchOrders()"
                     class="px-3 py-1.5 bg-[#2A211A] border border-[#3A3026] text-xs font-mono text-[#D9973E] hover:text-[#F7F3EC] transition">
@@ -246,10 +252,19 @@
             loading: false,
             actionLoading: {},
             soundEnabled: true,
+            isFullscreen: false,
             lastOrderCount: {{ $orders->count() }},
             _pollTimer: null,
 
             init() {
+                this.isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+                const updateFs = () => {
+                    this.isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+                };
+                document.addEventListener('fullscreenchange', updateFs);
+                document.addEventListener('webkitfullscreenchange', updateFs);
+                document.addEventListener('msfullscreenchange', updateFs);
+
                 // Polling pesanan baru setiap 4 detik
                 this._pollTimer = setInterval(() => this.fetchOrders(true), 4000);
             },
@@ -418,6 +433,27 @@
                     osc.start(ctx.currentTime);
                     osc.stop(ctx.currentTime + 0.45);
                 } catch (e) {}
+            },
+
+            toggleFullscreen() {
+                if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
+                    const docElm = document.documentElement;
+                    if (docElm.requestFullscreen) {
+                        docElm.requestFullscreen().catch(() => {});
+                    } else if (docElm.webkitRequestFullscreen) {
+                        docElm.webkitRequestFullscreen();
+                    } else if (docElm.msRequestFullscreen) {
+                        docElm.msRequestFullscreen();
+                    }
+                } else {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen().catch(() => {});
+                    } else if (document.webkitExitFullscreen) {
+                        document.webkitExitFullscreen();
+                    } else if (document.msExitFullscreen) {
+                        document.msExitFullscreen();
+                    }
+                }
             }
         };
     }

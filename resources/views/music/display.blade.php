@@ -3,8 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0E0906">
     <title>Now Playing & Order Display — {{ config('cafe.name') }}</title>
     <link rel="icon" type="image/svg+xml" href="{{ asset('images/logo-mark.svg') }}">
+    <link rel="manifest" href="{{ asset('manifest.json') }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
         html, body {
@@ -115,6 +120,7 @@
         currentTime: '',
 
         displayMode: localStorage.getItem('tv_display_mode') || 'visualizer', // 'visualizer' atau 'video'
+        isFullscreen: false,
 
         playbackCurrentTime: 0,
         playbackDuration: 0,
@@ -124,6 +130,14 @@
         isPlaying: false,
 
         init() {
+            this.isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+            const updateFs = () => {
+                this.isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+            };
+            document.addEventListener('fullscreenchange', updateFs);
+            document.addEventListener('webkitfullscreenchange', updateFs);
+            document.addEventListener('msfullscreenchange', updateFs);
+
             const updateClock = () => {
                 const now = new Date();
                 this.currentTime = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
@@ -174,6 +188,27 @@
         toggleDisplayMode() {
             this.displayMode = this.displayMode === 'visualizer' ? 'video' : 'visualizer';
             localStorage.setItem('tv_display_mode', this.displayMode);
+        },
+
+        toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                const el = document.documentElement;
+                if (el.requestFullscreen) {
+                    el.requestFullscreen().catch(() => {});
+                } else if (el.webkitRequestFullscreen) {
+                    el.webkitRequestFullscreen();
+                } else if (el.msRequestFullscreen) {
+                    el.msRequestFullscreen();
+                }
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen().catch(() => {});
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                }
+            }
         },
 
         applySyncData(data) {
@@ -374,6 +409,34 @@
             };
 
             draw();
+        },
+
+        toggleDisplayMode() {
+            this.displayMode = this.displayMode === 'visualizer' ? 'video' : 'visualizer';
+            try {
+                localStorage.setItem('tv_display_mode', this.displayMode);
+            } catch (e) {}
+        },
+
+        toggleFullscreen() {
+            if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
+                const docElm = document.documentElement;
+                if (docElm.requestFullscreen) {
+                    docElm.requestFullscreen().catch(() => {});
+                } else if (docElm.webkitRequestFullscreen) {
+                    docElm.webkitRequestFullscreen();
+                } else if (docElm.msRequestFullscreen) {
+                    docElm.msRequestFullscreen();
+                }
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen().catch(() => {});
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                }
+            }
         }
       }">
 
@@ -448,7 +511,9 @@
     </div>
 
     <!-- CONTENT WRAPPER (Fills full viewport without dead space) -->
-    <div class="w-full h-full min-h-screen max-h-screen flex flex-col justify-between p-4 sm:p-6 lg:p-8 xl:p-10 relative z-10 box-border overflow-hidden">
+    <div class="w-full h-full min-h-screen max-h-screen flex flex-col justify-between p-4 sm:p-6 lg:p-8 xl:p-10 relative z-10 box-border overflow-hidden"
+         @dblclick="toggleFullscreen()"
+         title="Klik dua kali untuk beralih Layar Penuh">
 
         <!-- TOP BAR: BRANDING, CLOCK, READY TICKER & MODE TOGGLE -->
         <header class="w-full flex items-center justify-between border-b border-[#3A3026]/80 pb-4 shrink-0">
@@ -492,6 +557,14 @@
                             <span class="hidden sm:inline">Tampilan Visualizer</span>
                         </span>
                     </template>
+                </button>
+
+                <!-- Toggle Fullscreen (Hilangkan Tab Browser) -->
+                <button type="button" @click="toggleFullscreen()"
+                        class="px-3 py-1.5 bg-[#1F1812] hover:bg-[#2A2018] border border-[#3A3026] hover:border-[#D9973E] text-[#D9973E] font-mono text-xs uppercase tracking-wider transition rounded flex items-center gap-1.5 shadow-sm active:scale-95"
+                        :title="isFullscreen ? 'Keluar dari Layar Penuh (Esc)' : 'Layar Penuh / Hilangkan Tab Browser (F11)'">
+                    <span x-text="isFullscreen ? '⤢' : '⛶'"></span>
+                    <span class="hidden sm:inline" x-text="isFullscreen ? 'Normal' : 'Layar Penuh'"></span>
                 </button>
 
                 <div class="font-mono text-2xl sm:text-3xl font-bold text-[#F7F3EC] tracking-wider" x-text="currentTime"></div>
