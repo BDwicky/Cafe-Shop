@@ -112,24 +112,20 @@
             <div class="dashed meta">Catatan: {{ $order->note }}</div>
         @endif
 
-        <div class="dashed" style="text-align:center; padding: 2mm 0;">
-            <div style="font-weight: bold; font-size: 9.5pt; letter-spacing: 0.08em; text-transform: uppercase;">
-                ♫ REQUEST MUSIK KAFE ♫
+        <!-- SINGLE UNIFIED SMART QR CODE: LIVE TRACKER, REQUEST MUSIK & MENU KAFE -->
+        <div class="dashed qr-block" style="text-align: center; padding: 2.5mm 0 1.5mm;">
+            <div style="font-weight: bold; font-size: 9pt; letter-spacing: 0.08em; text-transform: uppercase;">
+                ♫ REQUEST MUSIK KAFE & CEK PESANAN ♫
             </div>
             <div style="margin: 2mm auto 1.5mm;">
-                <img src="{{ \App\Support\QrCode::dataUri(route('music.request', ['code' => $order->music_code ?? $order->code]), 120) }}" width="90" height="90" alt="QR Request Musik" style="display:inline-block;">
+                <img src="{{ \App\Support\QrCode::dataUri(route('music.request', ['code' => $order->music_code ?? $order->code]), 120) }}" width="95" height="95" alt="QR Cek Pesanan & Request Lagu" style="display: inline-block;">
             </div>
             <div style="font-weight: bold; font-size: 10.5pt; letter-spacing: 0.12em;">
                 KODE: {{ $order->music_code ?? $order->code }}
             </div>
-            <div class="meta" style="font-size: 8pt; margin-top: 1mm;">
-                Scan QR di atas untuk request 1 lagu kesukaanmu! (1x per transaksi)
+            <div class="meta" style="font-size: 8pt; margin-top: 1mm; line-height: 1.35;">
+                Scan QR untuk pantau status pesanan live,<br>request 1 lagu kesukaanmu, & lihat menu kami!
             </div>
-        </div>
-
-        <div class="qr-block">
-            <img src="{{ \App\Support\QrCode::dataUri(route('landing')) }}" width="90" height="90" alt="QR">
-            <div class="meta" style="margin-top:2mm">Scan untuk lihat menu & info kami</div>
         </div>
 
         <div class="wifi">
