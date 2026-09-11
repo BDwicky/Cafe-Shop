@@ -14,15 +14,8 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-[#F7F3EC] text-[#2A211A] antialiased h-full overflow-hidden font-sans selection:bg-[#D9973E] selection:text-[#1F1812]"
-      x-data="{ mobileNavOpen: false, currentTime: '' }"
-      x-init="
-        const updateClock = () => {
-            const now = new Date();
-            currentTime = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        };
-        updateClock();
-        setInterval(updateClock, 1000);
-      ">
+      x-data="kasirAppShell()"
+      x-init="initShell()">
 
     <div class="flex flex-col md:flex-row h-full w-full overflow-hidden">
 
@@ -127,12 +120,10 @@
                             </svg>
                             <span>Layar Dapur (KDS)</span>
                         </div>
-                        @php $activeKitchenCount = \App\Models\Order::prepActive()->count(); @endphp
-                        @if ($activeKitchenCount > 0)
-                            <span class="px-1.5 py-0.5 text-[9px] font-bold bg-[#5F7F42] text-white rounded-full animate-pulse">
-                                {{ $activeKitchenCount }}
-                            </span>
-                        @endif
+                        <template x-if="kdsCount > 0">
+                            <span class="px-1.5 py-0.5 text-[9px] font-bold bg-[#5F7F42] text-white rounded-full animate-pulse transition-all shadow-sm"
+                                  x-text="kdsCount"></span>
+                        </template>
                     </a>
 
                     <!-- 6. Sound Station (Musik Kafe) -->
@@ -145,12 +136,10 @@
                                 </svg>
                                 <span>Sound Station</span>
                             </div>
-                            @php $activeQueueCount = \App\Models\MusicRequest::queued()->count(); @endphp
-                            @if ($activeQueueCount > 0)
-                                <span class="px-1.5 py-0.5 text-[9px] font-bold bg-[#D9973E] text-[#1F1812] rounded-full animate-pulse">
-                                    {{ $activeQueueCount }}
-                                </span>
-                            @endif
+                            <template x-if="musicQueueCount > 0">
+                                <span class="px-1.5 py-0.5 text-[9px] font-bold bg-[#D9973E] text-[#1F1812] rounded-full animate-pulse transition-all shadow-sm"
+                                      x-text="musicQueueCount"></span>
+                            </template>
                         </a>
                         <!-- TOMBOL BUKA POP-UP MINI WINDOW -->
                         <button type="button"
@@ -243,6 +232,73 @@
 
     <!-- SEAMLESS POS PAGE SWAPPER (MUSIK TIDAK MATI SAAT BERPINDAH MENU/TAB POS) -->
     <script>
+        function kasirAppShell() {
+            return {
+                mobileNavOpen: false,
+                currentTime: '',
+                kdsCount: {{ \App\Models\Order::prepActive()->count() }},
+                musicQueueCount: {{ \App\Models\MusicRequest::queued()->count() }},
+
+                initShell() {
+                    const updateClock = () => {
+                        const now = new Date();
+                        this.currentTime = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    };
+                    updateClock();
+                    setInterval(updateClock, 1000);
+
+                    // Polling realtime counts untuk sidebar badge (hanya saat tab aktif)
+                    setInterval(() => {
+                        if (!document.hidden) {
+                            this.fetchCounts();
+                        }
+                    }, 9000);
+
+                    // Listen ke event SoundStation sync / KDS update untuk update instan
+                    window.addEventListener('soundstation:sync', (e) => {
+                        if (e.detail && typeof e.detail.queueCount !== 'undefined') {
+                            this.musicQueueCount = Number(e.detail.queueCount);
+                        }
+                    });
+
+                    window.addEventListener('kds:count', (e) => {
+                        if (e.detail && typeof e.detail.count !== 'undefined') {
+                            this.kdsCount = Number(e.detail.count);
+                        }
+                    });
+
+                    if (typeof BroadcastChannel !== 'undefined') {
+                        try {
+                            const ch = new BroadcastChannel('cafe_soundstation_sync');
+                            ch.addEventListener('message', (e) => {
+                                if (e.data && e.data.type === 'STATE_UPDATE' && e.data.state && typeof e.data.state.queueCount !== 'undefined') {
+                                    this.musicQueueCount = Number(e.data.state.queueCount);
+                                }
+                            });
+                        } catch(e) {}
+                    }
+                },
+
+                isFetchingCounts: false,
+                async fetchCounts() {
+                    if (this.isFetchingCounts) return;
+                    this.isFetchingCounts = true;
+                    try {
+                        const res = await fetch('{{ route('kasir.music.sidebar_counts') }}', {
+                            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                        });
+                        if (!res.ok) return;
+                        const data = await res.json();
+                        if (typeof data.kds_count !== 'undefined') this.kdsCount = Number(data.kds_count);
+                        if (typeof data.music_queue_count !== 'undefined') this.musicQueueCount = Number(data.music_queue_count);
+                    } catch (err) {}
+                    finally {
+                        this.isFetchingCounts = false;
+                    }
+                }
+            };
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             // Update teks tombol musik mobile saat status berubah
             window.addEventListener('soundstation:state', function(e) {

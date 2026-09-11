@@ -104,7 +104,7 @@ class KasirMusicController extends Controller
      * Tambah lagu baru ke playlist bawaan kafe.
      * Judul dan artis otomatis diekstraksi dari metadata video YouTube jika tidak diinput manual.
      */
-    public function storeDefaultTrack(Request $request): RedirectResponse
+    public function storeDefaultTrack(Request $request): JsonResponse|RedirectResponse
     {
         $data = $request->validate([
             'title' => ['nullable', 'string', 'max:255'],
@@ -115,6 +115,13 @@ class KasirMusicController extends Controller
 
         $youtubeId = $this->musicService->extractYouTubeId($data['youtube_url']);
         if (! $youtubeId) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tautan atau ID YouTube tidak valid.',
+                ], 422);
+            }
+
             return back()->withErrors(['youtube_url' => 'Tautan atau ID YouTube tidak valid.'])->withInput();
         }
 
@@ -127,7 +134,7 @@ class KasirMusicController extends Controller
             ? trim($data['artist'])
             : ($details['artist'] !== 'YouTube' ? $details['artist'] : null);
 
-        MusicDefaultTrack::create([
+        $track = MusicDefaultTrack::create([
             'title' => $title,
             'artist' => $artist,
             'youtube_id' => $youtubeId,
@@ -136,7 +143,40 @@ class KasirMusicController extends Controller
             'is_active' => true,
         ]);
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Lagu \"{$title}\" berhasil ditambahkan ke playlist bawaan.",
+                'track' => $track,
+            ]);
+        }
+
         return back()->with('success', "Lagu \"{$title}\" berhasil ditambahkan ke playlist bawaan.");
+    }
+
+    /**
+     * Ambil daftar lagu bawaan kafe dalam format JSON.
+     */
+    public function defaultTracksJson(): JsonResponse
+    {
+        $tracks = MusicDefaultTrack::orderBy('sort_order')
+            ->orderBy('id', 'desc')
+            ->get();
+
+        return response()->json([
+            'tracks' => $tracks,
+        ]);
+    }
+
+    /**
+     * Hitung badge real-time untuk navigasi sidebar kasir (KDS & Antrean Musik).
+     */
+    public function sidebarCounts(): JsonResponse
+    {
+        return response()->json([
+            'kds_count' => Order::prepActive()->count(),
+            'music_queue_count' => MusicRequest::queued()->count(),
+        ]);
     }
 
     /**
@@ -172,7 +212,7 @@ class KasirMusicController extends Controller
     /**
      * Import banyak lagu sekaligus dari sekumpulan tautan YouTube (satu tautan per baris).
      */
-    public function storeBatchDefaultTracks(Request $request): RedirectResponse
+    public function storeBatchDefaultTracks(Request $request): JsonResponse|RedirectResponse
     {
         $rawLinks = (string) $request->input('youtube_urls', '');
         $lines = preg_split('/[\r\n,]+/', $rawLinks);
@@ -218,15 +258,36 @@ class KasirMusicController extends Controller
             $msg .= " ({$invalidCount} tautan tidak valid).";
         }
 
+        if ($request->expectsJson()) {
+            $tracks = MusicDefaultTrack::orderBy('sort_order')
+                ->orderBy('id', 'desc')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'message' => $msg,
+                'imported_count' => $importedCount,
+                'tracks' => $tracks,
+            ]);
+        }
+
         return back()->with('success', $msg);
     }
 
     /**
      * Aktifkan / Nonaktifkan lagu bawaan kafe.
      */
-    public function toggleDefaultTrack(MusicDefaultTrack $track): RedirectResponse
+    public function toggleDefaultTrack(Request $request, MusicDefaultTrack $track): JsonResponse|RedirectResponse
     {
         $track->update(['is_active' => ! $track->is_active]);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Status lagu bawaan berhasil diperbarui.',
+                'track' => $track,
+            ]);
+        }
 
         return back()->with('success', 'Status lagu bawaan berhasil diperbarui.');
     }
@@ -234,7 +295,7 @@ class KasirMusicController extends Controller
     /**
      * Perbarui data lagu bawaan kafe (judul, artis, ID YouTube, urutan).
      */
-    public function updateDefaultTrack(Request $request, MusicDefaultTrack $track): RedirectResponse
+    public function updateDefaultTrack(Request $request, MusicDefaultTrack $track): JsonResponse|RedirectResponse
     {
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -262,15 +323,33 @@ class KasirMusicController extends Controller
 
         $track->update($updatePayload);
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Lagu bawaan \"{$track->title}\" berhasil diperbarui.",
+                'track' => $track,
+            ]);
+        }
+
         return back()->with('success', "Lagu bawaan \"{$track->title}\" berhasil diperbarui.");
     }
 
     /**
      * Hapus lagu dari playlist bawaan kafe.
      */
-    public function destroyDefaultTrack(MusicDefaultTrack $track): RedirectResponse
+    public function destroyDefaultTrack(Request $request, MusicDefaultTrack $track): JsonResponse|RedirectResponse
     {
+        $id = $track->id;
+        $title = $track->title;
         $track->delete();
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Lagu \"{$title}\" berhasil dihapus dari playlist bawaan.",
+                'deleted_id' => $id,
+            ]);
+        }
 
         return back()->with('success', 'Lagu berhasil dihapus dari playlist bawaan.');
     }

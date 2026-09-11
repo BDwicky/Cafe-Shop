@@ -384,8 +384,13 @@
 
         formatSeconds(sec) {
             const num = Math.max(0, Math.floor(Number(sec) || 0));
-            const m = Math.floor(num / 60);
+            if (num > 86400 * 7) return 'LIVE';
+            const h = Math.floor(num / 3600);
+            const m = Math.floor((num % 3600) / 60);
             const s = num % 60;
+            if (h > 0) {
+                return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+            }
             return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
         },
 

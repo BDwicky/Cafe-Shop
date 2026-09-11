@@ -133,12 +133,24 @@
     <div class="mb-2">
         <div class="w-full bg-[#2A211A] h-1 rounded-full overflow-hidden cursor-pointer"
              @click="seekFromBar($event)"
-             title="Klik untuk melompat ke durasi lagu">
-            <div class="bg-[#D9973E] h-full transition-all duration-300"
-                 :style="'width: ' + progressPercent + '%'"></div>
+             :title="isLive ? 'Siaran Langsung Radio 24/7' : 'Klik untuk melompat ke durasi lagu'">
+            <template x-if="!isLive">
+                <div class="bg-[#D9973E] h-full transition-all duration-300"
+                     :style="'width: ' + Math.min(100, Math.max(0, progressPercent)) + '%'"></div>
+            </template>
+            <template x-if="isLive">
+                <div class="w-full h-full bg-gradient-to-r from-[#D9973E] via-red-500 to-[#D9973E] animate-pulse"></div>
+            </template>
         </div>
         <div class="mt-0.5 flex items-center justify-between font-mono text-[8px] text-[#7A6A58]">
-            <span x-text="currentTimeFormatted">00:00</span>
+            <div class="flex items-center gap-1">
+                <template x-if="isLive">
+                    <span class="inline-flex items-center gap-0.5 text-red-400 font-bold">
+                        <span class="w-1 h-1 rounded-full bg-red-500 animate-ping"></span> LIVE
+                    </span>
+                </template>
+                <span x-text="currentTimeFormatted">00:00</span>
+            </div>
             <span x-text="durationFormatted">00:00</span>
         </div>
     </div>
@@ -150,16 +162,28 @@
             <button type="button"
                     @click="togglePlayPause()"
                     :title="isPlaying ? 'Jeda Lagu' : 'Putar Lagu'"
-                    class="w-7 h-7 rounded-full bg-[#D9973E] hover:bg-[#c4842e] text-[#1F1812] flex items-center justify-center font-bold text-xs transition shadow active:scale-95">
-                <span x-show="!isPlaying" class="ml-0.5">▶</span>
-                <span x-show="isPlaying">⏸</span>
+                    class="w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-150 shadow active:scale-90 cursor-pointer"
+                    :class="isPlaying
+                        ? 'bg-[#D9973E] text-[#140E0A] shadow-[0_0_10px_rgba(217,151,62,0.4)]'
+                        : 'bg-[#2A211A] text-[#D9973E] border border-[#D9973E]/60 hover:bg-[#D9973E] hover:text-[#140E0A]'">
+                <!-- Pause SVG -->
+                <svg x-show="isPlaying" class="w-3 h-3 fill-current" viewBox="0 0 24 24">
+                    <rect x="6" y="4" width="4" height="16" rx="1"/>
+                    <rect x="14" y="4" width="4" height="16" rx="1"/>
+                </svg>
+                <!-- Play SVG -->
+                <svg x-show="!isPlaying" class="w-3 h-3 fill-current ml-0.5" viewBox="0 0 24 24">
+                    <path d="M8 5.14v14.72a1 1 0 001.5.86l11.5-7.36a1 1 0 000-1.72L9.5 4.28A1 1 0 008 5.14z"/>
+                </svg>
             </button>
 
             <button type="button"
                     @click="skipTrackConfirm()"
                     title="Lewati Lagu Berikutnya"
-                    class="w-6 h-6 rounded bg-[#2A211A] hover:bg-[#3A3026] text-[#A89A85] hover:text-[#F7F3EC] border border-[#3A3026] flex items-center justify-center text-xs transition active:scale-95">
-                ⏭
+                    class="w-7 h-7 rounded-full bg-[#2A211A] hover:bg-[#3A3026] text-[#A89A85] hover:text-[#D9973E] border border-[#3A3026] hover:border-[#D9973E]/40 flex items-center justify-center transition-all duration-150 active:scale-90 cursor-pointer">
+                <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                    <path d="M5.5 4.5v15a1 1 0 001.5.86l9-7.5a1 1 0 000-1.72l-9-7.5a1 1 0 00-1.5.86zM18 4.5a1 1 0 00-1 1v13a1 1 0 102 0v-13a1 1 0 00-1-1z"/>
+                </svg>
             </button>
         </div>
 
@@ -384,6 +408,9 @@ function navbarMusicWidget() {
         progressPercent: 0,
         currentTimeFormatted: '00:00',
         durationFormatted: '00:00',
+        isLive: false,
+        _trackStartedAt: 0,
+        liveSessionSeconds: 0,
 
         queueCount: 0,
         queue: [],
@@ -448,9 +475,10 @@ function navbarMusicWidget() {
                 this.currentTime = Number(pb.current_time || 0);
                 this.duration = Number(pb.duration || (this.currentTrack ? (this.currentTrack.duration_seconds || 0) : 0));
                 this.isPlaying = !!pb.is_playing;
+                this.isLive = !!pb.is_live || this.currentTime > 86400 || (this.currentTrack && /live|radio|24\/7/i.test(this.currentTrack.title || ''));
                 this.currentTimeFormatted = this.formatTime(this.currentTime);
-                this.durationFormatted = this.formatTime(this.duration);
-                this.progressPercent = this.duration > 0 ? (this.currentTime / this.duration) * 100 : 0;
+                this.durationFormatted = this.isLive ? 'RADIO 24/7' : this.formatTime(this.duration);
+                this.progressPercent = this.isLive ? 100 : (this.duration > 0 ? Math.min(100, Math.max(0, (this.currentTime / this.duration) * 100)) : 0);
             }
             if (typeof data.queue_count !== 'undefined') {
                 this.queueCount = data.queue_count;
@@ -983,10 +1011,14 @@ function navbarMusicWidget() {
 
                         if (this.currentTrack && this.currentTrack.youtube_id) {
                             const startSec = Math.max(0, Math.floor(this.currentTime || 0));
-                            this.player.loadVideoById({
-                                videoId: this.currentTrack.youtube_id,
-                                startSeconds: startSec
-                            });
+                            if (startSec > 0 && startSec < 86400) {
+                                this.player.loadVideoById({
+                                    videoId: this.currentTrack.youtube_id,
+                                    startSeconds: startSec
+                                });
+                            } else {
+                                this.player.loadVideoById(this.currentTrack.youtube_id);
+                            }
                             if (this.isPlaying) {
                                 this.player.playVideo();
                             } else {
@@ -1098,8 +1130,38 @@ function navbarMusicWidget() {
 
             try {
                 if (typeof this.player.getCurrentTime === 'function' && typeof this.player.getDuration === 'function') {
-                    const ct = this.player.getCurrentTime() || 0;
-                    const dur = this.player.getDuration() || 0;
+                    let ct = this.player.getCurrentTime() || 0;
+                    let dur = this.player.getDuration() || 0;
+
+                    // Deteksi siaran langsung (Live Stream 24/7):
+                    // 1. YouTube player getVideoData()?.isLive
+                    // 2. ct > 86400 (melebihi 24 jam)
+                    // 3. Judul track memuat Radio / Live 24/7 dan durasi YouTube tidak sinkron
+                    const videoData = (typeof this.player.getVideoData === 'function') ? this.player.getVideoData() : null;
+                    const isYouTubeLive = !!(videoData && (videoData.isLive || videoData.is_live));
+                    const isExcessiveTime = ct > 86400;
+                    const isTrackLive = isYouTubeLive || isExcessiveTime || (this.currentTrack && (
+                        (this.currentTrack.title && /live|radio|24\/7/i.test(this.currentTrack.title) && (dur <= 0 || ct > 7200))
+                    ));
+
+                    if (isTrackLive) {
+                        this.isLive = true;
+                        if (!this._trackStartedAt) {
+                            this._trackStartedAt = Date.now();
+                        }
+                        const sessionSec = Math.max(0, Math.floor((Date.now() - this._trackStartedAt) / 1000));
+                        this.liveSessionSeconds = sessionSec;
+                        this.currentTime = sessionSec;
+                        this.duration = 0;
+                        this.currentTimeFormatted = this.formatTime(sessionSec);
+                        this.durationFormatted = 'RADIO 24/7';
+                        this.progressPercent = 100;
+
+                        this.broadcastTimeSync();
+                        return;
+                    }
+
+                    this.isLive = false;
 
                     // HARD CAP 7 MENIT (420s) HANYA UNTUK REQUEST PELANGGAN (KASIR BEBAS DURASI)
                     const isCustomerRequest = this.currentTrack && (this.currentTrack.type === 'customer_request' || this.currentRequestId);
@@ -1114,11 +1176,16 @@ function navbarMusicWidget() {
                         dur = Number(this.currentTrack.duration_seconds);
                     }
 
-                    this.currentTime = ct;
-                    this.duration = dur;
+                    // Batas aman: ct tidak boleh melebihi durasi video
+                    if (dur > 0 && ct > dur) {
+                        ct = dur;
+                    }
+
+                    this.currentTime = Math.max(0, ct);
+                    this.duration = Math.max(0, dur);
                     this.progressPercent = dur > 0 ? Math.min(100, Math.max(0, (ct / dur) * 100)) : 0;
-                    this.currentTimeFormatted = this.formatTime(ct);
-                    this.durationFormatted = this.formatTime(dur);
+                    this.currentTimeFormatted = this.formatTime(this.currentTime);
+                    this.durationFormatted = this.formatTime(this.duration);
 
                     // SIARKAN DETIK & MENIT SECARA REAL-TIME KE SELURUH JENDELA (TIME_SYNC)
                     this.broadcastTimeSync();
@@ -1135,6 +1202,7 @@ function navbarMusicWidget() {
                     currentTimeFormatted: this.currentTimeFormatted,
                     durationFormatted: this.durationFormatted,
                     isPlaying: this.isPlaying,
+                    isLive: this.isLive,
                     timestamp: Date.now()
                 });
             }
@@ -1155,6 +1223,7 @@ function navbarMusicWidget() {
                             current_time: this.currentTime,
                             duration: this.duration > 0 ? this.duration : (this.currentTrack?.duration_seconds || 0),
                             is_playing: this.isPlaying,
+                            is_live: this.isLive,
                             current_track: this.currentTrack
                         })
                     }).catch(() => {});
@@ -1163,21 +1232,37 @@ function navbarMusicWidget() {
         },
 
         formatTime(seconds) {
-            if (!seconds || isNaN(seconds)) return '00:00';
-            const m = Math.floor(seconds / 60);
-            const s = Math.floor(seconds % 60);
+            if (!seconds || isNaN(seconds) || seconds < 0) return '00:00';
+            if (seconds > 86400 * 7) return 'LIVE';
+            const totalSec = Math.floor(seconds);
+            const h = Math.floor(totalSec / 3600);
+            const m = Math.floor((totalSec % 3600) / 60);
+            const s = totalSec % 60;
+            if (h > 0) {
+                return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+            }
             return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
         },
 
         seekFromBar(event) {
-            if (!this.duration) return;
+            if (this.isLive) {
+                if (window.customToast) {
+                    window.customToast({
+                        message: '📻 Siaran Langsung Radio 24/7 memutar siaran realtime terkini.',
+                        type: 'info',
+                        duration: 2500
+                    });
+                }
+                return;
+            }
+            if (!this.duration || this.duration <= 0) return;
             const rect = event.currentTarget.getBoundingClientRect();
             const clickRatio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
             const targetTime = Math.round(clickRatio * this.duration);
 
             this.currentTime = targetTime;
             this.currentTimeFormatted = this.formatTime(targetTime);
-            this.progressPercent = clickRatio * 100;
+            this.progressPercent = Math.min(100, Math.max(0, clickRatio * 100));
 
             if (this.isMasterHost) {
                 this.seekTo(targetTime);
@@ -1187,11 +1272,11 @@ function navbarMusicWidget() {
         },
 
         seekTo(seconds) {
-            if (!this.player || !this.playerReady) return;
+            if (this.isLive || !this.player || !this.playerReady) return;
             try {
                 this.player.seekTo(seconds, true);
                 this.currentTime = seconds;
-                this.progressPercent = this.duration > 0 ? (seconds / this.duration) * 100 : 0;
+                this.progressPercent = this.duration > 0 ? Math.min(100, Math.max(0, (seconds / this.duration) * 100)) : 0;
                 this.currentTimeFormatted = this.formatTime(seconds);
                 this.broadcastTimeSync();
                 this.broadcastSync();
@@ -1208,6 +1293,7 @@ function navbarMusicWidget() {
                     progressPercent: this.progressPercent,
                     currentTimeFormatted: this.currentTimeFormatted,
                     durationFormatted: this.durationFormatted,
+                    isLive: this.isLive,
                     volume: this.volume,
                     isMuted: this.isMuted,
                     queueCount: this.queueCount,
@@ -1314,7 +1400,8 @@ function navbarMusicWidget() {
                 title: this.currentTrack.title,
                 artist: this.currentTrack.artist,
                 youtube_id: this.currentTrack.youtube_id,
-                position: currentPos,
+                position: (this.isLive || currentPos > 86400) ? 0 : currentPos,
+                isLive: !!this.isLive,
                 type: 'default_track'
             };
 
@@ -1388,10 +1475,12 @@ function navbarMusicWidget() {
 
                     this.currentTime = startSec;
                     this.progressPercent = 0;
+                    this.isLive = false;
+                    this._trackStartedAt = Date.now();
                     this.currentTimeFormatted = this.formatTime(startSec);
 
                     if (this.player && this.playerReady) {
-                        if (isResume && startSec > 0) {
+                        if (isResume && startSec > 0 && startSec < 86400) {
                             this.player.loadVideoById({
                                 videoId: track.youtube_id,
                                 startSeconds: startSec

@@ -59,12 +59,25 @@
     <!-- TIMELINE PROGRESS BAR -->
     <div class="mb-3">
         <div class="w-full bg-[#2A211A] h-1.5 rounded-full overflow-hidden cursor-pointer"
-             @click="seekFromBar($event)">
-            <div class="bg-[#D9973E] h-full transition-all duration-300"
-                 :style="'width: ' + progressPercent + '%'"></div>
+             @click="seekFromBar($event)"
+             :title="isLive ? 'Siaran Langsung Radio 24/7' : 'Klik untuk melompat ke durasi lagu'">
+            <template x-if="!isLive">
+                <div class="bg-[#D9973E] h-full transition-all duration-300"
+                     :style="'width: ' + Math.min(100, Math.max(0, progressPercent)) + '%'"></div>
+            </template>
+            <template x-if="isLive">
+                <div class="w-full h-full bg-gradient-to-r from-[#D9973E] via-red-500 to-[#D9973E] animate-pulse"></div>
+            </template>
         </div>
         <div class="mt-1 flex items-center justify-between font-mono text-[9px] text-[#7A6A58]">
-            <span x-text="currentTimeFormatted">00:00</span>
+            <div class="flex items-center gap-1">
+                <template x-if="isLive">
+                    <span class="inline-flex items-center gap-0.5 text-red-400 font-bold">
+                        <span class="w-1 h-1 rounded-full bg-red-500 animate-ping"></span> LIVE
+                    </span>
+                </template>
+                <span x-text="currentTimeFormatted">00:00</span>
+            </div>
             <span x-text="durationFormatted">00:00</span>
         </div>
     </div>
@@ -75,17 +88,28 @@
             <!-- PLAY/PAUSE -->
             <button type="button"
                     @click="togglePlayPause()"
-                    class="w-8 h-8 rounded-full bg-[#D9973E] hover:bg-[#c4842e] text-[#1F1812] flex items-center justify-center font-bold text-xs transition shadow active:scale-95">
-                <span x-show="!isPlaying" class="ml-0.5">▶</span>
-                <span x-show="isPlaying">⏸</span>
+                    :title="isPlaying ? 'Jeda Lagu' : 'Putar Lagu'"
+                    class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs transition-all duration-150 shadow active:scale-90 cursor-pointer"
+                    :class="isPlaying
+                        ? 'bg-[#D9973E] text-[#140E0A] shadow-[0_0_12px_rgba(217,151,62,0.45)]'
+                        : 'bg-[#2A211A] text-[#D9973E] border border-[#D9973E]/60 hover:bg-[#D9973E] hover:text-[#140E0A]'">
+                <svg x-show="isPlaying" class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                    <rect x="6" y="4" width="4" height="16" rx="1"/>
+                    <rect x="14" y="4" width="4" height="16" rx="1"/>
+                </svg>
+                <svg x-show="!isPlaying" class="w-3.5 h-3.5 fill-current ml-0.5" viewBox="0 0 24 24">
+                    <path d="M8 5.14v14.72a1 1 0 001.5.86l11.5-7.36a1 1 0 000-1.72L9.5 4.28A1 1 0 008 5.14z"/>
+                </svg>
             </button>
 
             <!-- SKIP -->
             <button type="button"
                     @click="skipTrack()"
                     title="Lewati ke lagu berikutnya"
-                    class="w-7 h-7 rounded bg-[#2A211A] hover:bg-[#3A3026] text-[#A89A85] hover:text-[#F7F3EC] border border-[#3A3026] flex items-center justify-center text-xs transition active:scale-95">
-                ⏭
+                    class="w-8 h-8 rounded-full bg-[#2A211A] hover:bg-[#3A3026] text-[#A89A85] hover:text-[#D9973E] border border-[#3A3026] hover:border-[#D9973E]/40 flex items-center justify-center transition-all duration-150 active:scale-90 cursor-pointer">
+                <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                    <path d="M5.5 4.5v15a1 1 0 001.5.86l9-7.5a1 1 0 000-1.72l-9-7.5a1 1 0 00-1.5.86zM18 4.5a1 1 0 00-1 1v13a1 1 0 102 0v-13a1 1 0 00-1-1z"/>
+                </svg>
             </button>
         </div>
 
@@ -203,6 +227,7 @@
             progressPercent: 0,
             currentTimeFormatted: '00:00',
             durationFormatted: '00:00',
+            isLive: false,
 
             queueCount: {{ $state['queue_count'] }},
             isAnnouncing: false,
@@ -224,6 +249,7 @@
                         if (state.currentTrack) this.currentTrack = state.currentTrack;
                         if (typeof state.volume !== 'undefined') this.volume = state.volume;
                         if (typeof state.isMuted !== 'undefined') this.isMuted = !!state.isMuted;
+                        if (typeof state.isLive !== 'undefined') this.isLive = !!state.isLive;
                         if (typeof state.queueCount !== 'undefined') this.queueCount = state.queueCount;
                         if (typeof state.isAnnouncing !== 'undefined') this.isAnnouncing = !!state.isAnnouncing;
                     });
@@ -233,7 +259,8 @@
                         if (!timeData) return;
                         if (typeof timeData.currentTime !== 'undefined') this.currentTime = timeData.currentTime;
                         if (typeof timeData.duration !== 'undefined') this.duration = timeData.duration;
-                        if (typeof timeData.progressPercent !== 'undefined') this.progressPercent = timeData.progressPercent;
+                        if (typeof timeData.progressPercent !== 'undefined') this.progressPercent = Math.min(100, Math.max(0, timeData.progressPercent));
+                        if (typeof timeData.isLive !== 'undefined') this.isLive = !!timeData.isLive;
                         if (timeData.currentTimeFormatted) this.currentTimeFormatted = timeData.currentTimeFormatted;
                         if (timeData.durationFormatted) this.durationFormatted = timeData.durationFormatted;
                         if (typeof timeData.isPlaying !== 'undefined') this.isPlaying = timeData.isPlaying;
@@ -242,18 +269,24 @@
 
                 // Interpolasi visual 1 detik agar pergerakan detik terlihat mulus di mini popup
                 setInterval(() => {
-                    if (this.isPlaying && this.duration > 0 && this.currentTime < this.duration) {
+                    if (this.isPlaying && !this.isLive && this.duration > 0 && this.currentTime < this.duration) {
                         this.currentTime = Math.min(this.duration, this.currentTime + 1);
                         this.currentTimeFormatted = this.formatTime(this.currentTime);
-                        this.progressPercent = (this.currentTime / this.duration) * 100;
+                        this.progressPercent = Math.min(100, Math.max(0, (this.currentTime / this.duration) * 100));
                     }
                 }, 1000);
             },
 
             formatTime(seconds) {
-                if (!seconds || isNaN(seconds)) return '00:00';
-                const m = Math.floor(seconds / 60);
-                const s = Math.floor(seconds % 60);
+                if (!seconds || isNaN(seconds) || seconds < 0) return '00:00';
+                if (seconds > 86400 * 7) return 'LIVE';
+                const totalSec = Math.floor(seconds);
+                const h = Math.floor(totalSec / 3600);
+                const m = Math.floor((totalSec % 3600) / 60);
+                const s = totalSec % 60;
+                if (h > 0) {
+                    return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+                }
                 return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
             },
 
@@ -284,14 +317,15 @@
             },
 
             seekFromBar(event) {
-                if (!this.duration) return;
+                if (this.isLive) return;
+                if (!this.duration || this.duration <= 0) return;
                 const rect = event.currentTarget.getBoundingClientRect();
                 const clickRatio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
                 const targetTime = Math.round(clickRatio * this.duration);
 
                 this.currentTime = targetTime;
                 this.currentTimeFormatted = this.formatTime(targetTime);
-                this.progressPercent = clickRatio * 100;
+                this.progressPercent = Math.min(100, Math.max(0, clickRatio * 100));
 
                 if (window.SoundStationHub) {
                     window.SoundStationHub.sendCommand('SEEK_TO', { seconds: targetTime });
