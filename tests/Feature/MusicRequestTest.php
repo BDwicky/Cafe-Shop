@@ -193,6 +193,24 @@ class MusicRequestTest extends TestCase
             ->assertRedirect();
 
         $this->assertFalse((bool) $track->fresh()->is_active);
+
+        // Update default track data
+        $this->actingAs($user)
+            ->put(route('kasir.music.default.update', $track), [
+                'title' => 'Updated Chill Coffee',
+                'artist' => 'Lofi Barista',
+                'youtube_url' => 'https://youtu.be/VALID000002',
+                'sort_order' => 5,
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('music_default_tracks', [
+            'id' => $track->id,
+            'title' => 'Updated Chill Coffee',
+            'artist' => 'Lofi Barista',
+            'youtube_id' => 'VALID000002',
+            'sort_order' => 5,
+        ]);
     }
 
     public function test_kasir_can_access_music_mini_popup_player(): void

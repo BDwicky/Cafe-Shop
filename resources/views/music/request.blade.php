@@ -26,6 +26,7 @@
         nowPlaying: {{ json_encode($playerState['now_playing']) }},
         queue: {{ json_encode($playerState['queue']) }},
         queueCount: {{ $playerState['queue_count'] }},
+        initialPlayback: {{ json_encode($playback ?? null) }},
 
         playbackCurrentTime: 0,
         playbackDuration: 0,
@@ -34,9 +35,31 @@
         playbackDurationFormatted: '00:00',
         isPlaying: false,
 
+        formatSeconds(sec) {
+            if (!sec || isNaN(sec)) return '00:00';
+            const m = Math.floor(sec / 60);
+            const s = Math.floor(sec % 60);
+            return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+        },
+
         init() {
             if (this.code && !this.isValid && !this.alreadyUsed) {
                 this.checkCode();
+            }
+
+            // Sinkronisasi status playback awal jika tersedia dari cache server
+            if (this.initialPlayback) {
+                const elapsed = this.initialPlayback.updated_at ? Math.max(0, (Date.now() - this.initialPlayback.updated_at) / 1000) : 0;
+                this.playbackDuration = Number(this.initialPlayback.duration || 0);
+                this.isPlaying = !!this.initialPlayback.is_playing;
+                this.playbackCurrentTime = Math.min(this.playbackDuration, Number(this.initialPlayback.current_time || 0) + (this.isPlaying ? elapsed : 0));
+                this.playbackProgressPercent = this.playbackDuration > 0 ? (this.playbackCurrentTime / this.playbackDuration) * 100 : 0;
+                this.playbackCurrentTimeFormatted = this.formatSeconds(Math.floor(this.playbackCurrentTime));
+                this.playbackDurationFormatted = this.formatSeconds(Math.floor(this.playbackDuration));
+            } else if (this.nowPlaying && this.nowPlaying.duration_seconds) {
+                this.playbackDuration = Number(this.nowPlaying.duration_seconds);
+                this.playbackDurationFormatted = this.formatSeconds(this.playbackDuration);
+                this.isPlaying = true;
             }
 
             // Dengarkan BroadcastChannel untuk sinkronisasi seketika (0ms)
@@ -60,32 +83,30 @@
 
                     if (e.data.type === 'TIME_SYNC' && e.data.data) {
                         const t = e.data.data;
-                        this.playbackCurrentTime = t.currentTime || 0;
-                        this.playbackDuration = t.duration || 0;
-                        this.playbackProgressPercent = t.progressPercent || 0;
-                        this.playbackCurrentTimeFormatted = t.currentTimeFormatted || '00:00';
-                        this.playbackDurationFormatted = t.durationFormatted || '00:00';
+                        this.playbackCurrentTime = Number(t.currentTime || 0);
+                        this.playbackDuration = Number(t.duration || 0);
+                        this.playbackProgressPercent = Number(t.progressPercent || 0);
+                        this.playbackCurrentTimeFormatted = t.currentTimeFormatted || this.formatSeconds(Math.floor(this.playbackCurrentTime));
+                        this.playbackDurationFormatted = t.durationFormatted || this.formatSeconds(Math.floor(this.playbackDuration));
                         if (typeof t.isPlaying !== 'undefined') {
-                            this.isPlaying = t.isPlaying;
+                            this.isPlaying = !!t.isPlaying;
                         }
                     }
                 });
             }
 
-            // Interpolasi visual 1 detik untuk timeline lagu berjalan
+            // Interpolasi visual 0.5 detik untuk timeline lagu berjalan secara halus
             setInterval(() => {
                 if (this.isPlaying && this.playbackDuration > 0 && this.playbackCurrentTime < this.playbackDuration) {
-                    this.playbackCurrentTime = Math.min(this.playbackDuration, this.playbackCurrentTime + 1);
-                    const m = Math.floor(this.playbackCurrentTime / 60);
-                    const s = Math.floor(this.playbackCurrentTime % 60);
-                    this.playbackCurrentTimeFormatted = (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
-                    this.playbackProgressPercent = (this.playbackCurrentTime / this.playbackDuration) * 100;
+                    this.playbackCurrentTime = Math.min(this.playbackDuration, this.playbackCurrentTime + 0.5);
+                    this.playbackProgressPercent = Math.min(100, (this.playbackCurrentTime / this.playbackDuration) * 100);
+                    this.playbackCurrentTimeFormatted = this.formatSeconds(Math.floor(this.playbackCurrentTime));
                 }
-            }, 1000);
+            }, 500);
 
-            // Polling status antrean & lagu kafe setiap 3.5 detik
+            // Polling status antrean & lagu kafe setiap 3 detik
             this.fetchStatus();
-            setInterval(() => this.fetchStatus(), 3500);
+            setInterval(() => this.fetchStatus(), 3000);
         },
 
         async checkCode() {
@@ -294,8 +315,25 @@
                 if (res.ok) {
                     const data = await res.json();
                     this.nowPlaying = data.now_playing;
-                    this.queue = data.queue;
-                    this.queueCount = data.queue_count;
+                    this.queue = data.queue || [];
+                    this.queueCount = data.queue_count || 0;
+
+                    // Sinkronisasi playback state dari server (untuk HP/perangkat pelanggan tanpa BroadcastChannel)
+                    if (data.playback) {
+                        const elapsed = data.playback.updated_at ? Math.max(0, (Date.now() - data.playback.updated_at) / 1000) : 0;
+                        this.playbackDuration = Number(data.playback.duration || 0);
+                        this.isPlaying = !!data.playback.is_playing;
+                        this.playbackCurrentTime = Math.min(this.playbackDuration, Number(data.playback.current_time || 0) + (this.isPlaying ? elapsed : 0));
+                        this.playbackProgressPercent = this.playbackDuration > 0 ? (this.playbackCurrentTime / this.playbackDuration) * 100 : 0;
+                        this.playbackCurrentTimeFormatted = this.formatSeconds(Math.floor(this.playbackCurrentTime));
+                        this.playbackDurationFormatted = this.formatSeconds(Math.floor(this.playbackDuration));
+                    } else if (data.now_playing && data.now_playing.duration_seconds) {
+                        this.playbackDuration = Number(data.now_playing.duration_seconds);
+                        this.playbackDurationFormatted = this.formatSeconds(this.playbackDuration);
+                        if (!this.playbackCurrentTime || this.playbackCurrentTime === 0) {
+                            this.isPlaying = true;
+                        }
+                    }
 
                     // Perbarui status pesanan jika orderInfo ada dalam ready_orders
                     if (this.orderInfo && data.ready_orders && Array.isArray(data.ready_orders)) {

@@ -232,6 +232,40 @@ class KasirMusicController extends Controller
     }
 
     /**
+     * Perbarui data lagu bawaan kafe (judul, artis, ID YouTube, urutan).
+     */
+    public function updateDefaultTrack(Request $request, MusicDefaultTrack $track): RedirectResponse
+    {
+        $data = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'artist' => ['nullable', 'string', 'max:255'],
+            'youtube_url' => ['nullable', 'string', 'max:500'],
+            'sort_order' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        $updatePayload = [
+            'title' => trim($data['title']),
+            'artist' => ! empty($data['artist']) ? trim($data['artist']) : null,
+            'sort_order' => $data['sort_order'] ?? $track->sort_order,
+        ];
+
+        if (! empty($data['youtube_url'])) {
+            $youtubeId = $this->musicService->extractYouTubeId($data['youtube_url']);
+            if ($youtubeId && $youtubeId !== $track->youtube_id) {
+                $updatePayload['youtube_id'] = $youtubeId;
+                $details = $this->musicService->fetchYouTubeDetails($youtubeId);
+                if (! empty($details['duration_seconds'])) {
+                    $updatePayload['duration_seconds'] = $details['duration_seconds'];
+                }
+            }
+        }
+
+        $track->update($updatePayload);
+
+        return back()->with('success', "Lagu bawaan \"{$track->title}\" berhasil diperbarui.");
+    }
+
+    /**
      * Hapus lagu dari playlist bawaan kafe.
      */
     public function destroyDefaultTrack(MusicDefaultTrack $track): RedirectResponse

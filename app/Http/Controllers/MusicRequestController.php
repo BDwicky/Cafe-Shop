@@ -31,8 +31,9 @@ class MusicRequestController extends Controller
         }
 
         $playerState = $this->musicService->getPlayerState();
+        $playback = Cache::get('soundstation_playback_state');
 
-        return view('music.request', compact('code', 'initialValidation', 'playerState'));
+        return view('music.request', compact('code', 'initialValidation', 'playerState', 'playback'));
     }
 
     /**

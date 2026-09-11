@@ -455,6 +455,20 @@
                                     <div class="text-[#7A6A58] text-[11px] truncate">{{ $track->artist ?? 'Artis Kafe' }} &bull; ID: {{ $track->youtube_id }}</div>
                                 </div>
                                 <div class="flex items-center gap-2 shrink-0">
+                                    <!-- EDIT -->
+                                    <button type="button"
+                                            @click="openEditModal({
+                                                id: {{ $track->id }},
+                                                title: @js($track->title),
+                                                artist: @js($track->artist ?? ''),
+                                                youtube_id: @js($track->youtube_id),
+                                                sort_order: {{ $track->sort_order ?? 0 }}
+                                            })"
+                                            class="px-2 py-1 font-mono text-[10px] uppercase border border-[#D5CCC0] text-[#1F1812] hover:bg-[#E8DFD3] transition flex items-center gap-1">
+                                        <span>✏️</span>
+                                        <span>Edit</span>
+                                    </button>
+
                                     <!-- TOGGLE ACTIVE -->
                                     <form method="POST" action="{{ route('kasir.music.default.toggle', $track) }}">
                                         @csrf
@@ -520,6 +534,82 @@
 
         </div>
     </div>
+
+    <!-- MODAL EDIT LAGU BAWAAN KAFE -->
+    <div x-show="editingTrack"
+         x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+         @keydown.escape.window="closeEditModal()">
+        <div class="bg-white border border-[#3A3026] max-w-md w-full p-6 shadow-2xl relative"
+             @click.outside="closeEditModal()">
+            <div class="flex items-center justify-between border-b border-[#E0D8CC] pb-3 mb-4">
+                <div class="flex items-center gap-2">
+                    <span class="text-base text-[#D9973E]">✏️</span>
+                    <h3 class="font-serif font-bold text-base text-[#1F1812]">Edit Lagu Bawaan Kafe</h3>
+                </div>
+                <button type="button" @click="closeEditModal()" class="text-[#7A6A58] hover:text-[#1F1812] text-lg font-bold leading-none cursor-pointer">
+                    ✕
+                </button>
+            </div>
+
+            <form method="POST" :action="editUpdateUrl" class="space-y-4">
+                @csrf
+                @method('PUT')
+
+                <div>
+                    <label class="block text-xs font-mono uppercase text-[#7A6A58] mb-1 font-semibold">
+                        Judul Lagu <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" name="title" required
+                           x-model="editingTrack ? editingTrack.title : ''"
+                           class="w-full px-3 py-2 bg-[#F7F3EC] border border-[#D5CCC0] text-xs text-[#1F1812] focus:outline-none focus:border-[#D9973E]">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-mono uppercase text-[#7A6A58] mb-1 font-semibold">
+                        Nama Artis (Opsional)
+                    </label>
+                    <input type="text" name="artist"
+                           x-model="editingTrack ? editingTrack.artist : ''"
+                           placeholder="Kosongkan jika tidak ada"
+                           class="w-full px-3 py-2 bg-[#F7F3EC] border border-[#D5CCC0] text-xs text-[#1F1812] focus:outline-none focus:border-[#D9973E]">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-mono uppercase text-[#7A6A58] mb-1 font-semibold">
+                        Link atau ID Video YouTube
+                    </label>
+                    <input type="text" name="youtube_url"
+                           x-model="editingTrack ? editingTrack.youtube_url : ''"
+                           placeholder="Contoh: https://youtu.be/... atau ID YouTube 11 digit"
+                           class="w-full px-3 py-2 bg-[#F7F3EC] border border-[#D5CCC0] text-xs text-[#1F1812] focus:outline-none focus:border-[#D9973E]">
+                    <p class="text-[10px] text-[#7A6A58] mt-1 font-mono">
+                        Biarkan tautan tetap seperti ini jika hanya ingin mengubah nama lagu/artis.
+                    </p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-mono uppercase text-[#7A6A58] mb-1 font-semibold">
+                        Urutan Putar (Sort Order)
+                    </label>
+                    <input type="number" name="sort_order" min="0"
+                           x-model="editingTrack ? editingTrack.sort_order : 0"
+                           class="w-28 px-3 py-1.5 bg-[#F7F3EC] border border-[#D5CCC0] text-xs text-[#1F1812] focus:outline-none focus:border-[#D9973E]">
+                </div>
+
+                <div class="pt-3 border-t border-[#E0D8CC] flex justify-end gap-2">
+                    <button type="button" @click="closeEditModal()"
+                            class="px-4 py-2 border border-[#D5CCC0] text-[#1F1812] font-mono text-xs uppercase tracking-wider hover:bg-[#F7F3EC] transition cursor-pointer">
+                        Batal
+                    </button>
+                    <button type="submit"
+                            class="px-5 py-2 bg-[#1F1812] text-[#F7F3EC] font-mono text-xs uppercase tracking-wider hover:bg-[#D9973E] hover:text-[#1F1812] transition font-bold shadow cursor-pointer">
+                        Simpan Perubahan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -546,9 +636,30 @@ function musicStationPage() {
         importLink: '',
         importTitle: '',
         importArtist: '',
+        lastInspectedUrl: '',
+        lastAutoTitle: '',
+        lastAutoArtist: '',
         inspectingLink: false,
         inspectedVideo: null,
         inspectError: null,
+
+        editingTrack: null,
+        editUpdateUrl: '',
+
+        openEditModal(track) {
+            this.editingTrack = {
+                id: track.id,
+                title: track.title,
+                artist: track.artist || '',
+                youtube_url: 'https://youtu.be/' + track.youtube_id,
+                sort_order: track.sort_order || 0
+            };
+            this.editUpdateUrl = '{{ url('/kasir/music/default-tracks') }}/' + track.id;
+        },
+
+        closeEditModal() {
+            this.editingTrack = null;
+        },
 
         voiceAnnouncerEnabled: true,
         isAnnouncing: false,
@@ -559,32 +670,39 @@ function musicStationPage() {
             if (!url) {
                 this.inspectedVideo = null;
                 this.inspectError = null;
+                this.lastInspectedUrl = '';
                 return;
             }
             if (!url.includes('youtu') && url.length !== 11) {
                 return;
             }
+            if (url === this.lastInspectedUrl) {
+                return;
+            }
 
             this.inspectingLink = true;
             this.inspectError = null;
+            this.lastInspectedUrl = url;
 
             try {
                 const res = await fetch('{{ route('kasir.music.inspect') }}?url=' + encodeURIComponent(url));
                 const data = await res.json();
                 if (res.ok && data.valid) {
                     this.inspectedVideo = data;
-                    if (!this.importTitle || this.importTitle === 'hh') {
+                    if (!this.importTitle || this.importTitle === this.lastAutoTitle || this.importTitle === 'hh') {
                         this.importTitle = data.title || '';
+                        this.lastAutoTitle = data.title || '';
                     }
-                    if (!this.importArtist) {
+                    if (!this.importArtist || this.importArtist === this.lastAutoArtist) {
                         this.importArtist = data.artist || '';
+                        this.lastAutoArtist = data.artist || '';
                     }
                 } else {
                     this.inspectedVideo = null;
                     this.inspectError = data.message || 'Tautan YouTube tidak valid.';
                 }
             } catch (e) {
-                this.inspectError = 'Gagal memuat info video YouTube.';
+                this.inspectError = 'Gagal memuat info video YouTube secara otomatis. Anda tetap dapat menyimpan lagu.';
             } finally {
                 this.inspectingLink = false;
             }

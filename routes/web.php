@@ -62,6 +62,7 @@ Route::middleware('auth')->prefix('kasir')->name('kasir.')->group(function () {
         Route::post('/default-tracks/batch', [KasirMusicController::class, 'storeBatchDefaultTracks'])->name('default.store_batch');
         Route::get('/inspect-link', [KasirMusicController::class, 'inspectLink'])->name('inspect');
         Route::patch('/default-tracks/{track}/toggle', [KasirMusicController::class, 'toggleDefaultTrack'])->name('default.toggle');
+        Route::put('/default-tracks/{track}', [KasirMusicController::class, 'updateDefaultTrack'])->name('default.update');
         Route::delete('/default-tracks/{track}', [KasirMusicController::class, 'destroyDefaultTrack'])->name('default.destroy');
 
         // Panggilan Suara Pesanan Siap (Voice Announcer & Audio Ducking)
