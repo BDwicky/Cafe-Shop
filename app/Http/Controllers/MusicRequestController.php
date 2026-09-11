@@ -127,9 +127,9 @@ class MusicRequestController extends Controller
     {
         $validated = $request->validate([
             'code' => ['required', 'string', 'max:50'],
-            'song_title' => ['required', 'string', 'max:255'],
+            'song_title' => ['nullable', 'string', 'max:255'],
             'artist' => ['nullable', 'string', 'max:255'],
-            'youtube_id' => ['required', 'string', 'max:255'],
+            'youtube_id' => ['required', 'string', 'max:500'],
             'thumbnail_url' => ['nullable', 'url', 'max:500'],
             'duration_seconds' => ['nullable', 'integer'],
             'customer_name' => ['nullable', 'string', 'max:100'],
@@ -144,13 +144,36 @@ class MusicRequestController extends Controller
             ], 422);
         }
 
+        $rawYt = trim((string) $validated['youtube_id']);
+        $youtubeId = $this->musicService->extractYouTubeId($rawYt) ?: $rawYt;
+
+        $title = ! empty($validated['song_title']) ? trim((string) $validated['song_title']) : '';
+        $artist = ! empty($validated['artist']) ? trim((string) $validated['artist']) : null;
+        $thumbnailUrl = $validated['thumbnail_url'] ?? null;
+        $durationSeconds = $validated['duration_seconds'] ?? null;
+
+        // Jika judul tidak diinput secara manual, otomatis ambil judul & detail dari YouTube
+        if ($title === '') {
+            $details = $this->musicService->fetchYouTubeDetails($youtubeId);
+            $title = $details['title'] ?? "Lagu YouTube ({$youtubeId})";
+            if (empty($artist) && ! empty($details['artist']) && $details['artist'] !== 'YouTube') {
+                $artist = $details['artist'];
+            }
+            if (empty($thumbnailUrl) && ! empty($details['thumbnail_url'])) {
+                $thumbnailUrl = $details['thumbnail_url'];
+            }
+            if (empty($durationSeconds) && ! empty($details['duration_seconds'])) {
+                $durationSeconds = $details['duration_seconds'];
+            }
+        }
+
         try {
             $musicRequest = $this->musicService->submitRequest($val['order'] ?? null, [
-                'song_title' => $validated['song_title'],
-                'artist' => $validated['artist'] ?? null,
-                'youtube_id' => $validated['youtube_id'],
-                'thumbnail_url' => $validated['thumbnail_url'] ?? null,
-                'duration_seconds' => $validated['duration_seconds'] ?? null,
+                'song_title' => $title,
+                'artist' => $artist,
+                'youtube_id' => $youtubeId,
+                'thumbnail_url' => $thumbnailUrl,
+                'duration_seconds' => $durationSeconds,
                 'customer_name' => $validated['customer_name'] ?? null,
             ], $isOwner);
 

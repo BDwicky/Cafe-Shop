@@ -902,4 +902,26 @@ class MusicRequestTest extends TestCase
         $this->assertEquals(1, MusicDefaultTrack::where('youtube_id', 'vX123456789')->count());
         $this->assertTrue($existing->fresh()->is_active);
     }
+
+    public function test_customer_can_submit_request_without_song_title_using_youtube_link(): void
+    {
+        $order = Order::factory()->create(['status' => 'paid']);
+
+        $response = $this->postJson(route('music.store'), [
+            'code' => $order->music_code,
+            'youtube_id' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+            'customer_name' => 'Meja 5 Budi',
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('request.youtube_id', 'dQw4w9WgXcQ');
+
+        $this->assertNotEmpty($response->json('request.song_title'));
+
+        $this->assertDatabaseHas('music_requests', [
+            'order_id' => $order->id,
+            'youtube_id' => 'dQw4w9WgXcQ',
+            'status' => 'queued',
+        ]);
+    }
 }
