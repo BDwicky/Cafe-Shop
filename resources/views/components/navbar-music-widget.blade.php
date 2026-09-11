@@ -1379,11 +1379,17 @@ function navbarMusicWidget() {
             this.currentTimeFormatted = '00:00';
             this.durationFormatted = isLiveTrack ? 'RADIO 24/7' : this.formatTime(track.duration_seconds || 0);
 
+            if (!this.isMasterHost) {
+                this.claimMasterHost(false);
+            }
+
             if (this.player && this.playerReady) {
                 this.player.loadVideoById(track.youtube_id);
                 this.player.playVideo();
                 this.isPlaying = true;
                 document.title = '♫ ' + track.title + ' — POS';
+            } else {
+                this.loadYouTubeApi();
             }
             this.broadcastSync();
             this.broadcastTimeSync();
@@ -1578,7 +1584,16 @@ function navbarMusicWidget() {
                 return;
             }
 
-            if (!this.player || !this.playerReady) return;
+            if (!this.player || !this.playerReady) {
+                this.loadYouTubeApi();
+                return;
+            }
+
+            if (!this.currentTrack || !this.currentTrack.youtube_id) {
+                this.playNextTrack();
+                return;
+            }
+
             if (this.isPlaying) {
                 this.player.pauseVideo();
             } else {

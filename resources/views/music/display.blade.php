@@ -675,8 +675,9 @@
                     document.msExitFullscreen();
                 }
             }
-        };
-    }
+        }
+    };
+}
     </script>
 </head>
 <body class="bg-[#0E0906] text-[#F7F3EC] w-screen h-screen min-w-full min-h-screen overflow-hidden antialiased font-sans select-none relative m-0 p-0"

@@ -1477,6 +1477,22 @@ function musicStationPage() {
                     window.customToast({ message: 'Request lagu ditolak.', type: 'warning' });
                 }
             } catch (e) {}
+        },
+
+        playDefaultTrackDirect(track) {
+            if (!track || !track.youtube_id) return;
+            if (window.SoundStation && typeof window.SoundStation.playDirectTrack === 'function') {
+                window.SoundStation.playDirectTrack(track);
+            } else if (window.SoundStationHub) {
+                window.SoundStationHub.sendCommand('PLAY_TRACK', { track: track });
+            }
+            if (window.customToast) {
+                window.customToast({
+                    message: '▶ Memutar: ' + (track.title || 'Lagu Kafe'),
+                    type: 'success',
+                    duration: 3000
+                });
+            }
         }
     };
 }
