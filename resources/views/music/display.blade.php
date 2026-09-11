@@ -825,8 +825,8 @@
         <!-- MAIN STAGE: NOW PLAYING & RIGHT COLUMN (Dynamically fills vertical space) -->
         <main class="w-full flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 xl:gap-10 items-center my-auto py-2 sm:py-3">
 
-            <!-- LEFT COL: NOW PLAYING HERO (8-9 cols, cinematic width) -->
-            <div class="lg:col-span-8 xl:col-span-9 flex flex-col justify-center">
+            <!-- LEFT COL: NOW PLAYING HERO (shifted right on desktop to balance spacing) -->
+            <div class="lg:col-span-8 xl:col-span-8 2xl:col-span-8 flex flex-col justify-center lg:pl-10 xl:pl-20 2xl:pl-28">
 
                 <!-- 1. MODE VISUALIZER: 3D VINYL TURNTABLE & SPECTRUM EQUALIZER -->
                 <div x-show="displayMode === 'visualizer'" class="flex flex-col sm:flex-row items-center gap-6 sm:gap-8 xl:gap-10">
@@ -859,7 +859,7 @@
                     </div>
 
                     <!-- NOW PLAYING METADATA -->
-                    <div class="min-w-0 text-center sm:text-left flex-1 w-full max-w-xl xl:max-w-2xl">
+                    <div class="min-w-0 text-center sm:text-left flex-1 w-full max-w-xl xl:max-w-2xl 2xl:max-w-3xl">
                         <div class="inline-flex items-center gap-2 px-3 py-1 bg-[#D9973E]/15 border border-[#D9973E]/40 text-[#D9973E] font-mono text-xs uppercase tracking-[0.2em] mb-3 rounded-full">
                             <span class="w-1.5 h-1.5 rounded-full bg-[#D9973E] animate-ping"></span>
                             <span x-text="isPlaying ? 'NOW PLAYING' : 'AUDIO PAUSED'"></span>
@@ -953,8 +953,8 @@
 
             </div>
 
-            <!-- RIGHT COL: LIVE READY ORDERS & UP NEXT QUEUE (Slim & compact width: 3-4 cols, max 350px) -->
-            <div class="lg:col-span-4 xl:col-span-3 max-w-[310px] sm:max-w-[330px] xl:max-w-[350px] w-full ml-auto bg-[#17110C]/90 border border-[#3A3026] rounded-2xl p-4 sm:p-5 shadow-2xl backdrop-blur-xl flex flex-col h-full min-h-[400px] max-h-[560px] xl:max-h-[620px] justify-between">
+            <!-- RIGHT COL: LIVE READY ORDERS & UP NEXT QUEUE (Slim & compact width: 4 cols, max 350px) -->
+            <div class="lg:col-span-4 xl:col-span-4 2xl:col-span-4 max-w-[310px] sm:max-w-[330px] xl:max-w-[350px] w-full ml-auto bg-[#17110C]/90 border border-[#3A3026] rounded-2xl p-4 sm:p-5 shadow-2xl backdrop-blur-xl flex flex-col h-full min-h-[400px] max-h-[560px] xl:max-h-[620px] justify-between">
 
                 <!-- TOP SECTION: PESANAN SIAP (TAMPIL DI ATAS JIKA ADA PESANAN SIAP) -->
                 <template x-if="readyOrders.length > 0">
