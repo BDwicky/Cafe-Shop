@@ -160,6 +160,45 @@
                         <span>Suara Announcer</span>
                     </a>
 
+                    <!-- INVENTARIS & KEUANGAN TOKO -->
+                    <div class="px-3 pt-3 pb-1 font-mono text-[9px] uppercase tracking-[0.25em] text-[#A89A85]">INVENTARIS & BIAYA</div>
+
+                    <!-- 8. Stok Bahan Baku -->
+                    <a href="{{ route('kasir.inventory.index') }}"
+                       class="flex items-center gap-3 px-3.5 py-2.5 rounded-none border text-xs font-mono tracking-wider uppercase transition-colors {{ request()->routeIs('kasir.inventory.index') ? 'bg-[#D9973E] text-[#1F1812] border-[#D9973E] font-bold shadow-md' : 'text-[#A89A85] border-transparent hover:bg-[#2A211A] hover:border-[#3A3026] hover:text-[#F7F3EC]' }}">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                        </svg>
+                        <span>Stok Bahan Baku</span>
+                    </a>
+
+                    <!-- 9. Resep Menu (BOM) -->
+                    <a href="{{ route('kasir.inventory.recipes') }}"
+                       class="flex items-center gap-3 px-3.5 py-2.5 rounded-none border text-xs font-mono tracking-wider uppercase transition-colors {{ request()->routeIs('kasir.inventory.recipes') ? 'bg-[#D9973E] text-[#1F1812] border-[#D9973E] font-bold shadow-md' : 'text-[#A89A85] border-transparent hover:bg-[#2A211A] hover:border-[#3A3026] hover:text-[#F7F3EC]' }}">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        <span>Resep BOM Menu</span>
+                    </a>
+
+                    <!-- 10. Mutasi Stok / Ledger -->
+                    <a href="{{ route('kasir.inventory.history') }}"
+                       class="flex items-center gap-3 px-3.5 py-2.5 rounded-none border text-xs font-mono tracking-wider uppercase transition-colors {{ request()->routeIs('kasir.inventory.history') ? 'bg-[#D9973E] text-[#1F1812] border-[#D9973E] font-bold shadow-md' : 'text-[#A89A85] border-transparent hover:bg-[#2A211A] hover:border-[#3A3026] hover:text-[#F7F3EC]' }}">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <span>Kartu Stok Mutasi</span>
+                    </a>
+
+                    <!-- 11. Pengeluaran Toko -->
+                    <a href="{{ route('kasir.expenses.index') }}"
+                       class="flex items-center gap-3 px-3.5 py-2.5 rounded-none border text-xs font-mono tracking-wider uppercase transition-colors {{ request()->routeIs('kasir.expenses.*') ? 'bg-[#D9973E] text-[#1F1812] border-[#D9973E] font-bold shadow-md' : 'text-[#A89A85] border-transparent hover:bg-[#2A211A] hover:border-[#3A3026] hover:text-[#F7F3EC]' }}">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+                        </svg>
+                        <span>Pengeluaran Toko</span>
+                    </a>
+
                     <div class="pt-3 pb-1 border-t border-[#3A3026]/70 mt-3">
                         <a href="{{ route('landing') }}" target="_blank"
                            class="flex items-center justify-between px-3.5 py-2.5 text-[11px] font-mono tracking-wider uppercase text-[#A89A85] hover:text-[#D9973E] hover:bg-[#2A211A] transition-colors">

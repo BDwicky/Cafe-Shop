@@ -6,6 +6,7 @@ use Database\Factories\MenuFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 class Menu extends Model
@@ -35,6 +36,58 @@ class Menu extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
+    }
+
+    public function recipes(): HasMany
+    {
+        return $this->hasMany(MenuRecipe::class);
+    }
+
+    /**
+     * Hitung HPP (Harga Pokok Penjualan / Total Modal Bahan Baku) per porsi menu.
+     */
+    public function calculateHpp(): int
+    {
+        $recipes = $this->relationLoaded('recipes') ? $this->recipes : $this->recipes()->with('ingredient')->get();
+
+        return (int) $recipes->sum(function (MenuRecipe $recipe) {
+            return $recipe->cost;
+        });
+    }
+
+    /**
+     * Margin Laba Kotor (%) = ((Harga Jual - HPP) / Harga Jual) * 100
+     */
+    public function getMarginPercentAttribute(): float
+    {
+        if ($this->price <= 0) {
+            return 0.0;
+        }
+
+        $hpp = $this->calculateHpp();
+        $profit = $this->price - $hpp;
+
+        return round(($profit / $this->price) * 100, 1);
+    }
+
+    /**
+     * Cek apakah seluruh bahan baku resep menu ini tersedia dengan stok yang cukup.
+     */
+    public function areIngredientsInStock(int $qty = 1): bool
+    {
+        $recipes = $this->relationLoaded('recipes') ? $this->recipes : $this->recipes()->with('ingredient')->get();
+
+        if ($recipes->isEmpty()) {
+            return true;
+        }
+
+        foreach ($recipes as $recipe) {
+            if (! $recipe->ingredient || ($recipe->ingredient->current_stock < ($recipe->amount * $qty))) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public function scopeAvailable($query)

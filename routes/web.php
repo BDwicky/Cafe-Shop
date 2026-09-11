@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Auth\KasirLoginController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\KasirController;
 use App\Http\Controllers\KasirMusicController;
 use App\Http\Controllers\KitchenController;
@@ -93,6 +95,27 @@ Route::middleware('auth')->prefix('kasir')->name('kasir.')->group(function () {
     Route::patch('/menu/{menu}/toggle', [MenuController::class, 'toggle'])->name('menu.toggle');
     Route::post('/categories', [CategoryController::class, 'store'])->name('categories.store');
     Route::delete('/categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
+
+    // Manajemen Inventaris & Bahan Baku (Stok & Resep BOM)
+    Route::prefix('inventory')->name('inventory.')->group(function () {
+        Route::get('/', [InventoryController::class, 'index'])->name('index');
+        Route::post('/', [InventoryController::class, 'store'])->name('store');
+        Route::put('/{ingredient}', [InventoryController::class, 'update'])->name('update');
+        Route::delete('/{ingredient}', [InventoryController::class, 'destroy'])->name('destroy');
+        Route::post('/restock', [InventoryController::class, 'restock'])->name('restock');
+        Route::post('/waste', [InventoryController::class, 'waste'])->name('waste');
+        Route::post('/adjustment', [InventoryController::class, 'adjustment'])->name('adjustment');
+        Route::get('/history', [InventoryController::class, 'history'])->name('history');
+        Route::get('/recipes', [InventoryController::class, 'recipes'])->name('recipes');
+        Route::put('/recipes/{menu}', [InventoryController::class, 'updateRecipe'])->name('recipes.update');
+    });
+
+    // Pengeluaran Toko & Operasional Kasir
+    Route::prefix('expenses')->name('expenses.')->group(function () {
+        Route::get('/', [ExpenseController::class, 'index'])->name('index');
+        Route::post('/', [ExpenseController::class, 'store'])->name('store');
+        Route::delete('/{expense}', [ExpenseController::class, 'destroy'])->name('destroy');
+    });
 
     // Laporan
     Route::get('/laporan', [ReportController::class, 'index'])->name('laporan');

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Category;
 use App\Models\Menu;
 use App\Models\Order;
+use App\Services\InventoryService;
 use App\Services\OrderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -32,7 +33,7 @@ class KasirController extends Controller
         return view('kasir.terminal', compact('menus', 'menuData', 'categories'));
     }
 
-    public function store(Request $request, OrderService $svc)
+    public function store(Request $request, OrderService $svc, InventoryService $inventoryService)
     {
         $data = $request->validate([
             'items' => ['required', 'array', 'min:1'],
@@ -55,6 +56,9 @@ class KasirController extends Controller
             if (! $menus[$i['menu_id']]->is_available) {
                 return response()->json(['message' => 'Menu "'.$menus[$i['menu_id']]->name.'" sedang tidak tersedia (stok kosong).'], 422);
             }
+            if (! $menus[$i['menu_id']]->areIngredientsInStock((int) $i['qty'])) {
+                return response()->json(['message' => 'Stok bahan baku untuk "'.$menus[$i['menu_id']]->name.'" tidak mencukupi.'], 422);
+            }
         }
 
         $lines = collect($data['items'])->map(fn ($i) => [
@@ -69,7 +73,7 @@ class KasirController extends Controller
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        $order = DB::transaction(function () use ($data, $lines, $calc, $request) {
+        $order = DB::transaction(function () use ($data, $lines, $calc, $request, $inventoryService) {
             $order = Order::create([
                 'code' => 'TMP',
                 'user_id' => $request->user()->id,
@@ -96,6 +100,9 @@ class KasirController extends Controller
             }
 
             $order->update(['code' => sprintf('KKI-%s-%04d', now()->format('ymd'), $order->id)]);
+
+            // Potong stok bahan baku secara otomatis sesuai resep BOM
+            $inventoryService->deductForOrder($order);
 
             return $order;
         });
@@ -169,11 +176,14 @@ class KasirController extends Controller
         return view('kasir.receipt', compact('order'));
     }
 
-    public function void(Order $order)
+    public function void(Order $order, Request $request, InventoryService $inventoryService)
     {
         abort_unless($order->status === 'paid', 422);
 
-        $order->update(['status' => 'voided']);
+        DB::transaction(function () use ($order, $request, $inventoryService) {
+            $order->update(['status' => 'voided']);
+            $inventoryService->restoreForOrder($order, $request->user());
+        });
 
         return back();
     }

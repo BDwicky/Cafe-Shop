@@ -40,7 +40,7 @@
             <div class="mt-2 font-mono text-4xl">{{ number_format($totals->trx, 0, ',', '.') }}</div>
         </div>
         <div class="bg-[#1F1812] text-[#F7F3EC] border border-[#3A3026] p-5">
-            <div class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#A89A85]">Omzet</div>
+            <div class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#A89A85]">Omzet Penjualan</div>
             <div class="mt-2 font-mono text-4xl text-[#D9973E]">Rp {{ number_format($totals->omzet, 0, ',', '.') }}</div>
         </div>
         <div class="bg-white border border-[#E4DCCC] p-5">
@@ -50,6 +50,89 @@
         <div class="bg-white border border-[#E4DCCC] p-5">
             <div class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#8A7B66]">Item Terjual</div>
             <div class="mt-2 font-mono text-4xl">{{ number_format($itemsSold, 0, ',', '.') }}</div>
+        </div>
+    </div>
+
+    <!-- Analisis Keuangan: HPP Modal, Pengeluaran & Laba Bersih Toko -->
+    <div class="mb-6 bg-white border border-[#E4DCCC] p-5 shadow-xs">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-3 border-b border-[#E4DCCC] gap-2 mb-4">
+            <div>
+                <h3 class="font-serif font-bold text-lg text-[#1F1812]">Analisis Keuangan & Laba Toko</h3>
+                <p class="font-mono text-xs text-[#8A7B66] mt-0.5">
+                    Perhitungan otomatis dari resep BOM bahan baku dan buku pengeluaran kasir.
+                </p>
+            </div>
+            <div class="flex items-center gap-2">
+                <a href="{{ route('kasir.expenses.index') }}"
+                   class="px-3 py-1.5 bg-[#F7F3EC] border border-[#E4DCCC] hover:border-[#1F1812] font-mono text-xs text-[#1F1812] transition">
+                    + Pengeluaran Toko
+                </a>
+                <a href="{{ route('kasir.inventory.index') }}"
+                   class="px-3 py-1.5 bg-[#F7F3EC] border border-[#E4DCCC] hover:border-[#1F1812] font-mono text-xs text-[#1F1812] transition">
+                    📦 Master Stok Bahan
+                </a>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- 1. HPP Bahan Baku Terpakai -->
+            <div class="p-4 bg-[#F7F3EC]/70 border border-[#E4DCCC]">
+                <div class="flex items-center justify-between text-[#8A7B66]">
+                    <span class="font-mono text-[10px] uppercase tracking-wider font-semibold">HPP Bahan Terjual</span>
+                    <span class="text-xs">🌱</span>
+                </div>
+                <div class="mt-2 font-mono text-2xl font-bold text-[#1F1812]">
+                    Rp {{ number_format($finance['cogs'], 0, ',', '.') }}
+                </div>
+                <div class="mt-1 text-[11px] font-mono text-[#8A7B66]">
+                    Modal resep bahan yang terpakai
+                </div>
+            </div>
+
+            <!-- 2. Laba Kotor (Gross Profit) -->
+            <div class="p-4 bg-emerald-50/50 border border-emerald-200">
+                <div class="flex items-center justify-between text-[#5F7F42]">
+                    <span class="font-mono text-[10px] uppercase tracking-wider font-semibold">Laba Kotor (Gross)</span>
+                    <span class="font-mono text-xs font-bold">{{ $finance['gross_margin'] }}%</span>
+                </div>
+                <div class="mt-2 font-mono text-2xl font-bold text-[#5F7F42]">
+                    Rp {{ number_format($finance['gross_profit'], 0, ',', '.') }}
+                </div>
+                <div class="mt-1 text-[11px] font-mono text-[#5F7F42]">
+                    Omzet dikurangi HPP bahan
+                </div>
+            </div>
+
+            <!-- 3. Total Pengeluaran Toko (Expenses) -->
+            <div class="p-4 bg-red-50/40 border border-red-200">
+                <div class="flex items-center justify-between text-[#C84B31]">
+                    <span class="font-mono text-[10px] uppercase tracking-wider font-semibold">Pengeluaran Toko</span>
+                    <span class="text-xs">🧾</span>
+                </div>
+                <div class="mt-2 font-mono text-2xl font-bold text-[#C84B31]">
+                    Rp {{ number_format($finance['total_expenses'], 0, ',', '.') }}
+                </div>
+                <div class="mt-1 text-[11px] font-mono text-[#8A7B66]">
+                    Restock: Rp {{ number_format($finance['restock_expenses'], 0, ',', '.') }} • Opr: Rp {{ number_format($finance['operational_expenses'], 0, ',', '.') }}
+                </div>
+            </div>
+
+            <!-- 4. Laba Bersih Toko (Net Profit) -->
+            @php
+                $isNetPositive = $finance['net_profit'] >= 0;
+            @endphp
+            <div class="p-4 {{ $isNetPositive ? 'bg-[#1F1812] text-[#F7F3EC] border border-[#3A3026]' : 'bg-red-100 text-red-900 border border-red-300' }}">
+                <div class="flex items-center justify-between {{ $isNetPositive ? 'text-[#D9973E]' : 'text-red-700' }}">
+                    <span class="font-mono text-[10px] uppercase tracking-wider font-bold">Laba Bersih Toko</span>
+                    <span class="font-mono text-xs font-bold">{{ $finance['net_margin'] }}%</span>
+                </div>
+                <div class="mt-2 font-mono text-2xl font-bold {{ $isNetPositive ? 'text-[#D9973E]' : 'text-red-700' }}">
+                    Rp {{ number_format($finance['net_profit'], 0, ',', '.') }}
+                </div>
+                <div class="mt-1 text-[11px] font-mono {{ $isNetPositive ? 'text-[#A89A85]' : 'text-red-600' }}">
+                    Omzet dikurangi total biaya operasional
+                </div>
+            </div>
         </div>
     </div>
 
