@@ -1584,6 +1584,32 @@ function navbarMusicWidget() {
                     this.refreshQueue();
                     this.broadcastSync();
                     this.broadcastTimeSync();
+
+                    // SINKRONKAN STATE PEMUTAR KE SERVER & DISPLAY TV SECARA INSTAN
+                    fetch('{{ route('kasir.music.playback.sync') }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify({
+                            client_id: this.myTabId,
+                            current_time: startSec,
+                            duration: track.duration_seconds || 0,
+                            is_playing: true,
+                            current_track: this.currentTrack
+                        })
+                    }).catch(() => {});
+
+                    if (window.SoundStationHub && window.SoundStationHub.channel) {
+                        try {
+                            window.SoundStationHub.channel.postMessage({
+                                type: 'TRACK_CHANGED',
+                                track: this.currentTrack,
+                                senderTabId: this.myTabId
+                            });
+                        } catch (e) {}
+                    }
                 }
             } catch (e) {
                 console.error('Next track fetch error:', e);

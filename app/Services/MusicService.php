@@ -392,31 +392,8 @@ class MusicService
 
         $nowPlaying = null;
 
-        // 1. Cek apakah kasir sengaja memutar lagu bawaan secara manual
-        $explicitDefaultTrack = null;
-        if (! empty($playbackState['current_track']) && is_array($playbackState['current_track'])) {
-            if (($playbackState['current_track']['type'] ?? '') === 'default_track') {
-                $explicitDefaultTrack = $playbackState['current_track'];
-            }
-        } elseif (! empty($cachedCurrentTrack['type']) && $cachedCurrentTrack['type'] === 'default_track') {
-            $explicitDefaultTrack = $cachedCurrentTrack;
-        }
-
-        if ($explicitDefaultTrack) {
-            // Kasir memutar lagu bawaan secara langsung -> bersihkan request customer playing lama jika ada
-            if ($playingRequest) {
-                $playingRequest->update(['status' => 'played', 'finished_at' => now()]);
-                $playingRequest = null;
-            }
-            $nowPlaying = $explicitDefaultTrack;
-            if (! isset($nowPlaying['song_title']) && isset($nowPlaying['title'])) {
-                $nowPlaying['song_title'] = $nowPlaying['title'];
-            }
-            if (empty($nowPlaying['thumbnail_url']) && ! empty($nowPlaying['youtube_id'])) {
-                $nowPlaying['thumbnail_url'] = "https://img.youtube.com/vi/{$nowPlaying['youtube_id']}/hqdefault.jpg";
-            }
-            Cache::put('soundstation_current_track', $nowPlaying, now()->addHours(8));
-        } elseif ($playingRequest) {
+        // 1. Prioritaskan request pelanggan yang sedang berstatus 'playing'
+        if ($playingRequest) {
             $nowPlaying = [
                 'type' => 'customer_request',
                 'id' => $playingRequest->id,
@@ -431,11 +408,21 @@ class MusicService
             ];
             Cache::put('soundstation_current_track', $nowPlaying, now()->addHours(8));
         } else {
-            $cached = $cachedCurrentTrack ?: Cache::get('soundstation_current_track');
-            if ($cached && ! empty($cached['title'])) {
-                $nowPlaying = $cached;
+            // 2. Jika tidak ada request customer yang playing, gunakan track aktif dari playback state atau cache
+            $currentTrack = null;
+            if (! empty($playbackState['current_track']) && is_array($playbackState['current_track']) && ! empty($playbackState['current_track']['title'])) {
+                $currentTrack = $playbackState['current_track'];
+            } elseif (! empty($cachedCurrentTrack['title'])) {
+                $currentTrack = $cachedCurrentTrack;
+            }
+
+            if ($currentTrack) {
+                $nowPlaying = $currentTrack;
                 if (! isset($nowPlaying['song_title']) && isset($nowPlaying['title'])) {
                     $nowPlaying['song_title'] = $nowPlaying['title'];
+                }
+                if (empty($nowPlaying['thumbnail_url']) && ! empty($nowPlaying['youtube_id'])) {
+                    $nowPlaying['thumbnail_url'] = "https://img.youtube.com/vi/{$nowPlaying['youtube_id']}/hqdefault.jpg";
                 }
             } else {
                 $defaultTrack = MusicDefaultTrack::active()->orderBy('sort_order')->first();
@@ -616,6 +603,14 @@ class MusicService
 
         if ($result && ! empty($result['title'])) {
             Cache::put('soundstation_current_track', $result, now()->addHours(8));
+
+            $existingPlayback = Cache::get('soundstation_playback_state', []);
+            $existingPlayback['current_track'] = $result;
+            $existingPlayback['current_time'] = $result['resume_position'] ?? 0;
+            $existingPlayback['duration'] = $result['duration_seconds'] ?? ($existingPlayback['duration'] ?? 0);
+            $existingPlayback['is_playing'] = true;
+            $existingPlayback['updated_at'] = (int) round(microtime(true) * 1000);
+            Cache::put('soundstation_playback_state', $existingPlayback, now()->addMinutes(2));
         }
 
         return $result;

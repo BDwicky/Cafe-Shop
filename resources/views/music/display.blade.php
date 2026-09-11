@@ -192,10 +192,17 @@
                         this.syncTvPlayerState();
                     } else if (data.type === 'STATE_UPDATE' && data.state) {
                         const s = data.state;
-                        if (s.currentTrack) this.nowPlaying = s.currentTrack;
+                        if (s.currentTrack) {
+                            this.nowPlaying = s.currentTrack;
+                            if (Array.isArray(this.queue)) {
+                                this.queue = this.queue.filter(item => item.id !== this.nowPlaying.id && item.id !== this.nowPlaying.request_id);
+                            }
+                        }
                         if (typeof s.isPlaying !== 'undefined') this.isPlaying = !!s.isPlaying;
                         if (typeof s.queueCount !== 'undefined') this.queueCount = s.queueCount;
-                        if (Array.isArray(s.queue)) this.queue = s.queue;
+                        if (Array.isArray(s.queue)) {
+                            this.queue = s.queue.filter(item => !this.nowPlaying || (item.id !== this.nowPlaying.id && item.id !== this.nowPlaying.request_id));
+                        }
                         this.syncTvPlayerState();
                     } else if (data.type === 'SYNC_STATE') {
                         this.applySyncData(data);
@@ -203,6 +210,9 @@
                     } else if (data.type === 'TRACK_CHANGED') {
                         this.nowPlaying = data.track;
                         this.isPlaying = true;
+                        if (this.nowPlaying && Array.isArray(this.queue)) {
+                            this.queue = this.queue.filter(item => item.id !== this.nowPlaying.id && item.id !== this.nowPlaying.request_id);
+                        }
                         this.syncTvPlayerState();
                     } else if (data.type === 'QUEUE_UPDATED') {
                         this.fetchStatus();
@@ -419,7 +429,8 @@
                 }
                 const data = await res.json();
                 this.nowPlaying = data.now_playing;
-                this.queue = data.queue || [];
+                const rawQueue = data.queue || [];
+                this.queue = rawQueue.filter(item => !this.nowPlaying || (item.id !== this.nowPlaying.id && item.id !== this.nowPlaying.request_id));
                 this.queueCount = data.queue_count || 0;
 
                 // Sync playback state (untuk TV eksternal / Smart TV tanpa BroadcastChannel)
@@ -461,6 +472,9 @@
                         this.playbackCurrentTimeFormatted = '00:00';
                     }
                 }
+
+                // Segera sinkronkan video TV ke lagu baru jika ada pergantian lagu
+                this.syncTvPlayerState();
 
                 // Cek pesanan siap baru
                 if (data.ready_orders) {

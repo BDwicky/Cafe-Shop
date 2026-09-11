@@ -924,4 +924,56 @@ class MusicRequestTest extends TestCase
             'status' => 'queued',
         ]);
     }
+
+    public function test_get_player_state_prioritizes_playing_customer_request_over_stale_default_track_cache(): void
+    {
+        // 1. Simulasikan playlist bawaan sebelumnya sedang berjalan di cache
+        Cache::put('soundstation_playback_state', [
+            'current_time' => 45,
+            'duration' => 200,
+            'is_playing' => true,
+            'current_track' => [
+                'id' => 99,
+                'title' => 'Lofi Coffee Vibes',
+                'song_title' => 'Lofi Coffee Vibes',
+                'artist' => 'Chill Cafe',
+                'youtube_id' => 'LOFI0001',
+                'type' => 'default_track',
+            ],
+            'updated_at' => now()->timestamp * 1000,
+            'client_id' => 'tab_cashier_1',
+        ], now()->addMinutes(2));
+
+        Cache::put('soundstation_current_track', [
+            'id' => 99,
+            'title' => 'Lofi Coffee Vibes',
+            'song_title' => 'Lofi Coffee Vibes',
+            'type' => 'default_track',
+        ], now()->addHours(8));
+
+        // 2. Ada request pelanggan yang sedang berstatus 'playing'
+        $order = Order::factory()->create(['status' => 'paid']);
+        $playingReq = MusicRequest::create([
+            'order_id' => $order->id,
+            'customer_name' => 'Meja 2 Rian',
+            'song_title' => 'Komang',
+            'artist' => 'Raim Laode',
+            'youtube_id' => 'KOMANG12345',
+            'duration_seconds' => 215,
+            'status' => 'playing',
+            'played_at' => now(),
+        ]);
+
+        // 3. Panggil API status (yang digunakan oleh Display TV)
+        $response = $this->getJson(route('music.status'));
+
+        $response->assertOk()
+            ->assertJsonPath('now_playing.type', 'customer_request')
+            ->assertJsonPath('now_playing.id', $playingReq->id)
+            ->assertJsonPath('now_playing.song_title', 'Komang')
+            ->assertJsonPath('now_playing.customer_name', 'Meja 2 Rian');
+
+        // Pastikan status request pelanggan tetap 'playing', TIDAK terhapus/terubah menjadi 'played'
+        $this->assertEquals('playing', $playingReq->fresh()->status);
+    }
 }
