@@ -954,23 +954,23 @@
             </div>
 
             <!-- RIGHT COL: LIVE READY ORDERS & UP NEXT QUEUE (5 cols, fills height harmoniously) -->
-            <div class="lg:col-span-5 bg-[#17110C]/90 border border-[#3A3026] rounded-2xl p-5 sm:p-6 shadow-2xl backdrop-blur-xl flex flex-col h-full min-h-[420px] max-h-[580px] xl:max-h-[640px] w-full justify-between">
+            <div class="lg:col-span-5 bg-[#17110C]/90 border border-[#3A3026] rounded-2xl p-4 sm:p-5 shadow-2xl backdrop-blur-xl flex flex-col h-full min-h-[380px] max-h-[540px] xl:max-h-[600px] w-full justify-between">
 
                 <!-- TOP SECTION: PESANAN SIAP (TAMPIL DI ATAS JIKA ADA PESANAN SIAP) -->
                 <template x-if="readyOrders.length > 0">
-                    <div class="mb-4 bg-gradient-to-r from-[#1E2E17] to-[#142010] border-2 border-[#5F7F42] rounded-xl p-3.5 shadow-lg shrink-0">
-                        <div class="flex items-center justify-between mb-2">
-                            <div class="flex items-center gap-2">
-                                <span class="w-2.5 h-2.5 rounded-full bg-[#5F7F42] animate-ping"></span>
-                                <span class="font-mono text-xs font-bold text-[#5F7F42] uppercase tracking-wider">🔔 Pesanan Siap di Kasir</span>
+                    <div class="mb-3 bg-gradient-to-r from-[#1E2E17] to-[#142010] border border-[#5F7F42] rounded-xl p-2.5 shadow-md shrink-0">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <div class="flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-[#5F7F42] animate-ping"></span>
+                                <span class="font-mono text-[11px] font-bold text-[#5F7F42] uppercase tracking-wider">🔔 Pesanan Siap di Kasir</span>
                             </div>
-                            <span class="font-mono text-[11px] font-bold text-[#F7F3EC] bg-[#5F7F42]/30 px-2 py-0.5 rounded-full" x-text="readyOrders.length + ' Pesanan'"></span>
+                            <span class="font-mono text-[10px] font-bold text-[#F7F3EC] bg-[#5F7F42]/30 px-2 py-0.2 rounded-full" x-text="readyOrders.length + ' Pesanan'"></span>
                         </div>
-                        <div class="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
+                        <div class="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto no-scrollbar">
                             <template x-for="ro in readyOrders" :key="ro.id">
-                                <div class="px-2.5 py-1 bg-[#25391C] border border-[#5F7F42]/60 rounded-lg text-xs font-mono text-white flex items-center gap-1.5 shadow-sm">
+                                <div class="px-2 py-0.5 bg-[#25391C] border border-[#5F7F42]/60 rounded text-[11px] font-mono text-white flex items-center gap-1 shadow-xs">
                                     <span class="font-bold text-[#D9973E]" x-text="ro.code"></span>
-                                    <span class="text-white/80" x-text="ro.customer_name ? ('(' + ro.customer_name + ')') : ''"></span>
+                                    <span class="text-white/80 text-[10px]" x-text="ro.customer_name ? ('(' + ro.customer_name + ')') : ''"></span>
                                 </div>
                             </template>
                         </div>
@@ -978,48 +978,49 @@
                 </template>
 
                 <!-- QUEUE SECTION HEADER -->
-                <div class="flex items-center justify-between border-b border-[#3A3026] pb-3 mb-3 shrink-0">
-                    <div class="flex items-center gap-2.5">
-                        <span class="w-2.5 h-2.5 rounded-full bg-[#D9973E] animate-pulse"></span>
-                        <h3 class="font-mono text-xs uppercase tracking-[0.2em] font-bold text-[#F7F3EC]">Antrean Lagu Berikutnya</h3>
-                        <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#D9973E]/15 border border-[#D9973E]/30 text-[#D9973E]"
+                <div class="flex items-center justify-between border-b border-[#3A3026] pb-2 mb-2 shrink-0">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-[#D9973E] animate-pulse"></span>
+                        <h3 class="font-mono text-[11px] uppercase tracking-[0.2em] font-bold text-[#F7F3EC]">Antrean Lagu Berikutnya</h3>
+                        <span class="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-bold bg-[#D9973E]/15 border border-[#D9973E]/30 text-[#D9973E]"
                               x-text="queue.length + ' Lagu'"></span>
                     </div>
 
-                    <span class="font-mono text-[10px] text-[#7A6A58] uppercase tracking-widest hidden sm:inline">UP NEXT QUEUE</span>
+                    <span class="font-mono text-[9px] text-[#7A6A58] uppercase tracking-widest hidden sm:inline">UP NEXT QUEUE</span>
                 </div>
 
                 <!-- QUEUE LIST (FLEX-1 EXPANDABLE, INVISIBLE SCROLL) -->
-                <div class="space-y-1.5 overflow-y-auto pr-0 flex-1 min-h-[140px] no-scrollbar">
+                <div class="space-y-1 overflow-y-auto pr-0 flex-1 min-h-[130px] no-scrollbar">
                     <template x-if="queue.length === 0">
-                        <div class="h-full flex flex-col items-center justify-center text-center py-8 text-[#7A6A58] font-mono text-xs">
-                            <span class="text-3xl mb-2 opacity-50">☕</span>
-                            <span>Antrean request lagu sedang kosong.</span>
-                            <span class="text-[10px] mt-1 text-[#554637]">Scan QR di bawah untuk me-request lagu pertamamu!</span>
+                        <div class="h-full flex flex-col items-center justify-center text-center py-6 text-[#7A6A58] font-mono text-xs">
+                            <span class="text-2xl mb-1.5 opacity-50">☕</span>
+                            <span class="text-[11px]">Antrean request lagu sedang kosong.</span>
+                            <span class="text-[9px] mt-0.5 text-[#554637]">Scan QR di bawah untuk me-request lagumu!</span>
                         </div>
                     </template>
 
                     <template x-for="(item, index) in queue" :key="item.id">
-                        <div class="flex items-center justify-between py-1 px-2.5 bg-[#1F1711] border border-[#3A3026]/70 rounded hover:border-[#D9973E]/50 transition">
-                            <div class="flex items-center gap-2 min-w-0">
+                        <div class="flex items-center justify-between py-1 px-2.5 bg-[#1C1510]/85 border border-[#3A3026]/60 rounded-xs hover:border-[#D9973E]/40 transition group">
+                            <div class="flex items-center gap-2 min-w-0 flex-1">
                                 <span class="font-mono font-bold text-[#D9973E] text-[10px] w-3.5 text-center shrink-0" x-text="'#' + (index + 1)"></span>
-                                <div class="min-w-0">
-                                    <div class="text-[11px] font-medium text-[#F7F3EC] truncate leading-snug" x-text="item.song_title"></div>
-                                    <div class="text-[9px] text-[#A89A85] truncate leading-tight" x-text="item.artist || 'Artis YouTube'"></div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="text-[10.5px] font-medium text-[#F7F3EC] truncate leading-tight group-hover:text-[#D9973E] transition-colors" x-text="item.song_title"></div>
+                                    <div class="text-[8.5px] text-[#8C7D6B] truncate leading-none mt-0.5 flex items-center gap-1.5">
+                                        <span x-text="item.artist || 'Artis YouTube'"></span>
+                                        <span class="text-[#554637]">&bull;</span>
+                                        <span class="text-[#D9973E]/90" x-text="'Req: ' + (item.customer_name || 'Pelanggan')"></span>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="text-right shrink-0 ml-2">
-                                <div class="font-mono text-[8.5px] text-[#A89A85] truncate max-w-[85px]" x-text="item.customer_name || 'Pelanggan'"></div>
-                                <span class="font-mono text-[7.5px] uppercase tracking-wider text-[#5F7F42] bg-[#5F7F42]/10 px-1 py-0.2 rounded border border-[#5F7F42]/20">Next</span>
-                            </div>
+                            <span class="font-mono text-[7px] uppercase tracking-wider text-[#5F7F42] bg-[#5F7F42]/10 px-1.5 py-0.2 rounded border border-[#5F7F42]/20 shrink-0 ml-2">Next</span>
                         </div>
                     </template>
                 </div>
 
                 <!-- SUBTLE CARD FOOTNOTE -->
-                <div class="mt-3 pt-2 border-t border-[#3A3026]/60 flex items-center justify-between text-[10px] font-mono text-[#7A6A58] shrink-0">
-                    <span>* Lagu berputar bergiliran sesuai antrean</span>
-                    <span class="text-[#D9973E]/80">Auto-skip jika video diblokir</span>
+                <div class="mt-2 pt-1.5 border-t border-[#3A3026]/50 flex items-center justify-between text-[9px] font-mono text-[#7A6A58] shrink-0">
+                    <span>* Lagu berputar bergiliran</span>
+                    <span class="text-[#D9973E]/80">Auto-skip jika diblokir</span>
                 </div>
 
             </div>
