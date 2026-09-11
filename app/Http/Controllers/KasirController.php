@@ -120,13 +120,46 @@ class KasirController extends Controller
             ? Carbon::createFromFormat('Y-m-d', $request->date)->startOfDay()
             : now()->startOfDay();
 
-        $orders = Order::with('items')
-            ->whereBetween('created_at', [$date->copy()->startOfDay(), $date->copy()->endOfDay()])
+        $search = trim((string) $request->query('search', ''));
+        $status = $request->query('status', 'all');
+        $orderType = $request->query('order_type', 'all');
+
+        $baseQuery = Order::whereBetween('created_at', [$date->copy()->startOfDay(), $date->copy()->endOfDay()]);
+
+        // Ringkasan metrik statistik untuk tanggal terpilih
+        $stats = [
+            'total_orders' => (clone $baseQuery)->count(),
+            'paid_orders' => (clone $baseQuery)->where('status', 'paid')->count(),
+            'net_omzet' => (int) (clone $baseQuery)->where('status', 'paid')->sum('total'),
+            'void_count' => (clone $baseQuery)->where('status', 'voided')->count(),
+        ];
+        $stats['avg_basket'] = $stats['paid_orders'] > 0
+            ? round($stats['net_omzet'] / $stats['paid_orders'])
+            : 0;
+
+        $ordersQuery = (clone $baseQuery)->with(['items', 'user']);
+
+        if ($search !== '') {
+            $ordersQuery->where(function ($q) use ($search) {
+                $q->where('code', 'like', "%{$search}%")
+                    ->orWhere('customer_name', 'like', "%{$search}%");
+            });
+        }
+
+        if ($status !== 'all' && in_array($status, ['paid', 'voided'])) {
+            $ordersQuery->where('status', $status);
+        }
+
+        if ($orderType !== 'all' && in_array($orderType, ['dine_in', 'take_away'])) {
+            $ordersQuery->where('order_type', $orderType);
+        }
+
+        $orders = $ordersQuery
             ->orderByDesc('id')
             ->paginate(20)
             ->withQueryString();
 
-        return view('kasir.orders', compact('orders', 'date'));
+        return view('kasir.orders', compact('orders', 'date', 'stats', 'search', 'status', 'orderType'));
     }
 
     public function receipt(Order $order)

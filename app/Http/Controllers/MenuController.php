@@ -9,12 +9,43 @@ use Illuminate\Support\Str;
 
 class MenuController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $menus = Menu::with('category')->orderBy('sort_order')->orderBy('id')->paginate(50);
+        $search = trim((string) $request->query('search', ''));
+        $categoryId = $request->query('category_id');
+        $status = $request->query('status', 'all');
+
+        $query = Menu::with('category');
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%");
+            });
+        }
+
+        if ($categoryId && $categoryId !== 'all') {
+            $query->where('category_id', $categoryId);
+        }
+
+        if ($status === 'available') {
+            $query->where('is_available', true);
+        } elseif ($status === 'sold_out') {
+            $query->where('is_available', false);
+        }
+
+        $menus = $query->orderBy('sort_order')->orderBy('id')->paginate(50)->withQueryString();
         $categories = Category::withCount('menus')->orderBy('sort_order')->orderBy('name')->get();
 
-        return view('kasir.menu.index', compact('menus', 'categories'));
+        // Metrik statistik Menu
+        $stats = [
+            'total' => Menu::count(),
+            'available' => Menu::where('is_available', true)->count(),
+            'sold_out' => Menu::where('is_available', false)->count(),
+            'categories_count' => $categories->count(),
+        ];
+
+        return view('kasir.menu.index', compact('menus', 'categories', 'stats', 'search', 'categoryId', 'status'));
     }
 
     public function create()
