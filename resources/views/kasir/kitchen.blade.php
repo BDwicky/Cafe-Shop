@@ -89,10 +89,14 @@
                 <span x-text="soundEnabled ? '🔔 Alert On' : '🔕 Alert Off'"></span>
             </button>
             <button type="button" @click="toggleFullscreen()"
-                    class="px-3 py-1.5 bg-[#2A211A] border border-[#3A3026] hover:border-[#D9973E] text-xs font-mono text-[#D9973E] hover:text-[#F7F3EC] transition flex items-center gap-1.5 shadow-sm active:scale-95"
-                    :title="isFullscreen ? 'Keluar dari Layar Penuh (Esc)' : 'Layar Penuh Tablet / Kiosk (F11)'">
-                <span x-text="isFullscreen ? '⤢' : '⛶'"></span>
-                <span class="hidden sm:inline" x-text="isFullscreen ? 'Normal' : 'Fullscreen'"></span>
+                    class="p-2 bg-[#2A211A] border border-[#3A3026] hover:border-[#D9973E] text-[#D9973E] hover:text-[#F7F3EC] transition flex items-center justify-center w-8 h-8 shadow-sm active:scale-95"
+                    :title="isFullscreen ? 'Keluar Layar Penuh (Esc)' : 'Layar Penuh Tablet (F11)'">
+                <svg x-show="!isFullscreen" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                </svg>
+                <svg x-show="isFullscreen" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: none;">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v4m0 0H5m4 0L4 2m11 1v4m0 0h4m-4 0l5-5M9 21v-4m0 0H5m4 0l-5 5m11-1v-4m0 0h4m-4 0l5 5" />
+                </svg>
             </button>
             <button type="button" @click="fetchOrders()"
                     class="px-3 py-1.5 bg-[#2A211A] border border-[#3A3026] text-xs font-mono text-[#D9973E] hover:text-[#F7F3EC] transition">

@@ -553,14 +553,14 @@
                     Kode Unik dari Struk Transaksi
                 </label>
                 <p class="text-xs text-[#7A6A58] mb-3">
-                    Lihat kode 8 karakter bertuliskan <span class="font-mono font-bold text-[#1F1812]">KODE: MK-XXXXXX</span> di bagian bawah struk belanja Anda (atau gunakan kode master owner).
+                    Lihat kode 8 karakter bertuliskan <span class="font-mono font-bold text-[#1F1812]">KODE: MK-XXXXXX</span> di bagian bawah struk belanja Anda.
                 </p>
 
                 <div class="flex gap-2">
                     <input type="text"
                            x-model="code"
                            @keydown.enter.prevent="checkCode()"
-                           placeholder="Contoh: MK-7A8B9C atau 123123..."
+                           placeholder="Contoh: MK-7A8B9C"
                            class="flex-1 px-3.5 py-2.5 bg-[#F7F3EC] border border-[#D5CCC0] text-sm font-mono uppercase tracking-widest text-[#1F1812] focus:outline-none focus:border-[#D9973E] focus:ring-1 focus:ring-[#D9973E]"
                            :disabled="isValid">
 

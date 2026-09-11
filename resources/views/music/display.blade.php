@@ -121,6 +121,7 @@
 
         displayMode: localStorage.getItem('tv_display_mode') || 'visualizer', // 'visualizer' atau 'video'
         isFullscreen: false,
+        tvSoundEnabled: localStorage.getItem('tv_sound_enabled') === 'true', // Default false (hening untuk mencegah dobel announcer)
 
         playbackCurrentTime: 0,
         playbackDuration: 0,
@@ -153,7 +154,25 @@
                 const bc = new BroadcastChannel('cafe_soundstation_sync');
                 bc.onmessage = (e) => {
                     const data = e.data;
-                    if (data.type === 'SYNC_STATE') {
+                    if (!data) return;
+
+                    if (data.type === 'TIME_SYNC' && data.data) {
+                        const t = data.data;
+                        this.playbackCurrentTime = Number(t.currentTime || 0);
+                        this.playbackDuration = Number(t.duration || 0);
+                        this.playbackProgressPercent = Number(t.progressPercent || 0);
+                        this.playbackCurrentTimeFormatted = t.currentTimeFormatted || this.formatSeconds(Math.floor(this.playbackCurrentTime));
+                        this.playbackDurationFormatted = t.durationFormatted || this.formatSeconds(Math.floor(this.playbackDuration));
+                        if (typeof t.isPlaying !== 'undefined') {
+                            this.isPlaying = !!t.isPlaying;
+                        }
+                    } else if (data.type === 'STATE_UPDATE' && data.state) {
+                        const s = data.state;
+                        if (s.currentTrack) this.nowPlaying = s.currentTrack;
+                        if (typeof s.isPlaying !== 'undefined') this.isPlaying = !!s.isPlaying;
+                        if (typeof s.queueCount !== 'undefined') this.queueCount = s.queueCount;
+                        if (Array.isArray(s.queue)) this.queue = s.queue;
+                    } else if (data.type === 'SYNC_STATE') {
                         this.applySyncData(data);
                     } else if (data.type === 'TRACK_CHANGED') {
                         this.nowPlaying = data.track;
@@ -169,6 +188,17 @@
             // Dengarkan event window kustom
             window.addEventListener('soundstation:sync', (e) => {
                 this.applySyncData(e.detail);
+            });
+            window.addEventListener('soundstation:timesync', (e) => {
+                if (e.detail) {
+                    const t = e.detail;
+                    this.playbackCurrentTime = Number(t.currentTime || 0);
+                    this.playbackDuration = Number(t.duration || 0);
+                    this.playbackProgressPercent = Number(t.progressPercent || 0);
+                    this.playbackCurrentTimeFormatted = t.currentTimeFormatted || this.formatSeconds(Math.floor(this.playbackCurrentTime));
+                    this.playbackDurationFormatted = t.durationFormatted || this.formatSeconds(Math.floor(this.playbackDuration));
+                    if (typeof t.isPlaying !== 'undefined') this.isPlaying = !!t.isPlaying;
+                }
             });
 
             // Polling status lagu & pesanan siap setiap 3 detik
@@ -242,6 +272,23 @@
                 this.nowPlaying = data.now_playing;
                 this.queue = data.queue || [];
                 this.queueCount = data.queue_count || 0;
+
+                // Sync playback state (untuk TV eksternal / Smart TV tanpa BroadcastChannel)
+                if (data.playback) {
+                    const elapsed = data.playback.updated_at ? Math.max(0, (Date.now() - data.playback.updated_at) / 1000) : 0;
+                    this.playbackDuration = Number(data.playback.duration || 0);
+                    this.isPlaying = !!data.playback.is_playing;
+                    this.playbackCurrentTime = Math.min(this.playbackDuration, Number(data.playback.current_time || 0) + (this.isPlaying ? elapsed : 0));
+                    this.playbackProgressPercent = this.playbackDuration > 0 ? (this.playbackCurrentTime / this.playbackDuration) * 100 : 0;
+                    this.playbackCurrentTimeFormatted = this.formatSeconds(Math.floor(this.playbackCurrentTime));
+                    this.playbackDurationFormatted = this.formatSeconds(Math.floor(this.playbackDuration));
+                } else if (data.now_playing && data.now_playing.duration_seconds) {
+                    this.playbackDuration = Number(data.now_playing.duration_seconds);
+                    this.playbackDurationFormatted = this.formatSeconds(this.playbackDuration);
+                    if (!this.playbackCurrentTime || this.playbackCurrentTime === 0) {
+                        this.isPlaying = true;
+                    }
+                }
 
                 // Cek pesanan siap baru
                 if (data.ready_orders) {
@@ -318,6 +365,7 @@
         },
 
         playReadyChime() {
+            if (!this.tvSoundEnabled) return; // Silent by default (mencegah tabrakan/dobel suara dengan Tab Kasir)
             try {
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
                 if (!AudioContext) return;
@@ -347,6 +395,13 @@
                 gain2.connect(ctx.destination);
                 osc2.start(now + 0.22);
                 osc2.stop(now + 1.0);
+            } catch (e) {}
+        },
+
+        toggleTvSound() {
+            this.tvSoundEnabled = !this.tvSoundEnabled;
+            try {
+                localStorage.setItem('tv_sound_enabled', this.tvSoundEnabled ? 'true' : 'false');
             } catch (e) {}
         },
 
@@ -539,35 +594,42 @@
                 </button>
             </template>
 
-            <!-- Mode Switcher & Real-time Clock -->
-            <div class="flex items-center gap-4 sm:gap-6">
+            <!-- Mode Switcher, Sound Toggle, Fullscreen & Real-time Clock -->
+            <div class="flex items-center gap-3 sm:gap-4">
                 <!-- Toggle Mode: Visualizer vs Video -->
                 <button type="button" @click="toggleDisplayMode()"
-                        class="px-3 py-1.5 bg-[#1F1812] hover:bg-[#2A2018] border border-[#3A3026] hover:border-[#D9973E] text-[#D9973E] font-mono text-xs uppercase tracking-wider transition rounded flex items-center gap-1.5 shadow-sm active:scale-95"
+                        class="px-2.5 py-1.5 bg-[#1F1812] hover:bg-[#2A2018] border border-[#3A3026] hover:border-[#D9973E] text-[#D9973E] font-mono text-xs uppercase tracking-wider transition rounded flex items-center gap-1.5 shadow-sm active:scale-95"
                         :title="displayMode === 'visualizer' ? 'Beralih ke Tampilan Video YouTube' : 'Beralih ke Tampilan Vinyl Visualizer'">
-                    <template x-if="displayMode === 'visualizer'">
-                        <span class="flex items-center gap-1">
-                            <span>🎬</span>
-                            <span class="hidden sm:inline">Tampilan Video</span>
-                        </span>
-                    </template>
-                    <template x-if="displayMode === 'video'">
-                        <span class="flex items-center gap-1">
-                            <span>🎨</span>
-                            <span class="hidden sm:inline">Tampilan Visualizer</span>
-                        </span>
-                    </template>
+                    <span x-show="displayMode === 'visualizer'" class="flex items-center gap-1">
+                        <span>🎬</span>
+                        <span class="hidden sm:inline">Video</span>
+                    </span>
+                    <span x-show="displayMode === 'video'" class="flex items-center gap-1">
+                        <span>🎨</span>
+                        <span class="hidden sm:inline">Visualizer</span>
+                    </span>
                 </button>
 
-                <!-- Toggle Fullscreen (Hilangkan Tab Browser) -->
+                <!-- Toggle Suara Notifikasi TV (Mute untuk cegah dobel suara dengan Kasir) -->
+                <button type="button" @click="toggleTvSound()"
+                        class="w-9 h-9 flex items-center justify-center rounded bg-[#1F1812] hover:bg-[#2A2018] border border-[#3A3026] hover:border-[#D9973E] text-[#D9973E] transition shadow-sm active:scale-95"
+                        :title="tvSoundEnabled ? 'Suara Notifikasi TV: AKTIF (Klik untuk Heningkan)' : 'Suara Notifikasi TV: HENING (Klik untuk Aktifkan)'">
+                    <span class="text-sm" x-text="tvSoundEnabled ? '🔔' : '🔕'"></span>
+                </button>
+
+                <!-- Toggle Fullscreen Simpel & Elegan (Icon Only) -->
                 <button type="button" @click="toggleFullscreen()"
-                        class="px-3 py-1.5 bg-[#1F1812] hover:bg-[#2A2018] border border-[#3A3026] hover:border-[#D9973E] text-[#D9973E] font-mono text-xs uppercase tracking-wider transition rounded flex items-center gap-1.5 shadow-sm active:scale-95"
-                        :title="isFullscreen ? 'Keluar dari Layar Penuh (Esc)' : 'Layar Penuh / Hilangkan Tab Browser (F11)'">
-                    <span x-text="isFullscreen ? '⤢' : '⛶'"></span>
-                    <span class="hidden sm:inline" x-text="isFullscreen ? 'Normal' : 'Layar Penuh'"></span>
+                        class="w-9 h-9 flex items-center justify-center rounded bg-[#1F1812] hover:bg-[#2A2018] border border-[#3A3026] hover:border-[#D9973E] text-[#D9973E] transition shadow-sm active:scale-95"
+                        :title="isFullscreen ? 'Keluar Layar Penuh (Esc)' : 'Layar Penuh (F11)'">
+                    <svg x-show="!isFullscreen" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                    </svg>
+                    <svg x-show="isFullscreen" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: none;">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v4m0 0H5m4 0L4 2m11 1v4m0 0h4m-4 0l5-5M9 21v-4m0 0H5m4 0l-5 5m11-1v-4m0 0h4m-4 0l5 5" />
+                    </svg>
                 </button>
 
-                <div class="font-mono text-2xl sm:text-3xl font-bold text-[#F7F3EC] tracking-wider" x-text="currentTime"></div>
+                <div class="font-mono text-2xl sm:text-3xl font-bold text-[#F7F3EC] tracking-wider ml-1" x-text="currentTime"></div>
             </div>
         </header>
 
@@ -740,17 +802,17 @@
                     </template>
 
                     <template x-for="(item, index) in queue.slice(0, 8)" :key="item.id">
-                        <div class="flex items-center justify-between p-2.5 bg-[#221912] border border-[#3A3026]/70 rounded-lg hover:border-[#D9973E]/50 transition">
-                            <div class="flex items-center gap-3 min-w-0">
-                                <span class="font-mono font-bold text-[#D9973E] text-sm w-5 text-center shrink-0" x-text="'#' + (index + 1)"></span>
+                        <div class="flex items-center justify-between py-1.5 px-2.5 bg-[#1F1711] border border-[#3A3026]/70 rounded-md hover:border-[#D9973E]/50 transition">
+                            <div class="flex items-center gap-2.5 min-w-0">
+                                <span class="font-mono font-bold text-[#D9973E] text-xs w-4 text-center shrink-0" x-text="'#' + (index + 1)"></span>
                                 <div class="min-w-0">
-                                    <div class="text-sm font-medium text-[#F7F3EC] truncate" x-text="item.song_title"></div>
-                                    <div class="text-xs text-[#A89A85] truncate" x-text="item.artist || 'Artis YouTube'"></div>
+                                    <div class="text-xs font-medium text-[#F7F3EC] truncate leading-tight" x-text="item.song_title"></div>
+                                    <div class="text-[10px] text-[#A89A85] truncate" x-text="item.artist || 'Artis YouTube'"></div>
                                 </div>
                             </div>
                             <div class="text-right shrink-0 ml-2">
-                                <div class="font-mono text-[10px] text-[#A89A85]" x-text="item.customer_name || 'Pelanggan'"></div>
-                                <span class="font-mono text-[9px] uppercase tracking-wider text-[#5F7F42] bg-[#5F7F42]/10 px-1.5 py-0.5 rounded border border-[#5F7F42]/20">Up Next</span>
+                                <div class="font-mono text-[9px] text-[#A89A85] truncate max-w-[90px]" x-text="item.customer_name || 'Pelanggan'"></div>
+                                <span class="font-mono text-[8px] uppercase tracking-wider text-[#5F7F42] bg-[#5F7F42]/10 px-1 py-0.2 rounded border border-[#5F7F42]/20">Next</span>
                             </div>
                         </div>
                     </template>

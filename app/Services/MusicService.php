@@ -402,6 +402,7 @@ class MusicService
                 'artist' => $playingRequest->artist,
                 'youtube_id' => $playingRequest->youtube_id,
                 'thumbnail_url' => $playingRequest->thumbnail_url ?: "https://img.youtube.com/vi/{$playingRequest->youtube_id}/hqdefault.jpg",
+                'duration_seconds' => $playingRequest->duration_seconds,
                 'customer_name' => $playingRequest->customer_name,
                 'request_id' => $playingRequest->id,
             ];
@@ -424,6 +425,7 @@ class MusicService
                         'artist' => $defaultTrack->artist,
                         'youtube_id' => $defaultTrack->youtube_id,
                         'thumbnail_url' => "https://img.youtube.com/vi/{$defaultTrack->youtube_id}/hqdefault.jpg",
+                        'duration_seconds' => $defaultTrack->duration_seconds,
                         'customer_name' => null,
                         'request_id' => null,
                     ];

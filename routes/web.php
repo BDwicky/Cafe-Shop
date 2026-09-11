@@ -67,6 +67,7 @@ Route::middleware('auth')->prefix('kasir')->name('kasir.')->group(function () {
         // Panggilan Suara Pesanan Siap (Voice Announcer & Audio Ducking)
         Route::get('/pending-announcements', [KasirMusicController::class, 'pendingAnnouncements'])->name('announcements.pending');
         Route::post('/orders/{order}/announced', [KasirMusicController::class, 'markAnnounced'])->name('announcements.mark');
+        Route::post('/playback-sync', [KasirMusicController::class, 'syncPlayback'])->name('playback.sync');
     });
 
     // Kelola menu & kategori

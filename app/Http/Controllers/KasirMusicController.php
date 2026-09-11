@@ -10,6 +10,7 @@ use App\Services\MusicService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 
 class KasirMusicController extends Controller
@@ -266,5 +267,25 @@ class KasirMusicController extends Controller
         $kitchenService->markAnnounced($order);
 
         return response()->json(['message' => "Pesanan {$order->code} telah diumumkan."]);
+    }
+
+    /**
+     * Simpan status playback realtime (detik & durasi) dari browser kasir ke cache
+     * agar display TV di perangkat lain (Smart TV / TV Box) tersinkronisasi secara akurat.
+     */
+    public function syncPlayback(Request $request): JsonResponse
+    {
+        $currentTime = $request->float('current_time', 0);
+        $duration = $request->float('duration', 0);
+        $isPlaying = $request->boolean('is_playing');
+
+        Cache::put('soundstation_playback_state', [
+            'current_time' => $currentTime,
+            'duration' => $duration,
+            'is_playing' => $isPlaying,
+            'updated_at' => (int) round(microtime(true) * 1000),
+        ], now()->addMinutes(2));
+
+        return response()->json(['status' => 'ok']);
     }
 }

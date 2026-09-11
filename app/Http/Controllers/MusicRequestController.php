@@ -8,6 +8,7 @@ use App\Services\MusicService;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\View\View;
 
@@ -171,12 +172,14 @@ class MusicRequestController extends Controller
     {
         $state = $this->musicService->getPlayerState();
         $readyOrders = Order::prepReady()->select('id', 'code', 'customer_name', 'order_type', 'prep_status')->get();
+        $playback = Cache::get('soundstation_playback_state');
 
         return response()->json([
             'now_playing' => $state['now_playing'],
             'queue' => $state['queue'],
             'queue_count' => $state['queue_count'],
             'ready_orders' => $readyOrders,
+            'playback' => $playback,
         ]);
     }
 

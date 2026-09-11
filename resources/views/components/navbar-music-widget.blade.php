@@ -692,6 +692,26 @@ function navbarMusicWidget() {
                     timestamp: Date.now()
                 });
             }
+
+            // Laporkan status detik & durasi ke server setiap 3 detik untuk Smart TV / display external
+            const now = Date.now();
+            if (this.isMasterHost && (!this._lastServerSync || now - this._lastServerSync > 3000)) {
+                this._lastServerSync = now;
+                try {
+                    fetch('{{ route('kasir.music.playback.sync') }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify({
+                            current_time: this.currentTime,
+                            duration: this.duration,
+                            is_playing: this.isPlaying
+                        })
+                    }).catch(() => {});
+                } catch (e) {}
+            }
         },
 
         formatTime(seconds) {
