@@ -768,28 +768,31 @@ class KasirMusicController extends Controller
         $text = mb_substr($text, 0, 200);
 
         $cacheKey = 'tts_google_voice_'.$lang.'_'.md5($text);
-        $audioData = Cache::remember($cacheKey, 86400 * 7, function () use ($text, $lang) {
+        $audioData = Cache::get($cacheKey);
+
+        if (! $audioData) {
             $url = 'https://translate.google.com/translate_tts?ie=UTF-8&tl='.$lang.'&client=tw-ob&q='.urlencode($text);
             try {
                 $response = Http::withHeaders([
                     'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
                     'Referer' => 'https://translate.google.com/',
-                ])->timeout(5)->get($url);
+                ])->timeout(7)->get($url);
 
                 if ($response->successful() && strlen($response->body()) > 100) {
-                    return $response->body();
+                    $audioData = $response->body();
+                    Cache::put($cacheKey, $audioData, 86400 * 7);
                 }
             } catch (\Throwable $e) {
-                // Fallback jika jaringan offline
+                // Jangan simpan null di cache jika terjadi gangguan sementara
             }
-
-            return null;
-        });
+        }
 
         if ($audioData) {
             return response($audioData, 200, [
                 'Content-Type' => 'audio/mpeg',
                 'Cache-Control' => 'public, max-age=604800, immutable',
+                'Access-Control-Allow-Origin' => '*',
+                'Accept-Ranges' => 'bytes',
             ]);
         }
 

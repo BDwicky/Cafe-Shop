@@ -999,8 +999,8 @@ class MusicRequestTest extends TestCase
         $response->assertOk()
             ->assertSee('Pengaturan Suara Announcer')
             ->assertSee('Mbak Google')
-            ->assertSee('Mbak Maya')
-            ->assertSee('Mas Barista');
+            ->assertSee('Tempo Santai')
+            ->assertSee('Tempo Gesit');
     }
 
     public function test_cashier_can_save_announcer_settings(): void

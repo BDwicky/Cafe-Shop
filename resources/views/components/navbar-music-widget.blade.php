@@ -1930,7 +1930,7 @@ function navbarMusicWidget() {
             } catch (e) {}
         },
 
-        async playConfiguredAnnouncer({ text, cfg, onEnd }) {
+        playConfiguredAnnouncer({ text, cfg, onEnd }) {
             const model = cfg.voice_model || 'mbak_google';
             const rate = parseFloat(cfg.rate) || 1.0;
             const pitch = parseFloat(cfg.pitch) || 1.0;
@@ -1941,11 +1941,10 @@ function navbarMusicWidget() {
                 return;
             }
 
-            // Tentukan parameter bahasa Google TTS & filter nada
+            // Tentukan parameter bahasa Google TTS & kecepatan
             let lang = 'id';
             let sampleText = text;
-            let pitchMultiplier = 1.0;
-            let filterType = null;
+            let playRate = rate;
 
             if (model === 'english_cafe') {
                 lang = 'en';
@@ -1956,73 +1955,38 @@ function navbarMusicWidget() {
                 lang = 'jv'; // Aksen medok lokal nusantara
             } else if (model === 'ms_gadis') {
                 lang = 'id';
-                pitchMultiplier = 1.14; // Nada lebih tinggi, feminin & manis
-                filterType = 'highshelf';
+                playRate = 0.9; // Tempo santai
             } else if (model === 'ms_ardi') {
                 lang = 'id';
-                pitchMultiplier = 0.82; // Nada bariton pria barista
-                filterType = 'lowpass';
+                playRate = 1.15; // Tempo cepat
             } else {
-                // mbak_google
-                lang = 'id';
-                pitchMultiplier = 1.0;
+                lang = 'id'; // Mbak Google Asli
             }
 
             // Gunakan URL relatif terhadap window.location.origin agar tidak ada masalah domain/port
             const ttsUrl = window.location.origin + '/music/tts?lang=' + lang + '&text=' + encodeURIComponent(sampleText);
 
             try {
-                const AudioCtx = window.AudioContext || window.webkitAudioContext;
-                const ctx = new AudioCtx();
-                const response = await fetch(ttsUrl);
-                if (!response.ok) throw new Error('HTTP status ' + response.status);
-
-                const arrayBuffer = await response.arrayBuffer();
-                const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
-
-                const source = ctx.createBufferSource();
-                source.buffer = audioBuffer;
-
-                source.playbackRate.value = Math.max(0.5, Math.min(2.0, rate * pitchMultiplier));
-
-                if (filterType === 'lowpass') {
-                    const biquad = ctx.createBiquadFilter();
-                    biquad.type = 'lowpass';
-                    biquad.frequency.value = 2600;
-                    source.connect(biquad);
-                    biquad.connect(ctx.destination);
-                } else if (filterType === 'highshelf') {
-                    const biquad = ctx.createBiquadFilter();
-                    biquad.type = 'highshelf';
-                    biquad.frequency.value = 3200;
-                    biquad.gain.value = 5;
-                    source.connect(biquad);
-                    biquad.connect(ctx.destination);
-                } else {
-                    source.connect(ctx.destination);
-                }
-
-                source.onended = () => {
-                    try { ctx.close(); } catch (e) {}
+                const audio = new Audio(ttsUrl);
+                audio.playbackRate = playRate;
+                audio.onended = () => {
+                    if (onEnd) onEnd();
+                };
+                audio.onerror = (e) => {
+                    console.warn('[Announcer Widget] Audio stream error:', e);
                     if (onEnd) onEnd();
                 };
 
-                source.start(0);
-            } catch (err) {
-                console.warn('[Announcer Widget] Fallback ke audio standar:', err);
-                try {
-                    const fallbackAudio = new Audio(ttsUrl);
-                    fallbackAudio.playbackRate = rate;
-                    fallbackAudio.onended = () => { if (onEnd) onEnd(); };
-                    fallbackAudio.onerror = () => {
-                        this.speakDeviceSpeech(sampleText, cfg.device_voice_name, rate, pitch, onEnd);
-                    };
-                    fallbackAudio.play().catch(() => {
-                        this.speakDeviceSpeech(sampleText, cfg.device_voice_name, rate, pitch, onEnd);
+                const playPromise = audio.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(err => {
+                        console.warn('[Announcer Widget] Audio play catch:', err);
+                        if (onEnd) onEnd();
                     });
-                } catch (e) {
-                    this.speakDeviceSpeech(sampleText, cfg.device_voice_name, rate, pitch, onEnd);
                 }
+            } catch (err) {
+                console.warn('[Announcer Widget] Audio instantiation error:', err);
+                if (onEnd) onEnd();
             }
         },
 

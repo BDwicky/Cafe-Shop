@@ -61,6 +61,13 @@
                     Kalimat yang akan diucapkan:
                     <span class="text-[#D9973E] font-medium font-serif italic" x-text="'&ldquo;' + generateSampleText() + '&rdquo;'"></span>
                 </p>
+                <div x-show="form.voice_model !== 'device_voice'" class="pt-2">
+                    <div class="flex items-center justify-between text-[11px] font-mono text-[#D9973E] mb-1">
+                        <span>🔊 Pemutar Audio MP3 Google TTS:</span>
+                        <span class="text-[#A89A85] text-[10px]">Klik tombol ▶ di bawah atau tombol Putar</span>
+                    </div>
+                    <audio id="announcer-preview-audio" controls class="w-full h-8 rounded opacity-90 hover:opacity-100 transition" :src="getAudioUrl()"></audio>
+                </div>
             </div>
 
             <!-- Input Sampel Nama & Tombol Test -->
@@ -97,80 +104,80 @@
                         1. Pilih Model Suara & Aksen
                     </h2>
                     <p class="text-xs text-[#7A6A58] mt-0.5">
-                        Tentukan karakter vokal yang bertugas memanggil nama pelanggan di speaker kafe.
+                        Pilih suara pemanggil pesanan kasir. Model 1-5 menggunakan engine Google TTS resmi.
                     </p>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 
-                    <!-- Opsi 1: Mbak Google Indonesia (Recommended) -->
+                    <!-- Opsi 1: Mbak Google Indonesia (Viral TikTok / Asli) -->
                     <label class="border-2 rounded-xl p-4 cursor-pointer transition relative flex flex-col justify-between"
                            :class="form.voice_model === 'mbak_google' ? 'border-[#D9973E] bg-[#D9973E]/10 ring-2 ring-[#D9973E]/20 shadow-xs' : 'border-[#E4DCCC] hover:border-[#D9973E]/50 bg-[#FAF7F2]/40'">
                         <input type="radio" name="voice_model" value="mbak_google" x-model="form.voice_model" class="sr-only">
                         <div>
                             <div class="flex items-center justify-between">
                                 <span class="px-2 py-0.5 bg-[#5F7F42] text-white font-mono text-[9px] uppercase tracking-wider font-bold rounded">
-                                    ★ Suara Standar
+                                    ★ Viral TikTok / Asli
                                 </span>
-                                <span class="text-xl">🌟</span>
+                                <span class="text-xl">👩‍💼</span>
                             </div>
                             <h4 class="font-serif font-bold text-sm text-[#1F1812] mt-2">
-                                Mbak Google (Indonesia)
+                                Mbak Google (Wanita Viral)
                             </h4>
                             <p class="text-xs text-[#7A6A58] mt-1 leading-relaxed">
-                                Suara resmi Google Assistant. Aksen Bahasa Indonesia 100% natural, ramah, santai, dan jernih standar kafe.
+                                Suara wanita Google Translate yang viral di TikTok dan medsos. 100% natural bahasa Indonesia, jernih, dan standar kafe.
                             </p>
                         </div>
                         <div class="mt-3 pt-2 border-t border-[#EAE2D5] flex items-center justify-between text-[11px] font-mono text-[#5C4D3C]">
-                            <span>Google TTS (id)</span>
+                            <span>Google TTS (id) - Normal</span>
                             <span class="font-bold text-[#D9973E]" x-show="form.voice_model === 'mbak_google'">✓ Aktif</span>
                         </div>
                     </label>
 
-                    <!-- Opsi 2: Mbak Maya (Wanita Lembut & Ceria) -->
+                    <!-- Opsi 2: Mbak Google Santai (Tempo Lembut) -->
                     <label class="border-2 rounded-xl p-4 cursor-pointer transition relative flex flex-col justify-between"
                            :class="form.voice_model === 'ms_gadis' ? 'border-[#D9973E] bg-[#D9973E]/10 ring-2 ring-[#D9973E]/20 shadow-xs' : 'border-[#E4DCCC] hover:border-[#D9973E]/50 bg-[#FAF7F2]/40'">
                         <input type="radio" name="voice_model" value="ms_gadis" x-model="form.voice_model" class="sr-only">
                         <div>
                             <div class="flex items-center justify-between">
                                 <span class="px-2 py-0.5 bg-[#D9973E] text-white font-mono text-[9px] uppercase tracking-wider font-bold rounded">
-                                    Wanita Nada Lembut
+                                    Tempo Santai (0.9x)
                                 </span>
-                                <span class="text-xl">👩</span>
+                                <span class="text-xl">☕</span>
                             </div>
                             <h4 class="font-serif font-bold text-sm text-[#1F1812] mt-2">
-                                Mbak Maya (Lembut & Ceria)
+                                Mbak Google (Tempo Santai)
                             </h4>
                             <p class="text-xs text-[#7A6A58] mt-1 leading-relaxed">
-                                Karakter vokal wanita lebih tinggi, manis, ceria, dan ramah seperti barista/hostess kafe modern.
+                                Suara wanita Google Translate dengan tempo yang lebih pelan dan tenang, cocok untuk suasana kafe santai/lounge.
                             </p>
                         </div>
                         <div class="mt-3 pt-2 border-t border-[#EAE2D5] flex items-center justify-between text-[11px] font-mono text-[#5C4D3C]">
-                            <span>Pitch Halus (+1.14x)</span>
+                            <span>Google TTS (id) - 0.9x</span>
                             <span class="font-bold text-[#D9973E]" x-show="form.voice_model === 'ms_gadis'">✓ Aktif</span>
                         </div>
                     </label>
 
-                    <!-- Opsi 3: Mas Barista (Pria Berat & Hangat) -->
+                    <!-- Opsi 3: Mbak Google Cepat (Tempo Ringkas) -->
                     <label class="border-2 rounded-xl p-4 cursor-pointer transition relative flex flex-col justify-between"
                            :class="form.voice_model === 'ms_ardi' ? 'border-[#D9973E] bg-[#D9973E]/10 ring-2 ring-[#D9973E]/20 shadow-xs' : 'border-[#E4DCCC] hover:border-[#D9973E]/50 bg-[#FAF7F2]/40'">
                         <input type="radio" name="voice_model" value="ms_ardi" x-model="form.voice_model" class="sr-only">
                         <div>
                             <div class="flex items-center justify-between">
                                 <span class="px-2 py-0.5 bg-[#8A7B66] text-white font-mono text-[9px] uppercase tracking-wider font-bold rounded">
-                                    Suara Pria Barista
+                                    Tempo Gesit (1.15x)
                                 </span>
-                                <span class="text-xl">👨</span>
+                                <span class="text-xl">⚡</span>
                             </div>
                             <h4 class="font-serif font-bold text-sm text-[#1F1812] mt-2">
-                                Mas Barista (Pria Bariton)
+                                Mbak Google (Tempo Gesit)
                             </h4>
                             <p class="text-xs text-[#7A6A58] mt-1 leading-relaxed">
-                                Suara pria berwibawa, tegas, bernada bariton bass hangat khas barista laki-laki kafe.
+                                Suara wanita Google Translate dengan tempo lebih cepat, praktis dan tanggap untuk jam sibuk atau antrean take-away.
                             </p>
                         </div>
                         <div class="mt-3 pt-2 border-t border-[#EAE2D5] flex items-center justify-between text-[11px] font-mono text-[#5C4D3C]">
-                            <span>Deep Bass Resonator</span>
+                            <span>Google TTS (id) - 1.15x</span>
                             <span class="font-bold text-[#D9973E]" x-show="form.voice_model === 'ms_ardi'">✓ Aktif</span>
                         </div>
                     </label>
@@ -182,15 +189,15 @@
                         <div>
                             <div class="flex items-center justify-between">
                                 <span class="px-2 py-0.5 bg-amber-700 text-white font-mono text-[9px] uppercase tracking-wider font-bold rounded">
-                                    Aksen Nusantara
+                                    Aksen Nusantara (jv)
                                 </span>
-                                <span class="text-xl">☕</span>
+                                <span class="text-xl">🏛️</span>
                             </div>
                             <h4 class="font-serif font-bold text-sm text-[#1F1812] mt-2">
                                 Aksen Nusantara (Jawa Medok)
                             </h4>
                             <p class="text-xs text-[#7A6A58] mt-1 leading-relaxed">
-                                Logat bernuansa daerah nusantara yang ramah, akrab, santai, dan bersahabat khas kedai kopi lokal.
+                                Suara Google Translate dengan logat bernuansa daerah nusantara yang ramah, akrab, santai, dan bersahabat.
                             </p>
                         </div>
                         <div class="mt-3 pt-2 border-t border-[#EAE2D5] flex items-center justify-between text-[11px] font-mono text-[#5C4D3C]">
@@ -206,7 +213,7 @@
                         <div>
                             <div class="flex items-center justify-between">
                                 <span class="px-2 py-0.5 bg-purple-700 text-white font-mono text-[9px] uppercase tracking-wider font-bold rounded">
-                                    English / Tourist Cafe
+                                    English Tourist Cafe
                                 </span>
                                 <span class="text-xl">🌐</span>
                             </div>
@@ -214,7 +221,7 @@
                                 English Cafe Accent (Wanita)
                             </h4>
                             <p class="text-xs text-[#7A6A58] mt-1 leading-relaxed">
-                                Panggilan berbahasa Inggris internasional (*"Order for {name}, ready at the counter"*), cocok untuk kafe turis.
+                                Suara wanita Google Translate bahasa Inggris internasional (*"Order for {name}, ready at the counter"*), cocok untuk kafe turis.
                             </p>
                         </div>
                         <div class="mt-3 pt-2 border-t border-[#EAE2D5] flex items-center justify-between text-[11px] font-mono text-[#5C4D3C]">
@@ -599,124 +606,95 @@ function announcerSettingsManager(initialSettings) {
             }
         },
 
-        async testAnnouncement() {
+        getAudioUrl() {
+            let lang = 'id';
+            let text = this.generateSampleText();
+
+            if (this.form.voice_model === 'english_cafe') {
+                lang = 'en';
+                if (!/order for|ready at the counter/i.test(text)) {
+                    text = `Order for ${this.sampleName || 'customer'}, ready for pickup at the counter.`;
+                }
+            } else if (this.form.voice_model === 'google_local') {
+                lang = 'jv'; // Aksen medok lokal nusantara
+            } else {
+                lang = 'id'; // Mbak Google Indonesia
+            }
+
+            return window.location.origin + '/music/tts?lang=' + lang + '&text=' + encodeURIComponent(text);
+        },
+
+        testAnnouncement() {
             if (this.isPlayingSample) return;
             this.isPlayingSample = true;
 
             const text = this.generateSampleText();
 
-            // 1. Bunyikan nada dering jika diaktifkan
-            if (this.form.chime_style !== 'none') {
-                this.playChime(this.form.chime_style);
-            }
-
-            const chimeDelay = this.form.chime_style === 'none' ? 100 : 1000;
-
-            setTimeout(() => {
-                const finishCallback = () => {
-                    this.isPlayingSample = false;
-                };
-
-                this.playAnnouncerVoice({
-                    text: text,
-                    model: this.form.voice_model,
-                    deviceVoiceName: this.form.device_voice_name,
-                    rate: parseFloat(this.form.rate) || 1.0,
-                    pitch: parseFloat(this.form.pitch) || 1.0,
-                    onEnd: finishCallback
-                });
-            }, chimeDelay);
-        },
-
-        async playAnnouncerVoice({ text, model, deviceVoiceName, rate, pitch, onEnd }) {
             // Opsi 6: Suara terpasang di komputer (Web Speech API)
-            if (model === 'device_voice') {
-                this.playWebSpeechDevice(text, deviceVoiceName, rate, pitch, onEnd);
+            if (this.form.voice_model === 'device_voice') {
+                if (this.form.chime_style !== 'none') {
+                    this.playChime(this.form.chime_style);
+                    setTimeout(() => {
+                        this.playWebSpeechDevice(text, this.form.device_voice_name, this.form.rate, this.form.pitch, () => {
+                            this.isPlayingSample = false;
+                        });
+                    }, 1000);
+                } else {
+                    this.playWebSpeechDevice(text, this.form.device_voice_name, this.form.rate, this.form.pitch, () => {
+                        this.isPlayingSample = false;
+                    });
+                }
                 return;
             }
 
-            // Tentukan bahasa Google TTS & pemrosesan vokal
-            let lang = 'id';
-            let sampleText = text;
-            let pitchMultiplier = 1.0;
-            let filterType = null;
+            // Opsi 1 - 5: Google TTS MP3 streaming
+            const ttsUrl = this.getAudioUrl();
 
-            if (model === 'english_cafe') {
-                lang = 'en';
-                if (!/order for|ready at the counter/i.test(sampleText)) {
-                    sampleText = `Order for ${this.sampleName || 'customer'}, ready for pickup at the counter.`;
-                }
-            } else if (model === 'google_local') {
-                lang = 'jv'; // Aksen medok lokal nusantara
-            } else if (model === 'ms_gadis') {
-                lang = 'id';
-                pitchMultiplier = 1.14; // Nada lebih tinggi, feminin & manis
-                filterType = 'highshelf';
-            } else if (model === 'ms_ardi') {
-                lang = 'id';
-                pitchMultiplier = 0.82; // Nada bariton pria barista
-                filterType = 'lowpass';
-            } else {
-                // mbak_google (default)
-                lang = 'id';
-                pitchMultiplier = 1.0;
+            // Tentukan kecepatan putar
+            let playRate = parseFloat(this.form.rate) || 1.0;
+            if (this.form.voice_model === 'ms_gadis') {
+                playRate = 0.9; // Tempo santai
+            } else if (this.form.voice_model === 'ms_ardi') {
+                playRate = 1.15; // Tempo cepat
             }
 
-            // Selalu gunakan URL relatif terhadap origin browser saat ini (menghindari isu domain/port)
-            const ttsUrl = window.location.origin + '/music/tts?lang=' + lang + '&text=' + encodeURIComponent(sampleText);
+            let audio = document.getElementById('announcer-preview-audio');
+            if (!audio) {
+                audio = new Audio();
+            }
 
-            try {
-                const AudioCtx = window.AudioContext || window.webkitAudioContext;
-                const ctx = new AudioCtx();
-                const response = await fetch(ttsUrl);
-                if (!response.ok) throw new Error('HTTP status ' + response.status);
+            audio.src = ttsUrl;
+            audio.playbackRate = playRate;
 
-                const arrayBuffer = await response.arrayBuffer();
-                const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+            const finish = () => {
+                this.isPlayingSample = false;
+            };
 
-                const source = ctx.createBufferSource();
-                source.buffer = audioBuffer;
+            audio.onended = finish;
+            audio.onerror = (e) => {
+                console.error('[Announcer] Gagal memutar Google TTS:', e);
+                finish();
+                alert('Audio Google TTS tidak dapat dimuat. Pastikan server terhubung ke internet.');
+            };
 
-                const baseRate = parseFloat(rate) || 1.0;
-                source.playbackRate.value = Math.max(0.5, Math.min(2.0, baseRate * pitchMultiplier));
-
-                if (filterType === 'lowpass') {
-                    const biquad = ctx.createBiquadFilter();
-                    biquad.type = 'lowpass';
-                    biquad.frequency.value = 2600; // Deep warm barista resonance
-                    source.connect(biquad);
-                    biquad.connect(ctx.destination);
-                } else if (filterType === 'highshelf') {
-                    const biquad = ctx.createBiquadFilter();
-                    biquad.type = 'highshelf';
-                    biquad.frequency.value = 3200;
-                    biquad.gain.value = 5; // Bright clear feminine tone
-                    source.connect(biquad);
-                    biquad.connect(ctx.destination);
-                } else {
-                    source.connect(ctx.destination);
-                }
-
-                source.onended = () => {
-                    try { ctx.close(); } catch (e) {}
-                    if (onEnd) onEnd();
-                };
-
-                source.start(0);
-            } catch (err) {
-                console.warn('[Announcer] Web Audio synthesis fallback:', err);
-                try {
-                    const fallbackAudio = new Audio(ttsUrl);
-                    fallbackAudio.playbackRate = parseFloat(rate) || 1.0;
-                    fallbackAudio.onended = () => { if (onEnd) onEnd(); };
-                    fallbackAudio.onerror = () => {
-                        this.playWebSpeechDevice(sampleText, deviceVoiceName, rate, pitch, onEnd);
-                    };
-                    fallbackAudio.play().catch(() => {
-                        this.playWebSpeechDevice(sampleText, deviceVoiceName, rate, pitch, onEnd);
+            if (this.form.chime_style !== 'none') {
+                this.playChime(this.form.chime_style);
+                setTimeout(() => {
+                    const playPromise = audio.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch(err => {
+                            console.warn('[Announcer] Audio play blocked:', err);
+                            finish();
+                        });
+                    }
+                }, 900);
+            } else {
+                const playPromise = audio.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(err => {
+                        console.warn('[Announcer] Audio play blocked:', err);
+                        finish();
                     });
-                } catch (e) {
-                    this.playWebSpeechDevice(sampleText, deviceVoiceName, rate, pitch, onEnd);
                 }
             }
         },
