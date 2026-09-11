@@ -435,6 +435,95 @@ function navbarMusicWidget() {
             return 'Kasir POS';
         },
 
+        applyServerState(data) {
+            if (!data) return;
+            if (data.now_playing) {
+                this.currentTrack = data.now_playing;
+            }
+            if (data.playback_state) {
+                const pb = data.playback_state;
+                if (pb.current_track) {
+                    this.currentTrack = pb.current_track;
+                }
+                this.currentTime = Number(pb.current_time || 0);
+                this.duration = Number(pb.duration || (this.currentTrack ? (this.currentTrack.duration_seconds || 0) : 0));
+                this.isPlaying = !!pb.is_playing;
+                this.currentTimeFormatted = this.formatTime(this.currentTime);
+                this.durationFormatted = this.formatTime(this.duration);
+                this.progressPercent = this.duration > 0 ? (this.currentTime / this.duration) * 100 : 0;
+            }
+            if (typeof data.queue_count !== 'undefined') {
+                this.queueCount = data.queue_count;
+            }
+            if (Array.isArray(data.queue)) {
+                this.queue = data.queue;
+            }
+        },
+
+        async checkInitialMasterState() {
+            // 1. Cek dulu apakah di browser lokal ada tab master yang sedang aktif
+            try {
+                const savedHost = JSON.parse(localStorage.getItem('pos_soundstation_active_host') || '{}');
+                const isLocalHostActive = savedHost.tabId && (Date.now() - (savedHost.timestamp || 0) < 2500);
+
+                if (isLocalHostActive && savedHost.tabId !== this.myTabId) {
+                    this.isMasterHost = false;
+                    this.hasActiveHost = true;
+                    this.activeHostTabId = savedHost.tabId;
+                    this.activeHostPageTitle = savedHost.pageTitle || 'Tab Lain';
+                    this.lastHostHeartbeatTime = savedHost.timestamp;
+                    this.pollServerStatus();
+                    return;
+                }
+            } catch (e) {}
+
+            // 2. Hubungi server: apakah ada Master Host aktif di kafe saat ini (perangkat lain)?
+            try {
+                const res = await fetch('{{ route('kasir.music.master.status') }}');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.has_master && data.master && data.master.client_id !== this.myTabId) {
+                        // Perangkat lain sudah menjadi Master Host! Tab ini mulai sebagai REMOTE.
+                        this.isMasterHost = false;
+                        this.hasActiveHost = true;
+                        const dev = data.master.device_name || 'Perangkat Lain';
+                        const pg = data.master.page_title || 'Sound Station';
+                        this.activeHostPageTitle = dev + ' (' + pg + ')';
+                        this.applyServerState(data);
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.warn('[SoundStation] Gagal cek status master:', e);
+            }
+
+            // 3. Jika BELUM ada master aktif di seluruh kafe:
+            // Tab ini mengklaim master
+            this.claimMasterHost(false);
+        },
+
+        async pollServerStatus() {
+            if (this.isMasterHost) return;
+            try {
+                const res = await fetch('{{ route('kasir.music.master.status') }}');
+                if (!res.ok) return;
+                const data = await res.json();
+                if (data.has_master && data.master) {
+                    this.hasActiveHost = true;
+                    const dev = data.master.device_name || 'Perangkat Lain';
+                    const pg = data.master.page_title || 'Sound Station';
+                    this.activeHostPageTitle = dev + ' (' + pg + ')';
+                    this.applyServerState(data);
+                } else if (!data.has_master) {
+                    if (this.isDedicatedPage) {
+                        this.claimMasterHost(false);
+                    } else {
+                        this.hasActiveHost = false;
+                    }
+                }
+            } catch (e) {}
+        },
+
         async claimMasterHost(force = false) {
             const myPriority = this.isDedicatedPage ? 100 : 10;
 
@@ -462,22 +551,22 @@ function navbarMusicWidget() {
                         this.hasActiveHost = true;
                         const m = data.current_master;
                         this.activeHostPageTitle = m ? ((m.device_name || 'Perangkat Lain') + ' (' + (m.page_title || 'Sound Station') + ')') : 'Perangkat Lain';
+                        this.applyServerState(data);
                         if (this.player && typeof this.player.stopVideo === 'function') {
                             try { this.player.stopVideo(); } catch (e) {}
                         }
                         return;
                     }
 
-                    if (data.status === 'granted' && data.playback_state) {
-                        if (typeof data.playback_state.current_time !== 'undefined') {
-                            this.currentTime = data.playback_state.current_time;
-                            if (data.playback_state.duration) this.duration = data.playback_state.duration;
-                            if (data.playback_state.current_track) this.currentTrack = data.playback_state.current_track;
-                        }
+                    if (data.status === 'granted') {
+                        this.applyServerState(data);
                     }
+                } else {
+                    if (!force && !this.isDedicatedPage) return;
                 }
             } catch (e) {
                 console.warn('[SoundStation] Gagal klaim master ke server:', e);
+                if (!force && !this.isDedicatedPage) return;
             }
 
             this.isMasterHost = true;
@@ -583,7 +672,9 @@ function navbarMusicWidget() {
                     }
                 } catch (e) {}
 
-                this.claimMasterHost(false);
+                if (this.isDedicatedPage) {
+                    this.claimMasterHost(false);
+                }
             }, delay);
         },
 
@@ -641,6 +732,9 @@ function navbarMusicWidget() {
                         : 'Perangkat Lain';
 
                     this.stepDownToRemote(newHost, data.current_master ? data.current_master.client_id : null);
+                    if (data.playback_state) {
+                        this.applyServerState({ playback_state: data.playback_state });
+                    }
 
                     if (window.customToast) {
                         window.customToast({
@@ -679,27 +773,10 @@ function navbarMusicWidget() {
                 if (typeof cachedState.isPlaying !== 'undefined') this.isPlaying = cachedState.isPlaying;
             } catch (e) {}
 
-            // 1. Tentukan status awal Master Host
-            try {
-                const savedHost = JSON.parse(localStorage.getItem('pos_soundstation_active_host') || '{}');
-                const isSavedHostActive = savedHost.tabId && (Date.now() - (savedHost.timestamp || 0) < 2500);
+            // Inisialisasi status master secara cerdas tanpa berebut
+            this.checkInitialMasterState();
 
-                if (this.isDedicatedPage) {
-                    this.claimMasterHost(false);
-                } else if (isSavedHostActive) {
-                    this.isMasterHost = false;
-                    this.hasActiveHost = true;
-                    this.activeHostTabId = savedHost.tabId;
-                    this.activeHostPageTitle = savedHost.pageTitle || 'Tab Lain';
-                    this.lastHostHeartbeatTime = savedHost.timestamp;
-                } else {
-                    this.claimMasterHost(false);
-                }
-            } catch (e) {
-                this.claimMasterHost(false);
-            }
-
-            // Dengarkan pesan heartbeat, time sync, dan state
+            // Dengarkan pesan heartbeat, time sync, dan state dari BroadcastChannel (antar-tab di perangkat yang sama)
             if (window.SoundStationHub && window.SoundStationHub.channel) {
                 window.SoundStationHub.channel.addEventListener('message', (e) => {
                     if (!e.data) return;
@@ -775,7 +852,7 @@ function navbarMusicWidget() {
                 });
             }
 
-            // Watchdog check apakah host lokal masih hidup
+            // Watchdog check hanya untuk tab di browser yang sama (localStorage)
             this.watchdogTimer = setInterval(() => {
                 if (!this.isMasterHost) {
                     try {
@@ -784,53 +861,15 @@ function navbarMusicWidget() {
                         if (saved.tabId && (now - (saved.timestamp || 0) < 2500)) {
                             this.hasActiveHost = true;
                             this.activeHostTabId = saved.tabId;
-                            this.activeHostPageTitle = saved.pageTitle || 'Perangkat Lain';
+                            this.activeHostPageTitle = saved.pageTitle || 'Tab Lain';
                             this.lastHostHeartbeatTime = saved.timestamp;
-                        } else {
-                            this.hasActiveHost = false;
-                            this.scheduleTakeoverElection();
                         }
-                    } catch (e) {
-                        this.scheduleTakeoverElection();
-                    }
+                    } catch (e) {}
                 }
-            }, 1500);
+            }, 2000);
 
-            // Remote polling ke server setiap 2.5 detik untuk sinkronisasi antar-device (PC Kasir vs Tablet)
-            this.remotePollTimer = setInterval(() => {
-                if (!this.isMasterHost) {
-                    fetch('{{ route('kasir.music.master.status') }}')
-                        .then(res => res.json())
-                        .then(data => {
-                            if (!data) return;
-                            if (data.has_master && data.master) {
-                                this.hasActiveHost = true;
-                                const dev = data.master.device_name || 'Perangkat Lain';
-                                const pg = data.master.page_title || 'Sound Station';
-                                this.activeHostPageTitle = dev + ' (' + pg + ')';
-
-                                if (data.playback_state && !this.isMasterHost) {
-                                    this.currentTime = data.playback_state.current_time || 0;
-                                    this.duration = data.playback_state.duration || 0;
-                                    this.isPlaying = !!data.playback_state.is_playing;
-                                    this.currentTimeFormatted = this.formatTime(this.currentTime);
-                                    this.durationFormatted = this.formatTime(this.duration);
-                                    this.progressPercent = this.duration > 0 ? (this.currentTime / this.duration) * 100 : 0;
-                                    if (data.playback_state.current_track) {
-                                        this.currentTrack = data.playback_state.current_track;
-                                    }
-                                }
-                            } else if (!data.has_master) {
-                                if (this.isDedicatedPage) {
-                                    this.claimMasterHost(false);
-                                } else {
-                                    this.hasActiveHost = false;
-                                }
-                            }
-                        })
-                        .catch(() => {});
-                }
-            }, 2500);
+            // Remote server polling setiap 2 detik untuk sinkronisasi antar-device (PC Kasir vs Tablet)
+            this.remotePollTimer = setInterval(() => this.pollServerStatus(), 2000);
 
             // Inisialisasi YouTube player jika tab ini adalah master host
             if (this.isMasterHost) {
@@ -1095,9 +1134,9 @@ function navbarMusicWidget() {
                 });
             }
 
-            // Laporkan status detik & durasi ke server setiap 3 detik untuk Smart TV / display external
+            // Laporkan status detik & durasi ke server setiap 2.5 detik untuk Smart TV / display external
             const now = Date.now();
-            if (this.isMasterHost && (!this._lastServerSync || now - this._lastServerSync > 3000)) {
+            if (this.isMasterHost && (!this._lastServerSync || now - this._lastServerSync > 2500)) {
                 this._lastServerSync = now;
                 try {
                     fetch('{{ route('kasir.music.playback.sync') }}', {
@@ -1107,9 +1146,11 @@ function navbarMusicWidget() {
                             'X-CSRF-TOKEN': '{{ csrf_token() }}'
                         },
                         body: JSON.stringify({
+                            client_id: this.myTabId,
                             current_time: this.currentTime,
                             duration: this.duration,
-                            is_playing: this.isPlaying
+                            is_playing: this.isPlaying,
+                            current_track: this.currentTrack
                         })
                     }).catch(() => {});
                 } catch (e) {}
@@ -1484,6 +1525,12 @@ function navbarMusicWidget() {
                 const data = await res.json();
                 this.queueCount = data.queue_count || 0;
                 this.queue = data.queue || [];
+
+                // Jika perangkat ini adalah Remote, sinkronkan data lagu yang sedang diputar dari server
+                if (!this.isMasterHost && data.now_playing) {
+                    this.currentTrack = data.now_playing;
+                }
+
                 this.broadcastSync();
 
                 // Deteksi interupsi jika musik kasir sedang berputar dan ada request pelanggan masuk

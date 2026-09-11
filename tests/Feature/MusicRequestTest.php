@@ -762,4 +762,39 @@ class MusicRequestTest extends TestCase
 
         $this->assertNull(Cache::get('soundstation_master_host'));
     }
+
+    public function test_sync_playback_is_ignored_when_called_by_non_master_client(): void
+    {
+        $user = User::factory()->create();
+
+        // Host aktif adalah client_A di detik 95
+        Cache::put('soundstation_master_host', [
+            'client_id' => 'tab_client_A',
+            'device_name' => 'PC Kasir',
+            'updated_at' => now()->timestamp,
+        ], 30);
+
+        Cache::put('soundstation_playback_state', [
+            'current_time' => 95.0,
+            'duration' => 200,
+            'is_playing' => true,
+            'client_id' => 'tab_client_A',
+        ]);
+
+        // client_B (remote) mencoba kirim sync 0.0 (misal baru buka halaman)
+        $response = $this->actingAs($user)->postJson(route('kasir.music.playback.sync'), [
+            'client_id' => 'tab_client_B',
+            'current_time' => 0.0,
+            'duration' => 0,
+            'is_playing' => false,
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('status', 'ignored');
+
+        // Playback state di cache tetap milik client_A di detik 95
+        $state = Cache::get('soundstation_playback_state');
+        $this->assertEquals(95.0, $state['current_time']);
+        $this->assertTrue($state['is_playing']);
+    }
 }

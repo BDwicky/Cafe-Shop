@@ -275,16 +275,31 @@ class KasirMusicController extends Controller
      */
     public function syncPlayback(Request $request): JsonResponse
     {
+        $clientId = $request->string('client_id')->toString();
+        $master = Cache::get('soundstation_master_host');
+
+        // Proteksi: Hanya Master Host yang diizinkan memperbarui detik playback ke server!
+        // Jika ada perangkat remote yang mencoba syncPlayback, abaikan agar display TV tidak reset ke 0.
+        if ($master && ! empty($master['client_id']) && ! empty($clientId) && $master['client_id'] !== $clientId) {
+            return response()->json(['status' => 'ignored', 'message' => 'Hanya master yang dapat memperbarui playback']);
+        }
+
         $currentTime = $request->float('current_time', 0);
         $duration = $request->float('duration', 0);
         $isPlaying = $request->boolean('is_playing');
+        $currentTrack = $request->input('current_track');
 
-        Cache::put('soundstation_playback_state', [
+        $existing = Cache::get('soundstation_playback_state', []);
+        $state = [
             'current_time' => $currentTime,
-            'duration' => $duration,
+            'duration' => $duration > 0 ? $duration : ($existing['duration'] ?? 0),
             'is_playing' => $isPlaying,
+            'current_track' => $currentTrack ?: ($existing['current_track'] ?? null),
             'updated_at' => (int) round(microtime(true) * 1000),
-        ], now()->addMinutes(2));
+            'client_id' => $clientId ?: ($master['client_id'] ?? null),
+        ];
+
+        Cache::put('soundstation_playback_state', $state, now()->addMinutes(2));
 
         return response()->json(['status' => 'ok']);
     }
@@ -312,16 +327,22 @@ class KasirMusicController extends Controller
 
         // Cek jika master sebelumnya masih aktif
         if ($existingMaster && ! empty($existingMaster['client_id']) && $existingMaster['client_id'] !== $clientId) {
-            $isFresh = ($now - ($existingMaster['updated_at'] ?? 0)) < 15;
+            $isFresh = ($now - ($existingMaster['updated_at'] ?? 0)) < 20;
 
             if ($isFresh && ! $force) {
                 $existingPriority = $existingMaster['priority'] ?? 10;
                 if ($existingPriority >= $priority) {
+                    $playerState = $this->musicService->getPlayerState();
+                    $playbackState = Cache::get('soundstation_playback_state');
+
                     return response()->json([
                         'status' => 'rejected',
                         'message' => 'Master host sedang dipegang oleh perangkat lain.',
                         'current_master' => $existingMaster,
-                        'playback_state' => Cache::get('soundstation_playback_state'),
+                        'playback_state' => $playbackState,
+                        'now_playing' => $playerState['now_playing'],
+                        'queue_count' => $playerState['queue_count'],
+                        'queue' => $playerState['queue'],
                     ]);
                 }
             }
@@ -339,10 +360,16 @@ class KasirMusicController extends Controller
 
         Cache::put('soundstation_master_host', $newMaster, now()->addSeconds(30));
 
+        $playerState = $this->musicService->getPlayerState();
+        $playbackState = Cache::get('soundstation_playback_state');
+
         return response()->json([
             'status' => 'granted',
             'master' => $newMaster,
-            'playback_state' => Cache::get('soundstation_playback_state'),
+            'playback_state' => $playbackState,
+            'now_playing' => $playerState['now_playing'],
+            'queue_count' => $playerState['queue_count'],
+            'queue' => $playerState['queue'],
         ]);
     }
 
@@ -422,10 +449,28 @@ class KasirMusicController extends Controller
             $isMasterAlive = (now()->timestamp - $master['updated_at']) < 20;
         }
 
+        $playerState = $this->musicService->getPlayerState();
+
+        if (! $playbackState || empty($playbackState['current_track'])) {
+            if (! empty($playerState['now_playing'])) {
+                if (! $playbackState) {
+                    $playbackState = [
+                        'current_time' => 0,
+                        'duration' => $playerState['now_playing']['duration_seconds'] ?? 0,
+                        'is_playing' => true,
+                    ];
+                }
+                $playbackState['current_track'] = $playerState['now_playing'];
+            }
+        }
+
         return response()->json([
             'has_master' => $isMasterAlive,
             'master' => $isMasterAlive ? $master : null,
             'playback_state' => $playbackState,
+            'now_playing' => $playerState['now_playing'],
+            'queue_count' => $playerState['queue_count'],
+            'queue' => $playerState['queue'],
         ]);
     }
 
