@@ -101,20 +101,36 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
                     },
                     body: JSON.stringify({ code: this.code.trim() })
                 });
-                const data = await res.json();
-                this.isValid = data.valid;
-                this.isOwner = !!data.is_owner;
-                this.valMessage = data.message;
-                this.alreadyUsed = !!data.already_used;
-                this.orderInfo = data.order || null;
-                if (data.is_owner && (!this.customerName || this.customerName === 'Pelanggan')) {
-                    this.customerName = '👑 Owner';
-                } else if (data.order && data.order.customer_name) {
-                    this.customerName = data.order.customer_name;
+
+                let data = {};
+                try {
+                    data = await res.json();
+                } catch (jsonErr) {
+                    data = {};
+                }
+
+                if (res.ok) {
+                    this.isValid = data.valid;
+                    this.isOwner = !!data.is_owner;
+                    this.valMessage = data.message;
+                    this.alreadyUsed = !!data.already_used;
+                    this.orderInfo = data.order || null;
+                    if (data.is_owner && (!this.customerName || this.customerName === 'Pelanggan')) {
+                        this.customerName = '👑 Owner';
+                    } else if (data.order && data.order.customer_name) {
+                        this.customerName = data.order.customer_name;
+                    }
+                } else {
+                    this.isValid = false;
+                    this.isOwner = false;
+                    this.valMessage = data.message || ('Gagal memverifikasi kode (Status: ' + res.status + ').');
+                    this.alreadyUsed = !!data.already_used;
                 }
             } catch (e) {
                 this.isValid = false;
@@ -130,7 +146,12 @@
 
             this.searching = true;
             try {
-                const res = await fetch('{{ route('music.search') }}?q=' + encodeURIComponent(q));
+                const res = await fetch('{{ route('music.search') }}?q=' + encodeURIComponent(q), {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
                 const data = await res.json();
                 if (data.results && data.results.length > 0) {
                     const first = data.results[0];
@@ -195,6 +216,8 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
                     },
                     body: JSON.stringify({
@@ -208,7 +231,13 @@
                     })
                 });
 
-                const data = await res.json();
+                let data = {};
+                try {
+                    data = await res.json();
+                } catch (jsonErr) {
+                    data = {};
+                }
+
                 if (res.ok) {
                     this.requestSubmitted = true;
                     this.myPosition = data.queue_position;
@@ -224,17 +253,28 @@
                         } catch (e) {}
                     }
                 } else {
+                    let warnMsg = data.message;
+                    if (!warnMsg) {
+                        if (res.status === 419) {
+                            warnMsg = 'Sesi halaman telah kedaluwarsa. Silakan refresh halaman dan coba kembali.';
+                        } else if (res.status >= 500) {
+                            warnMsg = 'Server sedang mengalami gangguan sementara. Silakan coba beberapa saat lagi.';
+                        } else {
+                            warnMsg = 'Gagal mengirim request lagu (Kode status: ' + res.status + ').';
+                        }
+                    }
                     window.customAlert({
                         title: 'Perhatian',
-                        message: data.message || 'Gagal kirim request.',
+                        message: warnMsg,
                         type: 'warning',
                         btnText: 'OK'
                     });
                 }
             } catch (e) {
+                console.error('Submit song error:', e);
                 window.customAlert({
-                    title: 'Error',
-                    message: 'Koneksi bermasalah.',
+                    title: 'Kendala Koneksi',
+                    message: 'Tidak dapat terhubung ke server kafe. Pastikan perangkat Anda terhubung ke internet/Wi-Fi kafe, lalu coba lagi.',
                     type: 'error',
                     btnText: 'OK'
                 });
@@ -245,25 +285,24 @@
 
         async fetchStatus() {
             try {
-                const res = await fetch('{{ route('music.status') }}');
-                const data = await res.json();
-                this.nowPlaying = data.now_playing;
-                this.queue = data.queue;
-                this.queueCount = data.queue_count;
+                const res = await fetch('{{ route('music.status') }}', {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    this.nowPlaying = data.now_playing;
+                    this.queue = data.queue;
+                    this.queueCount = data.queue_count;
 
-                // Perbarui status persiapan makanan/minuman pelanggan secara berkala
-                if (this.orderInfo && this.code) {
-                    const codeRes = await fetch('{{ route('music.validate_code') }}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                        },
-                        body: JSON.stringify({ code: this.code.trim() })
-                    });
-                    const codeData = await codeRes.json();
-                    if (codeData.order) {
-                        this.orderInfo = codeData.order;
+                    // Perbarui status pesanan jika orderInfo ada dalam ready_orders
+                    if (this.orderInfo && data.ready_orders && Array.isArray(data.ready_orders)) {
+                        const readyMatch = data.ready_orders.find(o => o.id === this.orderInfo.id);
+                        if (readyMatch) {
+                            this.orderInfo.prep_status = readyMatch.prep_status;
+                        }
                     }
                 }
             } catch (e) {}
