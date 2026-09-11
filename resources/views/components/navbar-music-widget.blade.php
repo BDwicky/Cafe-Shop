@@ -428,6 +428,13 @@ function navbarMusicWidget() {
         voiceAnnouncerEnabled: true,
         isAnnouncing: false,
         duckedVolume: 12,
+        announcerSettings: (() => {
+            try {
+                return JSON.parse(localStorage.getItem('pos_soundstation_announcer_settings') || 'null') || @json(\App\Http\Controllers\KasirMusicController::getDefaultAnnouncerSettings());
+            } catch (e) {
+                return @json(\App\Http\Controllers\KasirMusicController::getDefaultAnnouncerSettings());
+            }
+        })(),
 
         isDedicatedPage: (window.location.pathname.replace(/\/$/, '') === '/kasir/music') && !window.location.pathname.includes('/mini'),
         isMasterHost: false,
@@ -1767,39 +1774,28 @@ function navbarMusicWidget() {
             this.isAnnouncing = true;
             this.broadcastSync();
 
+            // Load pengaturan suara aktif (localStorage atau default)
+            const cfg = (() => {
+                try {
+                    return JSON.parse(localStorage.getItem('pos_soundstation_announcer_settings') || 'null') || this.announcerSettings || {};
+                } catch (e) {
+                    return this.announcerSettings || {};
+                }
+            })();
+
             // 1. AUDIO DUCKING: Turunkan volume musik YouTube secara otomatis
+            const duckVol = parseInt(cfg.duck_volume || this.duckedVolume || 12);
             if (this.player && this.playerReady) {
-                this.player.setVolume(this.duckedVolume);
+                this.player.setVolume(duckVol);
             }
 
-            // 2. NADA CHIME (E5 -> C5) via Web Audio API
-            try {
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                const now = ctx.currentTime;
-                const osc1 = ctx.createOscillator();
-                const gain1 = ctx.createGain();
-                osc1.type = 'sine';
-                osc1.frequency.setValueAtTime(659.25, now);
-                gain1.gain.setValueAtTime(0.4, now);
-                gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
-                osc1.connect(gain1);
-                gain1.connect(ctx.destination);
-                osc1.start(now);
-                osc1.stop(now + 0.6);
+            // 2. NADA CHIME
+            const chimeStyle = cfg.chime_style || 'ding_dong';
+            this.playWidgetChime(chimeStyle);
 
-                const osc2 = ctx.createOscillator();
-                const gain2 = ctx.createGain();
-                osc2.type = 'sine';
-                osc2.frequency.setValueAtTime(523.25, now + 0.22);
-                gain2.gain.setValueAtTime(0.4, now + 0.22);
-                gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.85);
-                osc2.connect(gain2);
-                gain2.connect(ctx.destination);
-                osc2.start(now + 0.22);
-                osc2.stop(now + 0.9);
-            } catch (e) {}
+            const chimeDelay = chimeStyle === 'none' ? 100 : 1050;
 
-            // 3. TEXT-TO-SPEECH ANNOUNCER (SUARA WANITA RAMAH & RINGKAS)
+            // 3. TEXT-TO-SPEECH ANNOUNCER
             setTimeout(() => {
                 const custName = order.customer_name ? order.customer_name.trim() : '';
                 let orderNum = '';
@@ -1810,10 +1806,30 @@ function navbarMusicWidget() {
                     orderNum = (!isNaN(parsed) && parsed > 0) ? parsed : lastPart;
                 }
 
-                // Format ringkas, ramah & to the point:
-                const text = custName
-                    ? `Pesanan Kak ${custName}, siap diambil di kasir.`
-                    : `Pesanan nomor ${orderNum || 'Anda'}, siap diambil di kasir.`;
+                // Buat teks panggilan berdasarkan template pengaturan
+                let text = '';
+                const tType = cfg.template_type || 'concise';
+                if (tType === 'concise') {
+                    text = custName
+                        ? `Pesanan Kak ${custName}, siap diambil di kasir.`
+                        : `Pesanan nomor ${orderNum || 'Anda'}, siap diambil di kasir.`;
+                } else if (tType === 'formal') {
+                    text = custName
+                        ? `Panggilan untuk Kak ${custName}, pesanan nomor ${orderNum || order.code} sudah siap. Silakan ambil di kasir.`
+                        : `Panggilan pesanan nomor ${orderNum || order.code}, pesanan Anda sudah siap. Silakan ambil di meja kasir.`;
+                } else if (tType === 'airport') {
+                    text = `Perhatian, pesanan nomor ${orderNum || order.code} atas nama ${custName ? 'Kak ' + custName : 'Pelanggan'}, siap diambil di meja kasir. Terima kasih.`;
+                } else if (tType === 'english') {
+                    text = `Order for ${custName || 'customer'}, your order number ${orderNum || order.code} is ready at the counter.`;
+                } else if (tType === 'custom' && cfg.custom_template) {
+                    text = cfg.custom_template
+                        .replace(/\{name\}/gi, custName ? 'Kak ' + custName : 'Pelanggan')
+                        .replace(/\{code\}/gi, orderNum || order.code);
+                } else {
+                    text = custName
+                        ? `Pesanan Kak ${custName}, siap diambil di kasir.`
+                        : `Pesanan nomor ${orderNum || 'Anda'}, siap diambil di kasir.`;
+                }
 
                 const finish = async () => {
                     setTimeout(() => {
@@ -1844,34 +1860,97 @@ function navbarMusicWidget() {
                     finish();
                 };
 
-                // METODE UTAMA: Suara Asli "Mbak Google" Indonesia Wanita (Audio MP3 Asli)
-                // Memastikan 100% aksen bahasa Indonesia murni dan alami di semua browser & device
-                try {
-                    const ttsUrl = '{{ route('music.tts') }}?text=' + encodeURIComponent(text);
-                    const googleAudio = new Audio(ttsUrl);
+                // Putar sesuai model suara yang dikonfigurasi
+                if (cfg.voice_model === 'mbak_google' || !cfg.voice_model) {
+                    try {
+                        const ttsUrl = '{{ route('music.tts') }}?text=' + encodeURIComponent(text);
+                        const googleAudio = new Audio(ttsUrl);
+                        googleAudio.playbackRate = parseFloat(cfg.rate) || 1.0;
 
-                    googleAudio.onended = safeFinish;
+                        googleAudio.onended = safeFinish;
+                        googleAudio.onerror = () => {
+                            console.warn('[Announcer] Google TTS offline/gagal, fallback ke Web Speech lokal.');
+                            this.speakConfiguredSpeech(text, cfg, safeFinish);
+                        };
 
-                    // Fallback jika audio gagal atau offline: Web Speech API lokal Bahasa Indonesia
-                    googleAudio.onerror = () => {
-                        console.warn('[Announcer] Google TTS offline/gagal, fallback ke Web Speech lokal.');
-                        this.speakFallbackSpeech(text, safeFinish);
-                    };
-
-                    const playPromise = googleAudio.play();
-                    if (playPromise !== undefined) {
-                        playPromise.catch((err) => {
-                            console.warn('[Announcer] Google Audio play error:', err);
-                            this.speakFallbackSpeech(text, safeFinish);
-                        });
+                        const playPromise = googleAudio.play();
+                        if (playPromise !== undefined) {
+                            playPromise.catch((err) => {
+                                console.warn('[Announcer] Google Audio play error:', err);
+                                this.speakConfiguredSpeech(text, cfg, safeFinish);
+                            });
+                        }
+                    } catch (e) {
+                        this.speakConfiguredSpeech(text, cfg, safeFinish);
                     }
-                } catch (e) {
-                    this.speakFallbackSpeech(text, safeFinish);
+                } else {
+                    this.speakConfiguredSpeech(text, cfg, safeFinish);
                 }
-            }, 1100);
+            }, chimeDelay);
         },
 
-        speakFallbackSpeech(text, callback) {
+        playWidgetChime(style) {
+            if (style === 'none') return;
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const now = ctx.currentTime;
+
+                if (style === 'airport') {
+                    // 3-Tone Airport Chime: F4 (349Hz) -> A4 (440Hz) -> C5 (523Hz)
+                    const tones = [349.23, 440.00, 523.25];
+                    tones.forEach((freq, i) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        const t = now + (i * 0.18);
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(freq, t);
+                        gain.gain.setValueAtTime(0.3, t);
+                        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start(t);
+                        osc.stop(t + 0.5);
+                    });
+                } else if (style === 'bell') {
+                    // Soft Bell D5
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(587.33, now);
+                    gain.gain.setValueAtTime(0.4, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.85);
+                } else {
+                    // Default Ding-Dong (E5 -> C5)
+                    const osc1 = ctx.createOscillator();
+                    const gain1 = ctx.createGain();
+                    osc1.type = 'sine';
+                    osc1.frequency.setValueAtTime(659.25, now);
+                    gain1.gain.setValueAtTime(0.35, now);
+                    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+                    osc1.connect(gain1);
+                    gain1.connect(ctx.destination);
+                    osc1.start(now);
+                    osc1.stop(now + 0.55);
+
+                    const osc2 = ctx.createOscillator();
+                    const gain2 = ctx.createGain();
+                    osc2.type = 'sine';
+                    osc2.frequency.setValueAtTime(523.25, now + 0.22);
+                    gain2.gain.setValueAtTime(0.35, now + 0.22);
+                    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.85);
+                    osc2.connect(gain2);
+                    gain2.connect(ctx.destination);
+                    osc2.start(now + 0.22);
+                    osc2.stop(now + 0.9);
+                }
+            } catch (e) {}
+        },
+
+        speakConfiguredSpeech(text, cfg, callback) {
             if (!('speechSynthesis' in window)) {
                 if (callback) callback();
                 return;
@@ -1880,23 +1959,41 @@ function navbarMusicWidget() {
             try {
                 window.speechSynthesis.cancel();
                 const utter = new SpeechSynthesisUtterance(text);
-                utter.lang = 'id-ID';
-                utter.rate = 1.0;
-                utter.pitch = 1.0;
+                utter.rate = parseFloat(cfg.rate) || 1.0;
+                utter.pitch = parseFloat(cfg.pitch) || 1.0;
 
                 const voices = window.speechSynthesis.getVoices() || [];
-                const femaleVoice = voices.find(v => {
-                    const name = (v.name || '').toLowerCase();
-                    const lang = (v.lang || '').toLowerCase().replace('_', '-');
-                    return (lang.includes('id') || name.includes('indonesia')) &&
-                           (name.includes('google') || name.includes('gadis') || name.includes('female') || name.includes('wanita') || name.includes('siti'));
-                }) || voices.find(v => {
-                    const lang = (v.lang || '').toLowerCase().replace('_', '-');
-                    return lang.startsWith('id');
-                });
 
-                if (femaleVoice) {
-                    utter.voice = femaleVoice;
+                if (cfg.voice_model === 'ms_gadis') {
+                    utter.lang = 'id-ID';
+                    const v = voices.find(x => (x.name || '').toLowerCase().includes('gadis'))
+                        || voices.find(x => (x.lang || '').toLowerCase().includes('id'));
+                    if (v) utter.voice = v;
+                } else if (cfg.voice_model === 'ms_ardi') {
+                    utter.lang = 'id-ID';
+                    const v = voices.find(x => (x.name || '').toLowerCase().includes('ardi'))
+                        || voices.find(x => (x.lang || '').toLowerCase().includes('id'));
+                    if (v) utter.voice = v;
+                } else if (cfg.voice_model === 'google_local') {
+                    utter.lang = 'id-ID';
+                    const v = voices.find(x => (x.name || '').toLowerCase().includes('google') && (x.lang || '').toLowerCase().includes('id'))
+                        || voices.find(x => (x.lang || '').toLowerCase().includes('id'));
+                    if (v) utter.voice = v;
+                } else if (cfg.voice_model === 'english_cafe') {
+                    utter.lang = 'en-US';
+                    const v = voices.find(x => (x.name || '').toLowerCase().includes('natural') && (x.lang || '').toLowerCase().startsWith('en'))
+                        || voices.find(x => (x.lang || '').toLowerCase().startsWith('en'));
+                    if (v) utter.voice = v;
+                } else if (cfg.voice_model === 'device_voice' && cfg.device_voice_name) {
+                    const v = voices.find(x => x.name === cfg.device_voice_name);
+                    if (v) {
+                        utter.voice = v;
+                        utter.lang = v.lang;
+                    }
+                } else {
+                    utter.lang = 'id-ID';
+                    const v = voices.find(x => (x.lang || '').toLowerCase().includes('id'));
+                    if (v) utter.voice = v;
                 }
 
                 utter.onend = () => { if (callback) callback(); };

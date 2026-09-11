@@ -989,4 +989,67 @@ class MusicRequestTest extends TestCase
         $response->assertOk()
             ->assertHeader('Content-Type', 'audio/mpeg');
     }
+
+    public function test_cashier_can_access_announcer_settings_page(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get(route('kasir.announcer.settings'));
+
+        $response->assertOk()
+            ->assertSee('Pengaturan Suara Announcer')
+            ->assertSee('Mbak Google')
+            ->assertSee('Microsoft Gadis')
+            ->assertSee('Microsoft Ardi');
+    }
+
+    public function test_cashier_can_save_announcer_settings(): void
+    {
+        $user = User::factory()->create();
+
+        $payload = [
+            'voice_model' => 'ms_ardi',
+            'template_type' => 'airport',
+            'custom_template' => '',
+            'chime_style' => 'airport',
+            'rate' => 0.95,
+            'pitch' => 1.05,
+            'duck_volume' => 15,
+        ];
+
+        $response = $this->actingAs($user)
+            ->post(route('kasir.announcer.save'), $payload);
+
+        $response->assertRedirect(route('kasir.announcer.settings'))
+            ->assertSessionHas('success');
+
+        $saved = Cache::get('soundstation_voice_settings');
+        $this->assertNotNull($saved);
+        $this->assertEquals('ms_ardi', $saved['voice_model']);
+        $this->assertEquals('airport', $saved['template_type']);
+        $this->assertEquals('airport', $saved['chime_style']);
+    }
+
+    public function test_cashier_can_fetch_announcer_settings_json(): void
+    {
+        $user = User::factory()->create();
+
+        Cache::put('soundstation_voice_settings', [
+            'voice_model' => 'ms_gadis',
+            'template_type' => 'formal',
+            'custom_template' => '',
+            'chime_style' => 'bell',
+            'rate' => 1.0,
+            'pitch' => 1.0,
+            'duck_volume' => 10,
+        ]);
+
+        $response = $this->actingAs($user)
+            ->getJson(route('kasir.announcer.json'));
+
+        $response->assertOk()
+            ->assertJsonPath('settings.voice_model', 'ms_gadis')
+            ->assertJsonPath('settings.template_type', 'formal')
+            ->assertJsonPath('settings.chime_style', 'bell');
+    }
 }

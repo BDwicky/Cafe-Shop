@@ -151,6 +151,15 @@
                         </button>
                     </div>
 
+                    <!-- 7. Pengaturan Suara Announcer -->
+                    <a href="{{ route('kasir.announcer.settings') }}"
+                       class="flex items-center gap-3 px-3.5 py-2.5 rounded-none border text-xs font-mono tracking-wider uppercase transition-colors {{ request()->routeIs('kasir.announcer.*') ? 'bg-[#D9973E] text-[#1F1812] border-[#D9973E] font-bold shadow-md' : 'text-[#A89A85] border-transparent hover:bg-[#2A211A] hover:border-[#3A3026] hover:text-[#F7F3EC]' }}">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z"/>
+                        </svg>
+                        <span>Suara Announcer</span>
+                    </a>
+
                     <div class="pt-3 pb-1 border-t border-[#3A3026]/70 mt-3">
                         <a href="{{ route('landing') }}" target="_blank"
                            class="flex items-center justify-between px-3.5 py-2.5 text-[11px] font-mono tracking-wider uppercase text-[#A89A85] hover:text-[#D9973E] hover:bg-[#2A211A] transition-colors">

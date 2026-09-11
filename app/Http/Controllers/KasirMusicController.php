@@ -790,4 +790,80 @@ class KasirMusicController extends Controller
 
         abort(502, 'Gagal mengambil audio Google TTS.');
     }
+
+    /**
+     * Konfigurasi bawaan untuk suara announcer.
+     */
+    public static function getDefaultAnnouncerSettings(): array
+    {
+        return [
+            'voice_model' => 'mbak_google', // mbak_google, ms_gadis, ms_ardi, google_local, english_cafe, device_voice
+            'device_voice_name' => '',
+            'template_type' => 'concise', // concise, formal, airport, english, custom
+            'custom_template' => 'Pesanan Kak {name}, siap diambil di kasir.',
+            'chime_style' => 'ding_dong', // ding_dong, airport, bell, none
+            'rate' => 1.0,
+            'pitch' => 1.05,
+            'duck_volume' => 12,
+        ];
+    }
+
+    /**
+     * Halaman Pengaturan Suara & Aksen Announcer Kasir.
+     */
+    public function announcerSettings(Request $request): View
+    {
+        $settings = array_merge(
+            self::getDefaultAnnouncerSettings(),
+            Cache::get('soundstation_voice_settings', [])
+        );
+
+        return view('kasir.announcer-settings', compact('settings'));
+    }
+
+    /**
+     * Simpan Pengaturan Suara & Aksen Announcer.
+     */
+    public function saveAnnouncerSettings(Request $request): JsonResponse|RedirectResponse
+    {
+        $validated = $request->validate([
+            'voice_model' => ['required', 'string', 'in:mbak_google,ms_gadis,ms_ardi,google_local,english_cafe,device_voice'],
+            'device_voice_name' => ['nullable', 'string', 'max:150'],
+            'template_type' => ['required', 'string', 'in:concise,formal,airport,english,custom'],
+            'custom_template' => ['nullable', 'string', 'max:250'],
+            'chime_style' => ['required', 'string', 'in:ding_dong,airport,bell,none'],
+            'rate' => ['required', 'numeric', 'min:0.5', 'max:1.5'],
+            'pitch' => ['required', 'numeric', 'min:0.5', 'max:1.5'],
+            'duck_volume' => ['nullable', 'integer', 'min:0', 'max:50'],
+        ]);
+
+        $settings = array_merge(self::getDefaultAnnouncerSettings(), $validated);
+        Cache::forever('soundstation_voice_settings', $settings);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Pengaturan suara announcer berhasil disimpan.',
+                'settings' => $settings,
+            ]);
+        }
+
+        return redirect()->route('kasir.announcer.settings')->with('success', 'Pengaturan suara announcer berhasil disimpan.');
+    }
+
+    /**
+     * Ambil pengaturan suara announcer aktif dalam format JSON.
+     */
+    public function announcerSettingsJson(): JsonResponse
+    {
+        $settings = array_merge(
+            self::getDefaultAnnouncerSettings(),
+            Cache::get('soundstation_voice_settings', [])
+        );
+
+        return response()->json([
+            'success' => true,
+            'settings' => $settings,
+        ]);
+    }
 }
