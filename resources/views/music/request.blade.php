@@ -285,7 +285,23 @@
         },
 
         async submitSong() {
-            // Jika user langsung klik submit padahal baru mengetik link dan belum sempat auto-search
+            // 1. Pastikan kode sudah divalidasi jika belum
+            if (!this.isValid) {
+                await this.checkCode();
+                if (!this.isValid) {
+                    if (window.customAlert) {
+                        window.customAlert({
+                            title: 'Kode Struk Belum Valid',
+                            message: this.valMessage || 'Harap masukkan kode struk belanja yang valid terlebih dahulu.',
+                            type: 'warning',
+                            btnText: 'Mengerti'
+                        });
+                    }
+                    return;
+                }
+            }
+
+            // 2. Jika user langsung klik submit padahal baru mengetik/menempel link dan belum sempat auto-search
             if (!this.selectedSong && this.query.trim()) {
                 await this.searchOrExtract();
             }
@@ -294,7 +310,7 @@
                 if (window.customAlert) {
                     window.customAlert({
                         title: 'Pilih Lagu Terlebih Dahulu',
-                        message: 'Tempel link YouTube atau pilih rekomendasi lagu sebelum mengirim request.',
+                        message: 'Tempel link video YouTube atau klik salah satu rekomendasi lagu.',
                         type: 'warning',
                         btnText: 'Mengerti'
                     });
@@ -348,6 +364,12 @@
                     this.myPosition = data.queue_position;
                     this.mySong = data.request;
                     this.isOwner = !!data.is_owner;
+                    this.query = '';
+                    this.selectedSong = null;
+                    this.searchError = null;
+                    if (!this.isOwner) {
+                        this.alreadyUsed = true;
+                    }
                     this.fetchStatus();
 
                     if (typeof BroadcastChannel !== 'undefined') {
@@ -480,327 +502,230 @@
             <!-- GRID KIRI: FORM REQUEST & PANDUAN (lg:col-span-7) -->
             <div class="lg:col-span-7 space-y-6">
 
-                <!-- KONDISI: SUDAH BERHASIL SUBMIT REQUEST -->
-                <template x-if="requestSubmitted">
-                    <div class="bg-white border-2 border-[#5F7F42] rounded-2xl p-6 sm:p-8 text-center shadow-xl animate-fade-in space-y-6">
-                        <div class="w-16 h-16 bg-[#5F7F42]/15 text-[#5F7F42] rounded-full mx-auto flex items-center justify-center text-3xl font-bold shadow-inner">
-                            ✓
-                        </div>
-                        <div>
-                            <h2 class="text-2xl sm:text-3xl font-serif font-bold text-[#1F1812]">Lagu Berhasil Masuk Antrean!</h2>
-                            <p class="text-xs sm:text-sm text-[#7A6A58] mt-2 max-w-md mx-auto">
-                                Terima kasih! Request musikmu sudah tercatat dan <b class="text-[#1F1812]">akan otomatis diputar segera setelah lagu saat ini selesai</b>.
-                            </p>
-                        </div>
-
-                        <div class="p-4 bg-[#F7F3EC] border border-[#E0D8CC] rounded-xl text-left flex items-center gap-4">
-                            <img :src="mySong.thumbnail_url" alt="Thumb" class="w-20 h-14 object-cover rounded border border-[#3A3026] shrink-0">
+                <!-- 1. NOTIFIKASI SUKSES SETELAH REQUEST BERHASIL (BANNER ELEGAN & RINGKAS) -->
+                <template x-if="requestSubmitted && mySong">
+                    <div class="p-4 sm:p-5 bg-[#5F7F42]/10 border-2 border-[#5F7F42] rounded-2xl shadow-md animate-fade-in flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div class="flex items-center gap-3.5 min-w-0 flex-1">
+                            <div class="w-11 h-11 rounded-full bg-[#5F7F42] text-white flex items-center justify-center font-bold text-lg shrink-0 shadow-sm">
+                                ✓
+                            </div>
                             <div class="min-w-0 flex-1">
-                                <div class="font-bold text-sm sm:text-base text-[#1F1812] truncate font-serif" x-text="mySong.song_title"></div>
-                                <div class="text-xs text-[#7A6A58] truncate font-mono" x-text="mySong.artist || 'Artis YouTube'"></div>
-                                <div class="font-mono text-xs text-[#5F7F42] font-bold mt-1 flex items-center gap-1.5">
-                                    <span>🎵 Urutan Antrean:</span>
-                                    <span class="px-2 py-0.5 bg-[#5F7F42]/15 rounded border border-[#5F7F42]/30" x-text="'Ke-' + myPosition"></span>
+                                <div class="font-serif font-bold text-base text-[#1F1812] leading-tight flex items-center gap-2">
+                                    <span>Lagu Berhasil Masuk Antrean!</span>
+                                    <span class="px-2 py-0.5 bg-[#5F7F42] text-white font-mono text-[10px] rounded font-bold"
+                                          x-text="'Urutan #' + myPosition"></span>
+                                </div>
+                                <div class="text-xs text-[#5C4D3C] mt-1 truncate">
+                                    <b class="text-[#1F1812]" x-text="mySong.song_title"></b>
+                                    <span class="text-[#8C7D6B]" x-text="' &bull; ' + (mySong.artist || 'YouTube')"></span>
                                 </div>
                             </div>
                         </div>
-
-                        <div class="flex flex-col sm:flex-row gap-3 justify-center pt-2">
-                            <a href="{{ route('music.display') }}" target="_blank"
-                               class="px-5 py-3 bg-[#1F1812] text-[#F7F3EC] font-mono text-xs uppercase tracking-wider hover:bg-[#D9973E] hover:text-[#1F1812] transition rounded-xl font-bold shadow-sm">
-                                Lihat Layar Display TV Musik Kafe ›
-                            </a>
-                            <a href="{{ route('menu.public') }}"
-                               class="px-5 py-3 border border-[#3A3026] text-[#1F1812] font-mono text-xs uppercase tracking-wider hover:bg-[#F7F3EC] transition rounded-xl font-semibold">
-                                Lihat Menu Kafe
-                            </a>
-                        </div>
-
-                        <!-- Tombol Mode VIP Owner: Request Lagu Lagi Tanpa Batas -->
                         <template x-if="isOwner">
-                            <div class="pt-5 border-t border-[#D5CCC0]/60">
-                                <button type="button"
-                                        @click="requestSubmitted = false; selectedSong = null; query = '';"
-                                        class="w-full sm:w-auto px-6 py-3 bg-[#D9973E] hover:bg-[#B5762A] text-[#1F1812] hover:text-white font-mono text-xs uppercase tracking-widest font-bold transition rounded-xl shadow-md flex items-center justify-center gap-2 mx-auto cursor-pointer">
-                                    <span>👑</span>
-                                    <span>+ Request Lagu Lainnya (Akses Owner Unlimited)</span>
-                                </button>
-                            </div>
+                            <span class="font-mono text-[10px] font-bold text-[#D9973E] bg-[#D9973E]/15 border border-[#D9973E]/30 px-2.5 py-1 rounded-lg shrink-0">
+                                👑 Mode Owner (Bebas Tambah)
+                            </span>
                         </template>
                     </div>
                 </template>
 
-                <!-- FORM UTAMA REQUEST MUSIK -->
-                <template x-if="!requestSubmitted">
-                    <div class="space-y-6">
-
-                        <!-- LANGKAH 1: VALIDASI KODE STRUK BELANJA -->
-                        <section class="bg-white border border-[#E5DDD0] rounded-2xl p-5 sm:p-7 shadow-md relative">
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#A89A85] font-bold">LANGKAH 1 DARI 2</span>
-                                <span class="text-xs font-mono font-bold"
-                                      :class="isOwner ? 'text-[#D9973E] flex items-center gap-1' : 'text-[#7A6A58]'">
-                                    <template x-if="isOwner">
-                                        <span>👑 AKSES OWNER: UNLIMITED REQUEST</span>
-                                    </template>
-                                    <template x-if="!isOwner">
-                                        <span>1 Struk Belanja = 1 Lagu</span>
-                                    </template>
-                                </span>
-                            </div>
-
-                            <h2 class="text-lg sm:text-xl font-serif font-bold text-[#1F1812] mb-1">
-                                Masukkan Kode dari Struk Belanja
-                            </h2>
-                            <p class="text-xs text-[#7A6A58] mb-4 leading-relaxed">
-                                Lihat kode transaksi bertuliskan <span class="font-mono font-bold text-[#D9973E] bg-[#D9973E]/10 px-1.5 py-0.5 rounded">KODE: MK-XXXXXX</span> di bagian bawah struk belanja kafe Anda.
+                <!-- 2. KONDISI PELANGGAN BIASA: STRUK SUDAH TERPAKAI (1 STRUK = 1 LAGU) -->
+                <template x-if="alreadyUsed && !isOwner">
+                    <div class="bg-white border border-[#E5DDD0] rounded-2xl p-6 sm:p-8 text-center shadow-md space-y-4">
+                        <div class="w-14 h-14 bg-[#D9973E]/15 text-[#D9973E] rounded-full mx-auto flex items-center justify-center text-2xl font-bold">
+                            🎟️
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-serif font-bold text-[#1F1812]">Struk Transaksi Sudah Digunakan</h2>
+                            <p class="text-xs text-[#7A6A58] mt-1.5 max-w-md mx-auto leading-relaxed">
+                                Setiap 1 transaksi kafe berhak atas 1 request lagu. Request lagu Anda sedang mengantre dan akan otomatis diputar di speaker kafe!
                             </p>
+                        </div>
 
-                            <div class="flex flex-col sm:flex-row gap-2.5">
-                                <div class="relative flex-1">
-                                    <input type="text"
-                                           x-model="code"
-                                           @keydown.enter.prevent="checkCode()"
-                                           placeholder="Contoh: MK-7A8B9C"
-                                           class="w-full px-4 py-3 bg-[#FAF7F2] border border-[#D5CCC0] rounded-xl text-sm font-mono uppercase tracking-widest text-[#1F1812] focus:outline-none focus:border-[#D9973E] focus:ring-2 focus:ring-[#D9973E]/20 transition shadow-inner font-semibold"
-                                           :disabled="isValid">
-                                    <template x-if="isValid">
-                                        <span class="absolute right-3.5 top-3.5 text-xs text-[#5F7F42] font-mono font-bold flex items-center gap-1">
-                                            <span>✓</span>
-                                            <span>Valid</span>
-                                        </span>
-                                    </template>
+                        <div class="pt-2 flex flex-col sm:flex-row gap-2.5 justify-center">
+                            <a href="{{ route('music.display') }}" target="_blank"
+                               class="px-5 py-2.5 bg-[#1F1812] hover:bg-[#D9973E] text-[#F7F3EC] hover:text-[#1F1812] font-mono text-xs uppercase tracking-wider font-bold rounded-xl transition shadow-xs">
+                                Lihat Layar TV Musik ›
+                            </a>
+                            <button type="button"
+                                    @click="code = ''; isValid = false; alreadyUsed = false; valMessage = ''; requestSubmitted = false;"
+                                    class="px-5 py-2.5 border border-[#D5CCC0] hover:bg-[#FAF7F2] text-[#1F1812] font-mono text-xs uppercase tracking-wider font-semibold rounded-xl transition cursor-pointer">
+                                Punya Struk Lain? Masukkan Kode
+                            </button>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- 3. FORM UTAMA REQUEST MUSIK: 1 KARTU TUNGGAL TANPA TAHAP BERBELIT (TAMPIL JIKA BELUM TERPAKAI ATAU OWNER) -->
+                <template x-if="!alreadyUsed || isOwner">
+                    <div class="bg-white border border-[#E5DDD0] rounded-2xl p-5 sm:p-7 shadow-md space-y-5">
+                        <div class="flex items-center justify-between border-b border-[#E5DDD0] pb-3.5">
+                            <div>
+                                <h2 class="text-lg sm:text-xl font-serif font-bold text-[#1F1812]">
+                                    Form Request Musik Kafe
+                                </h2>
+                                <p class="text-xs text-[#7A6A58] mt-0.5">
+                                    Masukkan kode struk dan tempel link YouTube. Lagu otomatis masuk antrean tanpa perlu ketik judul.
+                                </p>
+                            </div>
+                            <template x-if="isOwner">
+                                <span class="font-mono text-[10px] uppercase font-bold text-[#D9973E] bg-[#D9973E]/10 border border-[#D9973E]/30 px-2.5 py-1 rounded-full shrink-0">
+                                    👑 AKSES OWNER: UNLIMITED REQUEST
+                                </span>
+                            </template>
+                        </div>
+
+                        <!-- INPUT 1: KODE STRUK BELANJA -->
+                        <div class="space-y-1.5">
+                            <div class="flex items-center justify-between">
+                                <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-semibold">
+                                    Kode Struk Belanja Kafe:
+                                </label>
+                                <template x-if="isValid">
+                                    <span class="text-xs text-[#5F7F42] font-mono font-bold flex items-center gap-1">
+                                        <span>✓</span>
+                                        <span x-text="isOwner ? '👑 Owner' : 'Terverifikasi'"></span>
+                                    </span>
+                                </template>
+                            </div>
+                            <div class="relative">
+                                <input type="text"
+                                       x-model="code"
+                                       @input.debounce.500ms="checkCode()"
+                                       placeholder="Contoh: MK-7A8B9C (lihat di bagian bawah struk belanja)"
+                                       class="w-full px-4 py-3 bg-[#FAF7F2] border rounded-xl text-sm font-mono uppercase tracking-widest text-[#1F1812] focus:outline-none focus:ring-2 transition shadow-inner font-semibold"
+                                       :class="isValid ? 'border-[#5F7F42] focus:border-[#5F7F42] focus:ring-[#5F7F42]/20' : 'border-[#D5CCC0] focus:border-[#D9973E] focus:ring-[#D9973E]/20'">
+                                <template x-if="code && !validating">
+                                    <button type="button"
+                                            @click="code = ''; isValid = false; isOwner = false; valMessage = '';"
+                                            class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-600 text-sm cursor-pointer">
+                                        ✕
+                                    </button>
+                                </template>
+                                <template x-if="validating">
+                                    <span class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-xs text-[#D9973E] font-mono animate-spin">
+                                        ⟳
+                                    </span>
+                                </template>
+                            </div>
+                            <div x-show="valMessage && !isValid" class="text-xs text-red-600 font-mono mt-1" x-text="valMessage"></div>
+                        </div>
+
+                        <!-- INPUT 2: LINK YOUTUBE (DETEKSI OTOMATIS TANPA TOMBOL "CEK LAGU") -->
+                        <div class="space-y-1.5 pt-1">
+                            <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-semibold">
+                                Tautan Link Video YouTube:
+                            </label>
+                            <div class="relative">
+                                <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-red-600 font-bold">
+                                    <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                                    </svg>
                                 </div>
-
+                                <input type="text"
+                                       x-model="query"
+                                       @input.debounce.400ms="onQueryInput()"
+                                       @paste="setTimeout(() => onQueryInput(), 50)"
+                                       placeholder="Tempel link YouTube (contoh: https://youtu.be/...)"
+                                       class="w-full pl-11 pr-10 py-3 bg-[#FAF7F2] border border-[#D5CCC0] rounded-xl text-sm text-[#1F1812] focus:outline-none focus:border-[#D9973E] focus:ring-2 focus:ring-[#D9973E]/20 transition shadow-inner">
                                 <button type="button"
-                                        @click="isValid ? (isValid = false, isOwner = false, code = '') : checkCode()"
-                                        class="px-6 py-3 font-mono text-xs uppercase tracking-wider transition font-bold rounded-xl shadow-sm flex items-center justify-center gap-2 cursor-pointer active:scale-98"
-                                        :class="isValid ? 'bg-[#7A6A58] text-white hover:bg-[#5C4D3C]' : 'bg-[#1F1812] text-[#F7F3EC] hover:bg-[#D9973E] hover:text-[#1F1812]'">
-                                    <span x-show="validating" class="animate-spin">⟳</span>
-                                    <span x-show="validating">Memeriksa...</span>
-                                    <span x-show="!validating && !isValid">Gunakan Kode</span>
-                                    <span x-show="!validating && isValid">Ganti Kode</span>
+                                        x-show="query"
+                                        @click="query = ''; selectedSong = null; searchError = null;"
+                                        class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-600 text-sm cursor-pointer">
+                                    ✕
                                 </button>
                             </div>
 
-                            <!-- FEEDBACK VALIDASI KODE -->
-                            <div class="mt-3.5 text-xs" x-show="valMessage">
-                                <!-- Banner VIP Mode Owner -->
-                                <div x-show="isValid && isOwner" class="p-3.5 bg-gradient-to-r from-[#D9973E]/20 to-[#D9973E]/10 border border-[#D9973E] rounded-xl text-[#1F1812] flex items-center gap-3">
-                                    <span class="text-2xl">👑</span>
-                                    <div>
-                                        <div class="font-bold text-[#B5762A] uppercase tracking-wider text-[11px] font-mono">Mode Akses Owner Terverifikasi</div>
-                                        <div class="text-xs font-medium text-[#1F1812] mt-0.5" x-text="valMessage"></div>
-                                    </div>
-                                </div>
-
-                                <!-- Banner Pelanggan Normal -->
-                                <div x-show="isValid && !isOwner" class="p-3 bg-[#5F7F42]/10 border border-[#5F7F42]/40 rounded-xl text-[#5F7F42] flex items-center gap-2 font-medium">
-                                    <span class="font-bold text-base">✓</span>
-                                    <span x-text="valMessage"></span>
-                                </div>
-
-                                <!-- Banner Error / Sudah Digunakan -->
-                                <div x-show="!isValid && valMessage" class="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 flex items-start gap-2">
-                                    <span class="font-bold text-base leading-none">✕</span>
-                                    <div>
-                                        <span class="font-semibold" x-text="valMessage"></span>
-                                        <template x-if="alreadyUsed">
-                                            <div class="mt-1 text-[11px] text-red-600">
-                                                Setiap transaksi kafe berhak atas 1 request lagu. Ingin request lagu lagi? Silakan pesan kopi atau camilan berikutnya di kasir!
-                                            </div>
-                                        </template>
-                                    </div>
-                                </div>
+                            <!-- Live scanning indicator -->
+                            <div x-show="searching" class="p-2.5 bg-[#D9973E]/10 border border-[#D9973E]/30 rounded-xl text-xs font-mono text-[#D9973E] flex items-center gap-2 animate-pulse">
+                                <span class="animate-spin text-sm">⟳</span>
+                                <span>Mendeteksi judul, artis & durasi lagu YouTube...</span>
                             </div>
-                        </section>
+                            <div x-show="searchError" class="p-2.5 bg-red-50 border border-red-200 rounded-xl text-xs font-mono text-red-700" x-text="searchError"></div>
 
-                        <!-- LANGKAH 2: INPUT LINK YOUTUBE (TANPA FIELD JUDUL) -->
-                        <section class="bg-white border border-[#E5DDD0] rounded-2xl p-5 sm:p-7 shadow-md transition"
-                                 :class="{ 'opacity-40 pointer-events-none select-none grayscale-20': !isValid }">
-
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#A89A85] font-bold">LANGKAH 2 DARI 2</span>
-                                <span class="text-xs font-mono font-bold text-[#5F7F42] flex items-center gap-1" x-show="isValid">
-                                    <span>✓</span>
-                                    <span>Siap Me-request</span>
+                            <!-- REKOMENDASI CEPAT 1-KLIK -->
+                            <div class="pt-2">
+                                <span class="block font-mono text-[10px] uppercase tracking-wider text-[#A89A85] mb-1.5 font-bold">
+                                    Atau pilih lagu santai kafe sekali klik:
                                 </span>
-                            </div>
-
-                            <h2 class="text-lg sm:text-xl font-serif font-bold text-[#1F1812] mb-1">
-                                Tempel Tautan Link Video YouTube
-                            </h2>
-                            <p class="text-xs text-[#7A6A58] mb-4 leading-relaxed">
-                                Cukup tempelkan link video YouTube. <b>Judul lagu, nama artis, dan durasi otomatis terdeteksi</b> tanpa perlu mengetik judul secara manual!
-                            </p>
-
-                            <!-- SMART YOUTUBE SEARCH / LINK INPUT (ZERO TITLE REQUIRED) -->
-                            <div class="space-y-3">
-                                <div class="flex flex-col sm:flex-row gap-2">
-                                    <div class="relative flex-1">
-                                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-red-600 font-bold">
-                                            <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                                                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-                                            </svg>
-                                        </div>
-                                        <input type="text"
-                                               x-model="query"
-                                               @input.debounce.500ms="onQueryInput()"
-                                               @paste="setTimeout(() => onQueryInput(), 60)"
-                                               @keydown.enter.prevent="searchOrExtract()"
-                                               placeholder="Tempel link YouTube (contoh: https://youtu.be/...)"
-                                               class="w-full pl-11 pr-10 py-3 bg-[#FAF7F2] border border-[#D5CCC0] rounded-xl text-sm text-[#1F1812] focus:outline-none focus:border-[#D9973E] focus:ring-2 focus:ring-[#D9973E]/20 transition shadow-inner">
-                                        
-                                        <button type="button"
-                                                x-show="query"
-                                                @click="query = ''; selectedSong = null; searchError = null;"
-                                                class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-600 text-sm cursor-pointer">
-                                            ✕
-                                        </button>
-                                    </div>
-
-                                    <button type="button"
-                                            @click="searchOrExtract()"
-                                            :disabled="searching || !query.trim()"
-                                            class="px-5 py-3 bg-[#1F1812] text-[#F7F3EC] font-mono text-xs uppercase tracking-wider hover:bg-[#D9973E] hover:text-[#1F1812] font-bold rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer shadow-sm">
-                                        <span x-show="searching" class="animate-spin text-sm">⟳</span>
-                                        <span x-text="searching ? 'Mendeteksi...' : 'Cek Lagu'"></span>
-                                    </button>
-                                </div>
-
-                                <!-- LIVE SCANNING INDICATOR -->
-                                <div x-show="searching" class="p-3 bg-[#D9973E]/10 border border-[#D9973E]/30 rounded-xl text-xs font-mono text-[#D9973E] flex items-center gap-2 animate-pulse">
-                                    <span class="animate-spin text-sm">⟳</span>
-                                    <span>Sedang mengambil judul, artis, dan durasi otomatis dari YouTube...</span>
-                                </div>
-
-                                <!-- ERROR MESSAGE -->
-                                <div x-show="searchError" class="p-3 bg-red-50 border border-red-200 rounded-xl text-xs font-mono text-red-700 flex items-center gap-2" x-text="searchError"></div>
-                            </div>
-
-                            <!-- 1-TAP CAFE RECOMMENDATIONS (PRESET CHIPS) -->
-                            <div class="mt-4 pt-4 border-t border-[#E5DDD0]">
-                                <span class="block font-mono text-[10px] uppercase tracking-wider text-[#A89A85] mb-2 font-bold">
-                                    Rekomendasi Cepat Suasana Santai Kafe:
-                                </span>
-                                <div class="flex flex-wrap gap-2">
+                                <div class="flex flex-wrap gap-1.5">
                                     <button type="button" @click="selectPreset('Until I Found You', 'Stephen Sanchez', 'GxldQ9GyXfk', 177, '02:57')"
-                                            class="px-3 py-1.5 bg-[#FAF7F2] hover:bg-[#D9973E]/15 hover:border-[#D9973E] border border-[#D5CCC0] rounded-lg text-xs text-[#1F1812] transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95">
+                                            class="px-2.5 py-1 bg-[#FAF7F2] hover:bg-[#D9973E]/15 hover:border-[#D9973E] border border-[#D5CCC0] rounded-lg text-xs text-[#1F1812] transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95">
                                         <span>☕ Until I Found You</span>
                                         <span class="font-mono text-[10px] text-[#7A6A58]">(02:57)</span>
                                     </button>
                                     <button type="button" @click="selectPreset('Golden Hour', 'JVKE', 'PEM0Vs8jf1w', 209, '03:29')"
-                                            class="px-3 py-1.5 bg-[#FAF7F2] hover:bg-[#D9973E]/15 hover:border-[#D9973E] border border-[#D5CCC0] rounded-lg text-xs text-[#1F1812] transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95">
+                                            class="px-2.5 py-1 bg-[#FAF7F2] hover:bg-[#D9973E]/15 hover:border-[#D9973E] border border-[#D5CCC0] rounded-lg text-xs text-[#1F1812] transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95">
                                         <span>🌅 Golden Hour</span>
                                         <span class="font-mono text-[10px] text-[#7A6A58]">(03:29)</span>
                                     </button>
                                     <button type="button" @click="selectPreset('Sialan', 'Adrian Khalif & Juicy Luicy', 'fG4-oP4e0pQ', 238, '03:58')"
-                                            class="px-3 py-1.5 bg-[#FAF7F2] hover:bg-[#D9973E]/15 hover:border-[#D9973E] border border-[#D5CCC0] rounded-lg text-xs text-[#1F1812] transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95">
-                                        <span>📻 Sialan - Juicy Luicy</span>
+                                            class="px-2.5 py-1 bg-[#FAF7F2] hover:bg-[#D9973E]/15 hover:border-[#D9973E] border border-[#D5CCC0] rounded-lg text-xs text-[#1F1812] transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95">
+                                        <span>📻 Sialan</span>
                                         <span class="font-mono text-[10px] text-[#7A6A58]">(03:58)</span>
                                     </button>
                                     <button type="button" @click="selectPreset('Fly Me to the Moon', 'Frank Sinatra', 'ZEcqHA7dbwM', 147, '02:27')"
-                                            class="px-3 py-1.5 bg-[#FAF7F2] hover:bg-[#D9973E]/15 hover:border-[#D9973E] border border-[#D5CCC0] rounded-lg text-xs text-[#1F1812] transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95">
+                                            class="px-2.5 py-1 bg-[#FAF7F2] hover:bg-[#D9973E]/15 hover:border-[#D9973E] border border-[#D5CCC0] rounded-lg text-xs text-[#1F1812] transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95">
                                         <span>🎷 Fly Me to the Moon</span>
                                         <span class="font-mono text-[10px] text-[#7A6A58]">(02:27)</span>
                                     </button>
                                 </div>
                             </div>
 
-                            <!-- LIVE SONG PREVIEW CARD (NO TITLE TYPING NEEDED!) -->
+                            <!-- PREVIEW LAGU OTOMATIS -->
                             <template x-if="selectedSong">
-                                <div class="mt-5 p-4 sm:p-5 bg-gradient-to-br from-[#FAF7F2] to-[#F2EDE4] border-2 rounded-2xl shadow-md transition-all animate-fade-in"
+                                <div class="mt-3 p-3.5 bg-gradient-to-br from-[#FAF7F2] to-[#F2EDE4] border rounded-xl animate-fade-in"
                                      :class="selectedSong.is_valid_duration ? 'border-[#D9973E]' : 'border-red-500 bg-red-50/50'">
-
-                                    <!-- Card Header Indicator -->
-                                    <div class="flex items-center justify-between mb-3">
-                                        <span class="font-mono text-[10px] uppercase tracking-[0.2em] font-bold"
-                                              :class="selectedSong.is_valid_duration ? 'text-[#D9973E]' : 'text-red-600'">
-                                            LAGU TERDETEKSI DARI YOUTUBE:
-                                        </span>
-                                        <!-- Duration Badge -->
-                                        <template x-if="selectedSong.duration_formatted && selectedSong.duration_formatted !== '--:--'">
-                                            <span class="font-mono text-[10px] px-2.5 py-0.5 rounded-full border font-bold"
-                                                  :class="selectedSong.is_valid_duration
-                                                    ? 'bg-[#5F7F42]/15 text-[#5F7F42] border-[#5F7F42]/30'
-                                                    : 'bg-red-100 text-red-700 border-red-300'">
-                                                ⏱️ <span x-text="selectedSong.duration_formatted"></span>
-                                            </span>
-                                        </template>
-                                    </div>
-
-                                    <!-- Visual Preview: Thumbnail, Auto-Detected Title, Auto-Detected Artist -->
-                                    <div class="flex items-center gap-3.5 sm:gap-4">
-                                        <div class="relative w-24 h-16 sm:w-28 sm:h-18 rounded-lg overflow-hidden border border-[#3A3026] shrink-0 shadow-sm bg-black">
+                                    <div class="flex items-center gap-3">
+                                        <div class="relative w-20 h-14 rounded-lg overflow-hidden border border-[#3A3026] shrink-0 shadow-xs bg-black">
                                             <img :src="selectedSong.thumbnail_url" alt="Thumb" class="w-full h-full object-cover">
-                                            <div class="absolute inset-0 bg-black/20 flex items-center justify-center">
-                                                <span class="w-6 h-6 rounded-full bg-red-600 text-white flex items-center justify-center text-[10px] pl-0.5 shadow">▶</span>
-                                            </div>
                                         </div>
                                         <div class="min-w-0 flex-1">
-                                            <h3 class="font-serif font-bold text-sm sm:text-base text-[#1F1812] truncate leading-tight"
-                                                x-text="selectedSong.title"></h3>
-                                            <p class="text-xs text-[#7A6A58] truncate font-mono mt-0.5"
-                                               x-text="selectedSong.artist || 'Channel YouTube'"></p>
-                                            <div class="mt-1 flex items-center gap-1.5 font-mono text-[10px]">
-                                                <template x-if="selectedSong.is_valid_duration">
-                                                    <span class="text-[#5F7F42] font-semibold flex items-center gap-1">
-                                                        <span>✓</span>
-                                                        <span>Durasi Cocok (Maks. 7 Menit)</span>
-                                                    </span>
-                                                </template>
+                                            <div class="font-serif font-bold text-sm text-[#1F1812] truncate leading-tight"
+                                                 x-text="selectedSong.title"></div>
+                                            <div class="text-xs text-[#7A6A58] truncate font-mono mt-0.5"
+                                                 x-text="selectedSong.artist || 'YouTube Video'"></div>
+                                            <div class="mt-1 flex items-center gap-2 font-mono text-[10px]">
+                                                <span class="font-bold"
+                                                      :class="selectedSong.is_valid_duration ? 'text-[#5F7F42]' : 'text-red-600'"
+                                                      x-text="'⏱️ ' + selectedSong.duration_formatted"></span>
                                                 <template x-if="!selectedSong.is_valid_duration">
-                                                    <span class="text-red-600 font-bold">⚠️ Melebihi Batas Durasi</span>
+                                                    <span class="text-red-600 font-bold">⚠️ Melebihi batas 7 menit</span>
                                                 </template>
                                             </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- PERINGATAN JIKA MELEBIHI BATAS DURASI 7 MENIT -->
-                                    <template x-if="selectedSong.is_valid_duration === false">
-                                        <div class="mt-3.5 p-3 bg-red-50 border border-red-200 text-xs text-red-700 rounded-xl flex items-start gap-2">
-                                            <span class="text-base font-bold leading-none">⚠️</span>
-                                            <div>
-                                                <div class="font-bold">Lagu Tidak Dapat Diputar (Durasi Melebihi Batas)</div>
-                                                <div class="mt-0.5 text-[11px] leading-relaxed"
-                                                     x-text="selectedSong.duration_error || 'Durasi lagu ini melebihi batas maksimal 7 menit. Silakan pilih lagu lain agar seluruh pengunjung kebagian giliran.'"></div>
-                                            </div>
-                                        </div>
-                                    </template>
-
-                                    <!-- INPUT NAMA / NOMOR MEJA (OPSIONAL) -->
-                                    <div class="mt-4 pt-4 border-t border-[#D5CCC0]">
-                                        <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] mb-1 font-semibold">
-                                            Nama Kamu atau Nomor Meja (Opsional):
-                                        </label>
-                                        <input type="text"
-                                               x-model="customerName"
-                                               placeholder="Contoh: Budi (Meja 04)"
-                                               maxlength="100"
-                                               class="w-full px-3.5 py-2.5 bg-white border border-[#D5CCC0] rounded-xl text-sm text-[#1F1812] focus:outline-none focus:border-[#D9973E] focus:ring-2 focus:ring-[#D9973E]/20 transition shadow-inner">
-                                    </div>
-
-                                    <!-- TOMBOL SUBMIT REQUEST -->
-                                    <div class="mt-4 pt-1">
-                                        <button type="button"
-                                                @click="submitSong()"
-                                                :disabled="submitting || selectedSong.is_valid_duration === false"
-                                                class="w-full py-3.5 bg-[#1F1812] text-[#F7F3EC] font-mono text-xs uppercase tracking-widest font-bold rounded-xl transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed hover:enabled:bg-[#D9973E] hover:enabled:text-[#1F1812] flex items-center justify-center gap-2 cursor-pointer active:scale-98">
-                                            <span x-show="submitting" class="animate-spin text-sm">⟳</span>
-                                            <span x-show="submitting">Memproses Request...</span>
-                                            <span x-show="!submitting && selectedSong.is_valid_duration !== false && isOwner">👑 Masukkan ke Antrean (Akses Owner Unlimited) ›</span>
-                                            <span x-show="!submitting && selectedSong.is_valid_duration !== false && !isOwner">♫ Masukkan ke Antrean Pemutar Kafe ›</span>
-                                            <span x-show="!submitting && selectedSong.is_valid_duration === false">⛔ Durasi Melebihi Batas (Maks. 7 Menit)</span>
-                                        </button>
-                                        <div class="text-center font-mono text-[10px] text-[#7A6A58] mt-2">
-                                            * Lagu diputar otomatis bergiliran di speaker kafe segera setelah lagu saat ini selesai.
                                         </div>
                                     </div>
                                 </div>
                             </template>
+                        </div>
 
-                        </section>
+                        <!-- INPUT 3: NAMA / NOMOR MEJA (OPSIONAL) -->
+                        <div class="space-y-1.5 pt-1">
+                            <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-semibold">
+                                Nama Kamu atau Nomor Meja (Opsional):
+                            </label>
+                            <input type="text"
+                                   x-model="customerName"
+                                   placeholder="Contoh: Budi (Meja 04)"
+                                   maxlength="100"
+                                   class="w-full px-4 py-2.5 bg-[#FAF7F2] border border-[#D5CCC0] rounded-xl text-sm text-[#1F1812] focus:outline-none focus:border-[#D9973E] focus:ring-2 focus:ring-[#D9973E]/20 transition shadow-inner">
+                        </div>
 
+                        <!-- TOMBOL SUBMIT UTAMA (1 KLIK LANGSUNG MASUK ANTREAN) -->
+                        <div class="pt-2">
+                            <button type="button"
+                                    @click="submitSong()"
+                                    :disabled="submitting || (selectedSong && selectedSong.is_valid_duration === false)"
+                                    class="w-full py-3.5 bg-[#1F1812] hover:bg-[#D9973E] text-[#F7F3EC] hover:text-[#1F1812] font-mono text-xs uppercase tracking-widest font-bold rounded-xl transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer active:scale-98">
+                                <span x-show="submitting" class="animate-spin text-sm">⟳</span>
+                                <span x-show="submitting">Memproses Request...</span>
+                                <span x-show="!submitting && isOwner">👑 Masukkan ke Antrean (Akses Owner Unlimited) ›</span>
+                                <span x-show="!submitting && !isOwner">♫ Kirim Request ke Pemutar Kafe ›</span>
+                            </button>
+                            <div class="text-center font-mono text-[10px] text-[#7A6A58] mt-2">
+                                * Lagu berputar otomatis bergiliran di speaker kafe segera setelah lagu saat ini selesai.
+                            </div>
+                        </div>
                     </div>
                 </template>
 
@@ -1048,9 +973,14 @@
                     <template x-if="queue.length > 0">
                         <div class="space-y-2 max-h-[380px] overflow-y-auto pr-1">
                             <template x-for="(item, index) in queue" :key="item.id">
-                                <div class="flex items-center justify-between p-3 bg-[#FAF7F2] border border-[#EAE2D5] rounded-xl text-xs hover:border-[#D9973E]/50 transition">
+                                <div class="flex items-center justify-between p-3 rounded-xl text-xs transition"
+                                     :class="(mySong && item.id === mySong.id)
+                                        ? 'bg-[#5F7F42]/10 border-2 border-[#5F7F42] shadow-xs'
+                                        : 'bg-[#FAF7F2] border border-[#EAE2D5] hover:border-[#D9973E]/50'">
                                     <div class="flex items-center gap-3 min-w-0 flex-1">
-                                        <span class="font-mono font-bold text-[#D9973E] w-6 text-center shrink-0" x-text="'#' + (index + 1)"></span>
+                                        <span class="font-mono font-bold w-6 text-center shrink-0"
+                                              :class="(mySong && item.id === mySong.id) ? 'text-[#5F7F42]' : 'text-[#D9973E]'"
+                                              x-text="'#' + (index + 1)"></span>
                                         <div class="min-w-0 flex-1">
                                             <div class="font-medium text-[#1F1812] truncate font-serif" x-text="item.song_title"></div>
                                             <div class="text-[10px] text-[#7A6A58] truncate font-mono mt-0.5 flex items-center gap-1.5">
@@ -1060,9 +990,16 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <span class="font-mono text-[9px] uppercase tracking-wider text-[#5F7F42] bg-[#5F7F42]/10 px-2 py-0.5 border border-[#5F7F42]/20 rounded shrink-0 ml-2">
-                                        Menunggu
-                                    </span>
+                                    <template x-if="mySong && item.id === mySong.id">
+                                        <span class="font-mono text-[9px] uppercase tracking-wider text-white bg-[#5F7F42] px-2 py-0.5 rounded-full font-bold shrink-0 ml-2 animate-pulse shadow-xs">
+                                            ✨ Lagu Kamu
+                                        </span>
+                                    </template>
+                                    <template x-if="!mySong || item.id !== mySong.id">
+                                        <span class="font-mono text-[9px] uppercase tracking-wider text-[#5F7F42] bg-[#5F7F42]/10 px-2 py-0.5 border border-[#5F7F42]/20 rounded shrink-0 ml-2">
+                                            Menunggu
+                                        </span>
+                                    </template>
                                 </div>
                             </template>
                         </div>
