@@ -775,22 +775,22 @@ class KasirMusicController extends Controller
         $clientId = $request->string('client_id')->toString();
         $existingMaster = Cache::get('soundstation_master_host');
 
-        if ($existingMaster && (! empty($clientId) && ($existingMaster['client_id'] ?? null) === $clientId)) {
+        if (! $existingMaster || (! empty($clientId) && ($existingMaster['client_id'] ?? null) === $clientId)) {
             Cache::forget('soundstation_master_host');
-        }
 
-        // Pastikan status playback di cache juga langsung disetel is_playing = false
-        // agar display TV dan remote langsung beralih ke mode jeda/standby
-        $playback = Cache::get('soundstation_playback_state');
-        if (! is_array($playback)) {
-            $playback = [
-                'current_time' => 0,
-                'duration' => 0,
-            ];
+            // Pastikan status playback di cache juga langsung disetel is_playing = false
+            // agar display TV dan remote langsung beralih ke mode jeda/standby
+            $playback = Cache::get('soundstation_playback_state');
+            if (! is_array($playback)) {
+                $playback = [
+                    'current_time' => 0,
+                    'duration' => 0,
+                ];
+            }
+            $playback['is_playing'] = false;
+            $playback['updated_at'] = (int) round(microtime(true) * 1000);
+            Cache::put('soundstation_playback_state', $playback, now()->addHours(8));
         }
-        $playback['is_playing'] = false;
-        $playback['updated_at'] = (int) round(microtime(true) * 1000);
-        Cache::put('soundstation_playback_state', $playback, now()->addHours(8));
 
         return response()->json(['status' => 'released']);
     }

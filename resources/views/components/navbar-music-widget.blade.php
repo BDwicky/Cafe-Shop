@@ -569,9 +569,18 @@ function navbarMusicWidget() {
                 if (pb.current_track) {
                     this.currentTrack = pb.current_track;
                 }
-                this.currentTime = Number(pb.current_time || 0);
+                if (this._isRecoveringFromReload) {
+                    // Pertahankan status playing dan waktu saat reload
+                    this.isPlaying = true;
+                    if (typeof this._reloadedCurrentTime !== 'undefined') {
+                        this.currentTime = this._reloadedCurrentTime;
+                    }
+                    this._isRecoveringFromReload = false;
+                } else {
+                    this.currentTime = Number(pb.current_time || 0);
+                    this.isPlaying = !!pb.is_playing;
+                }
                 this.duration = Number(pb.duration || (this.currentTrack ? (this.currentTrack.duration_seconds || 0) : 0));
-                this.isPlaying = !!pb.is_playing;
                 this.isLive = !!pb.is_live || this.currentTime > 86400 || (this.currentTrack && /live|radio|24\/7/i.test(this.currentTrack.title || ''));
                 this.currentTimeFormatted = this.formatTime(this.currentTime);
                 this.durationFormatted = this.isLive ? 'RADIO 24/7' : this.formatTime(this.duration);
@@ -586,6 +595,12 @@ function navbarMusicWidget() {
         },
 
         async checkInitialMasterState() {
+            // Jika tab ini baru saja direfresh (reload) dan memegang playback, segera klaim ulang sebagai Master Host
+            if (this._isRecoveringFromReload) {
+                this.claimMasterHost(true);
+                return;
+            }
+
             // 1. Cek dulu apakah di browser lokal ada tab master yang sedang aktif
             try {
                 const savedHost = JSON.parse(localStorage.getItem('pos_soundstation_active_host') || '{}');
@@ -750,6 +765,11 @@ function navbarMusicWidget() {
                 }
             }
 
+            if (this.isPlaying) {
+                this.broadcastSync();
+                this.broadcastTimeSync(true);
+            }
+
             if (force && window.customToast) {
                 window.customToast({
                     message: '👑 Pemutar audio berhasil diambil alih ke ' + this.deviceName + '!',
@@ -894,16 +914,38 @@ function navbarMusicWidget() {
         initWidget() {
             window.SoundStation = this;
 
+            // Deteksi apakah tab kasir baru saja di-refresh saat musik sedang berputar
+            let isReloadRecovery = false;
+            try {
+                const reloadIntentRaw = sessionStorage.getItem('pos_soundstation_reload_intent');
+                if (reloadIntentRaw) {
+                    sessionStorage.removeItem('pos_soundstation_reload_intent');
+                    const reloadIntent = JSON.parse(reloadIntentRaw);
+                    // Jika reload terjadi dalam waktu wajar (< 25 detik) dan sebelumnya sedang berputar (playing)
+                    if (reloadIntent && reloadIntent.wasPlaying && (Date.now() - (reloadIntent.timestamp || 0) < 25000)) {
+                        isReloadRecovery = true;
+                        this._isRecoveringFromReload = true;
+                        this.isPlaying = true;
+                        if (reloadIntent.currentTrack) this.currentTrack = reloadIntent.currentTrack;
+                        if (typeof reloadIntent.currentTime !== 'undefined') {
+                            this.currentTime = Number(reloadIntent.currentTime);
+                            this._reloadedCurrentTime = this.currentTime;
+                        }
+                        if (typeof reloadIntent.duration !== 'undefined') this.duration = Number(reloadIntent.duration);
+                    }
+                }
+            } catch (e) {}
+
             // Muat cached playback state segera untuk visual instan
             try {
                 const cachedState = JSON.parse(localStorage.getItem('pos_soundstation_state') || '{}');
-                if (cachedState.currentTrack) this.currentTrack = cachedState.currentTrack;
-                if (typeof cachedState.currentTime !== 'undefined') this.currentTime = cachedState.currentTime;
-                if (typeof cachedState.duration !== 'undefined') this.duration = cachedState.duration;
+                if (!this.currentTrack && cachedState.currentTrack) this.currentTrack = cachedState.currentTrack;
+                if (!isReloadRecovery && typeof cachedState.currentTime !== 'undefined') this.currentTime = cachedState.currentTime;
+                if (!isReloadRecovery && typeof cachedState.duration !== 'undefined') this.duration = cachedState.duration;
                 if (typeof cachedState.progressPercent !== 'undefined') this.progressPercent = cachedState.progressPercent;
                 if (cachedState.currentTimeFormatted) this.currentTimeFormatted = cachedState.currentTimeFormatted;
                 if (cachedState.durationFormatted) this.durationFormatted = cachedState.durationFormatted;
-                if (typeof cachedState.isPlaying !== 'undefined') this.isPlaying = cachedState.isPlaying;
+                if (!isReloadRecovery && typeof cachedState.isPlaying !== 'undefined') this.isPlaying = cachedState.isPlaying;
             } catch (e) {}
 
             // Inisialisasi status master secara cerdas tanpa berebut
@@ -1065,6 +1107,20 @@ function navbarMusicWidget() {
 
             // Simpan state dan informasikan jika tab host ditutup
             window.addEventListener('beforeunload', () => {
+                // Catat reload intent ke sessionStorage.
+                // sessionStorage HANYA bertahan jika halaman di-refresh dalam tab yang sama.
+                // Jika tab atau jendela browser ditutup, browser akan menghapus sessionStorage secara otomatis.
+                try {
+                    sessionStorage.setItem('pos_soundstation_reload_intent', JSON.stringify({
+                        wasPlaying: this.isPlaying,
+                        wasMaster: this.isMasterHost,
+                        currentTime: this.currentTime,
+                        duration: this.duration,
+                        currentTrack: this.currentTrack,
+                        timestamp: Date.now()
+                    }));
+                } catch (e) {}
+
                 if (this.isMasterHost) {
                     try {
                         localStorage.setItem('pos_soundstation_state', JSON.stringify({
@@ -1162,6 +1218,22 @@ function navbarMusicWidget() {
                             }
                         } else {
                             this.playNextTrack();
+                        }
+
+                        // Jaminan audio menyala jika browser membatasi autoplay saat reload
+                        if (this.isPlaying) {
+                            const resumeOnInteraction = () => {
+                                if (this.player && this.playerReady && this.isPlaying) {
+                                    try {
+                                        if (typeof this.player.getPlayerState === 'function' && this.player.getPlayerState() !== 1) {
+                                            this.player.playVideo();
+                                        }
+                                    } catch (e) {}
+                                }
+                            };
+                            window.addEventListener('click', resumeOnInteraction, { once: true });
+                            window.addEventListener('keydown', resumeOnInteraction, { once: true });
+                            window.addEventListener('touchstart', resumeOnInteraction, { once: true });
                         }
                     },
                     'onError': (event) => {
