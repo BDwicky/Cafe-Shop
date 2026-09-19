@@ -89,6 +89,48 @@ class PromoController extends Controller
     }
 
     /**
+     * Perbarui data kupon diskon.
+     */
+    public function update(Request $request, Promo $promo): RedirectResponse
+    {
+        $validated = $request->validate([
+            'code' => ['required', 'string', 'max:30', 'unique:promos,code,'.$promo->id],
+            'name' => ['required', 'string', 'max:100'],
+            'type' => ['required', 'in:percentage,fixed'],
+            'discount_value' => [
+                'required',
+                'integer',
+                'min:1',
+                function ($attribute, $value, $fail) use ($request) {
+                    if ($request->input('type') === 'percentage' && $value > 100) {
+                        $fail('Nilai diskon persentase tidak boleh melebihi 100%.');
+                    }
+                },
+            ],
+            'max_discount' => ['nullable', 'integer', 'min:0'],
+            'min_order' => ['nullable', 'integer', 'min:0'],
+            'usage_limit' => ['nullable', 'integer', 'min:1'],
+            'start_date' => ['nullable', 'date'],
+            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+            'description' => ['nullable', 'string', 'max:255'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+
+        $validated['code'] = strtoupper(trim($validated['code']));
+        $validated['max_discount'] = ! empty($validated['max_discount']) ? (int) $validated['max_discount'] : null;
+        $validated['min_order'] = ! empty($validated['min_order']) ? (int) $validated['min_order'] : 0;
+        $validated['usage_limit'] = ! empty($validated['usage_limit']) ? (int) $validated['usage_limit'] : null;
+        if ($request->has('is_active')) {
+            $validated['is_active'] = (bool) $request->input('is_active');
+        }
+
+        $promo->update($validated);
+
+        return redirect()->route('kasir.promos.index')
+            ->with('success', "Kupon diskon \"{$promo->code}\" berhasil diperbarui.");
+    }
+
+    /**
      * Toggle status aktif kupon diskon.
      */
     public function toggle(Request $request, Promo $promo): JsonResponse|RedirectResponse

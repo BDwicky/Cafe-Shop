@@ -124,6 +124,38 @@ class PromoManagementTest extends TestCase
         $this->assertDatabaseMissing('promos', ['code' => 'DELETEME']);
     }
 
+    public function test_kasir_can_update_promo(): void
+    {
+        $user = User::factory()->create();
+        $promo = Promo::create([
+            'code' => 'OLDCODE',
+            'name' => 'Old Promo Name',
+            'type' => 'percentage',
+            'discount_value' => 10,
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($user)->put(route('kasir.promos.update', $promo), [
+            'code' => 'NEWCODE',
+            'name' => 'Updated Promo Name',
+            'type' => 'fixed',
+            'discount_value' => 15000,
+            'min_order' => 50000,
+            'description' => 'Keterangan promo diperbarui',
+            'is_active' => 1,
+        ]);
+
+        $response->assertRedirect(route('kasir.promos.index'));
+        $response->assertSessionHas('success');
+
+        $updated = $promo->fresh();
+        $this->assertSame('NEWCODE', $updated->code);
+        $this->assertSame('Updated Promo Name', $updated->name);
+        $this->assertSame('fixed', $updated->type);
+        $this->assertSame(15000, $updated->discount_value);
+        $this->assertSame(50000, $updated->min_order);
+    }
+
     public function test_kasir_can_save_menu_composition_and_nutrition(): void
     {
         $user = User::factory()->create();

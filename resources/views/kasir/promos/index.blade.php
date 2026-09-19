@@ -5,18 +5,53 @@
 @section('content')
 <div class="w-full p-4 sm:p-6 space-y-6" x-data="{
     showCreateModal: false,
-    promoType: 'percentage',
-    formData: {
+    showEditModal: false,
+    createType: 'percentage',
+    editForm: {
+        id: null,
+        actionUrl: '',
         code: '',
         name: '',
         type: 'percentage',
         discount_value: '',
         max_discount: '',
-        min_order: '',
+        min_order: 0,
         usage_limit: '',
         start_date: '',
         end_date: '',
-        description: ''
+        description: '',
+        is_active: true
+    },
+    openEditModal(promo) {
+        this.editForm = {
+            id: promo.id,
+            actionUrl: '{{ url('/kasir/promos') }}/' + promo.id,
+            code: promo.code,
+            name: promo.name,
+            type: promo.type,
+            discount_value: promo.discount_value,
+            max_discount: promo.max_discount || '',
+            min_order: promo.min_order || 0,
+            usage_limit: promo.usage_limit || '',
+            start_date: promo.start_date || '',
+            end_date: promo.end_date || '',
+            description: promo.description || '',
+            is_active: !!promo.is_active
+        };
+        this.showEditModal = true;
+    },
+    copyCode(code) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(code).then(() => {
+                if (window.customToast) {
+                    window.customToast({
+                        message: '📋 Kode kupon ' + code + ' berhasil disalin!',
+                        type: 'success',
+                        duration: 2500
+                    });
+                }
+            }).catch(() => {});
+        }
     }
 }">
 
@@ -32,7 +67,7 @@
                 </span>
             </div>
             <p class="font-sans text-xs sm:text-sm text-[#8A7B66] mt-1 max-w-2xl">
-                Atur kode voucher potongan belanja untuk digunakan langsung di Terminal POS kasir.
+                Kelola kode kupon potongan belanja untuk kasir. Kupon aktif dapat langsung diterapkan di Terminal POS saat melayani pelanggan.
             </p>
         </div>
 
@@ -153,25 +188,40 @@
                         <th class="py-3.5 px-4 font-semibold">Nama & Keterangan</th>
                         <th class="py-3.5 px-4 font-semibold">Bentuk Diskon</th>
                         <th class="py-3.5 px-4 font-semibold">Syarat Belanja</th>
-                        <th class="py-3.5 px-4 font-semibold">Terpakai</th>
+                        <th class="py-3.5 px-4 font-semibold">Kuota Pemakaian</th>
                         <th class="py-3.5 px-4 font-semibold text-center">Status</th>
                         <th class="py-3.5 px-4 font-semibold text-right">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-[#E4DCCC]/60 font-sans text-xs sm:text-sm">
                     @forelse ($promos as $promo)
-                        <tr class="hover:bg-[#FAF7F2]/60 transition-colors {{ !$promo->is_active ? 'opacity-60 bg-gray-50/50' : '' }}">
-                            <!-- Kode Kupon -->
+                        @php
+                            $isExpired = $promo->end_date && $promo->end_date->isPast();
+                            $isQuotaExceeded = $promo->usage_limit && $promo->used_count >= $promo->usage_limit;
+                        @endphp
+                        <tr class="hover:bg-[#FAF7F2]/60 transition-colors {{ (!$promo->is_active || $isExpired || $isQuotaExceeded) ? 'opacity-70 bg-gray-50/50' : '' }}">
+                            <!-- Kode Kupon & Tombol Salin -->
                             <td class="py-3.5 px-4 whitespace-nowrap">
-                                <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#D9973E]/10 border border-[#D9973E]/40 text-[#B5762A] font-mono text-xs font-bold tracking-wider">
+                                <button type="button"
+                                        @click="copyCode('{{ $promo->code }}')"
+                                        title="Klik untuk salin kode kupon"
+                                        class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#FAF7F2] hover:bg-[#D9973E]/15 border border-[#E4DCCC] hover:border-[#D9973E] text-[#1F1812] hover:text-[#B5762A] font-mono text-xs font-bold tracking-wider transition group cursor-pointer active:scale-95 shadow-2xs">
                                     <span>🎟️</span>
                                     <span>{{ $promo->code }}</span>
-                                </div>
+                                    <span class="text-[10px] text-[#8A7B66] group-hover:text-[#B5762A] opacity-70">📋</span>
+                                </button>
                             </td>
 
                             <!-- Nama & Keterangan -->
                             <td class="py-3.5 px-4 min-w-[200px]">
-                                <div class="font-bold text-[#1F1812]">{{ $promo->name }}</div>
+                                <div class="font-bold text-[#1F1812] flex items-center gap-2">
+                                    <span>{{ $promo->name }}</span>
+                                    @if ($isExpired)
+                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-red-100 text-red-700 border border-red-200">Kedaluwarsa</span>
+                                    @elseif ($isQuotaExceeded)
+                                        <span class="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-amber-100 text-amber-800 border border-amber-200">Kuota Habis</span>
+                                    @endif
+                                </div>
                                 @if ($promo->description)
                                     <div class="text-[11px] text-[#8A7B66] mt-0.5">{{ $promo->description }}</div>
                                 @endif
@@ -209,7 +259,7 @@
                             <!-- Syarat Belanja -->
                             <td class="py-3.5 px-4 whitespace-nowrap font-mono text-xs">
                                 @if ($promo->min_order > 0)
-                                    <span class="text-[#1F1812]">Min. Rp {{ number_format($promo->min_order, 0, ',', '.') }}</span>
+                                    <span class="text-[#1F1812] font-semibold">Min. Rp {{ number_format($promo->min_order, 0, ',', '.') }}</span>
                                 @else
                                     <span class="text-[#8A7B66]">Tanpa Minimal</span>
                                 @endif
@@ -217,11 +267,22 @@
 
                             <!-- Terpakai & Kuota -->
                             <td class="py-3.5 px-4 whitespace-nowrap font-mono text-xs">
-                                <span class="font-bold text-[#1F1812]">{{ $promo->used_count }}x</span>
+                                <div class="flex items-center gap-1.5">
+                                    <span class="font-bold text-[#1F1812]">{{ $promo->used_count }}x</span>
+                                    @if ($promo->usage_limit)
+                                        <span class="text-[#8A7B66]"> / {{ $promo->usage_limit }}</span>
+                                    @else
+                                        <span class="text-[10px] text-[#8A7B66]"> (Unlimited)</span>
+                                    @endif
+                                </div>
                                 @if ($promo->usage_limit)
-                                    <span class="text-[#8A7B66]"> / {{ $promo->usage_limit }}</span>
-                                @else
-                                    <span class="text-[10px] text-[#8A7B66] block">Unlimited</span>
+                                    @php
+                                        $percent = min(100, round(($promo->used_count / $promo->usage_limit) * 100));
+                                    @endphp
+                                    <div class="w-24 bg-[#E4DCCC]/70 rounded-full h-1.5 mt-1 overflow-hidden">
+                                        <div class="h-full rounded-full transition-all duration-300 {{ $percent >= 100 ? 'bg-red-500' : ($percent >= 80 ? 'bg-[#D9973E]' : 'bg-[#5F7F42]') }}"
+                                             style="width: {{ $percent }}%"></div>
+                                    </div>
                                 @endif
                             </td>
 
@@ -239,28 +300,46 @@
                                 </form>
                             </td>
 
-                            <!-- Aksi -->
+                            <!-- Aksi: Edit & Hapus -->
                             <td class="py-3.5 px-4 whitespace-nowrap text-right">
-                                <button type="button"
-                                        onclick="customConfirm({
-                                            title: 'Hapus Kupon Diskon?',
-                                            message: 'Kupon \'{{ $promo->code }}\' akan dihapus permanen. Transaksi yang sudah menggunakan promo ini tetap tercatat rapi di laporan.',
-                                            confirmText: 'Ya, Hapus Kupon',
-                                            type: 'danger',
-                                            onConfirm: () => {
-                                                document.getElementById('delete-promo-{{ $promo->id }}').submit();
-                                            }
-                                        })"
-                                        class="p-2 text-[#C4553D] hover:bg-red-50 rounded-xl transition cursor-pointer"
-                                        title="Hapus Kupon">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                    </svg>
-                                </button>
-                                <form id="delete-promo-{{ $promo->id }}" method="POST" action="{{ route('kasir.promos.destroy', $promo) }}" class="hidden">
-                                    @csrf
-                                    @method('DELETE')
-                                </form>
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <!-- Tombol Edit Modal -->
+                                    <button type="button"
+                                            @click="openEditModal({
+                                                id: {{ $promo->id }},
+                                                code: @js($promo->code),
+                                                name: @js($promo->name),
+                                                type: @js($promo->type),
+                                                discount_value: {{ $promo->discount_value }},
+                                                max_discount: {{ $promo->max_discount ?? 'null' }},
+                                                min_order: {{ $promo->min_order ?? 0 }},
+                                                usage_limit: {{ $promo->usage_limit ?? 'null' }},
+                                                start_date: @js($promo->start_date ? $promo->start_date->format('Y-m-d') : ''),
+                                                end_date: @js($promo->end_date ? $promo->end_date->format('Y-m-d') : ''),
+                                                description: @js($promo->description ?? ''),
+                                                is_active: {{ $promo->is_active ? 'true' : 'false' }}
+                                            })"
+                                            class="px-2.5 py-1.5 bg-[#FAF7F2] hover:bg-[#1F1812] text-[#1F1812] hover:text-[#FAF7F2] border border-[#E4DCCC] hover:border-[#1F1812] font-mono text-xs uppercase tracking-wider font-bold rounded-xl transition shadow-2xs cursor-pointer active:scale-95">
+                                        Edit ›
+                                    </button>
+
+                                    <!-- Tombol Hapus dengan Global Dialog -->
+                                    <form method="POST" action="{{ route('kasir.promos.destroy', $promo) }}" class="inline"
+                                          data-confirm="Hapus kupon '{{ $promo->code }}' dari katalog diskon?"
+                                          data-confirm-title="Konfirmasi Hapus Kupon"
+                                          data-confirm-type="danger"
+                                          data-confirm-btn="Ya, Hapus Kupon">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit"
+                                                class="p-1.5 text-[#C4553D] hover:bg-red-50 border border-transparent hover:border-red-200 rounded-xl transition cursor-pointer"
+                                                title="Hapus Kupon">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                            </svg>
+                                        </button>
+                                    </form>
+                                </div>
                             </td>
                         </tr>
                     @empty
@@ -270,7 +349,7 @@
                                 <div class="font-serif text-lg font-bold text-[#1F1812]">Belum ada kupon diskon</div>
                                 <p class="text-xs mt-1">Buat kode kupon diskon baru untuk memberikan potongan harga kepada pelanggan.</p>
                                 <button type="button" @click="showCreateModal = true"
-                                        class="mt-4 px-4 py-2 bg-[#D9973E] hover:bg-[#B5762A] text-[#1F1812] hover:text-white font-mono text-xs uppercase tracking-wider font-bold rounded-xl transition">
+                                        class="mt-4 px-4 py-2 bg-[#D9973E] hover:bg-[#B5762A] text-[#1F1812] hover:text-white font-mono text-xs uppercase tracking-wider font-bold rounded-xl transition cursor-pointer">
                                     + Buat Kupon Pertama
                                 </button>
                             </td>
@@ -309,14 +388,14 @@
             </div>
 
             <!-- Form Body -->
-            <form method="POST" action="{{ route('kasir.promos.store') }}" class="p-5 sm:p-6 space-y-4">
+            <form method="POST" action="{{ route('kasir.promos.store') }}" class="p-5 sm:p-6 space-y-4 max-h-[85vh] overflow-y-auto">
                 @csrf
 
                 <!-- Kode Kupon & Tipe Diskon -->
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     <div>
                         <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold mb-1">
-                            Kode Kupon (Wajib):
+                            Kode Kupon (Wajib): <span class="text-red-500">*</span>
                         </label>
                         <input type="text" name="code" required maxlength="30"
                                placeholder="Contoh: HEMAT20"
@@ -326,9 +405,9 @@
 
                     <div>
                         <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold mb-1">
-                            Tipe Diskon:
+                            Tipe Diskon: <span class="text-red-500">*</span>
                         </label>
-                        <select name="type" x-model="promoType" required
+                        <select name="type" x-model="createType" required
                                 class="w-full bg-[#FAF7F2] border border-[#E4DCCC] focus:border-[#D9973E] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-3.5 py-2 rounded-xl text-xs font-mono font-bold text-[#1F1812] cursor-pointer transition">
                             <option value="percentage">Persentase (%)</option>
                             <option value="fixed">Nominal Rupiah (Rp)</option>
@@ -339,7 +418,7 @@
                 <!-- Nama Promo -->
                 <div>
                     <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold mb-1">
-                        Nama Promo:
+                        Nama Promo: <span class="text-red-500">*</span>
                     </label>
                     <input type="text" name="name" required maxlength="100"
                            placeholder="Contoh: Diskon 20% Akhir Pekan"
@@ -350,19 +429,19 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     <div>
                         <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold mb-1"
-                               x-text="promoType === 'percentage' ? 'Besar Diskon (%):' : 'Nominal Diskon (Rp):'">
+                               x-text="createType === 'percentage' ? 'Besar Diskon (%): *' : 'Nominal Diskon (Rp): *'">
                         </label>
                         <div class="relative">
                             <input type="number" name="discount_value" required min="1"
-                                   :max="promoType === 'percentage' ? 100 : 100000000"
+                                   :max="createType === 'percentage' ? 100 : 100000000"
                                    placeholder="Misal: 20"
                                    class="w-full bg-[#FAF7F2] border border-[#E4DCCC] focus:border-[#D9973E] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-3.5 py-2 rounded-xl font-mono text-sm font-bold text-[#1F1812] transition">
                             <span class="absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold text-[#8A7B66]"
-                                  x-text="promoType === 'percentage' ? '%' : 'Rp'"></span>
+                                  x-text="createType === 'percentage' ? '%' : 'Rp'"></span>
                         </div>
                     </div>
 
-                    <div x-show="promoType === 'percentage'">
+                    <div x-show="createType === 'percentage'">
                         <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold mb-1">
                             Maks. Potongan (Rp):
                         </label>
@@ -430,6 +509,168 @@
                     <button type="submit"
                             class="px-5 py-2 bg-[#1F1812] hover:bg-[#D9973E] text-[#FAF7F2] hover:text-[#1F1812] font-mono text-xs uppercase tracking-wider font-bold rounded-xl transition shadow-md cursor-pointer active:scale-98">
                         Simpan Kupon ›
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 6. MODAL FORM EDIT KUPON -->
+    <div x-show="showEditModal"
+         x-cloak
+         @keydown.window.escape="showEditModal = false"
+         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs transition-all">
+        <div class="bg-white border border-[#E4DCCC] rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+             @click.away="showEditModal = false">
+            <!-- Header Modal Edit -->
+            <div class="p-4 bg-[#FAF7F2] border-b border-[#E4DCCC] flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <span class="w-8 h-8 rounded-xl bg-[#5F7F42]/15 border border-[#5F7F42]/30 flex items-center justify-center text-[#5F7F42] text-base shrink-0">
+                        ✏️
+                    </span>
+                    <div>
+                        <h3 class="font-serif font-bold text-base text-[#1F1812]" x-text="'Edit Kupon: ' + editForm.code">
+                            Edit Kupon
+                        </h3>
+                        <p class="text-[11px] text-[#8A7B66]">Perbarui ketentuan atau batas penggunaan kupon diskon.</p>
+                    </div>
+                </div>
+                <button type="button" @click="showEditModal = false" class="text-[#8A7B66] hover:text-[#1F1812] text-xl font-bold p-1 cursor-pointer">✕</button>
+            </div>
+
+            <!-- Form Edit Body -->
+            <form method="POST" :action="editForm.actionUrl" class="p-5 sm:p-6 space-y-4 max-h-[85vh] overflow-y-auto">
+                @csrf
+                @method('PUT')
+
+                <!-- Kode Kupon & Tipe Diskon -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div>
+                        <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold mb-1">
+                            Kode Kupon: <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text" name="code" x-model="editForm.code" required maxlength="30"
+                               class="w-full bg-[#FAF7F2] border border-[#E4DCCC] focus:border-[#D9973E] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-3.5 py-2 rounded-xl font-mono text-sm font-bold uppercase text-[#1F1812] tracking-wider transition"
+                               oninput="this.value = this.value.toUpperCase()">
+                    </div>
+
+                    <div>
+                        <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold mb-1">
+                            Tipe Diskon: <span class="text-red-500">*</span>
+                        </label>
+                        <select name="type" x-model="editForm.type" required
+                                class="w-full bg-[#FAF7F2] border border-[#E4DCCC] focus:border-[#D9973E] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-3.5 py-2 rounded-xl text-xs font-mono font-bold text-[#1F1812] cursor-pointer transition">
+                            <option value="percentage">Persentase (%)</option>
+                            <option value="fixed">Nominal Rupiah (Rp)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Nama Promo -->
+                <div>
+                    <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold mb-1">
+                        Nama Promo: <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" name="name" x-model="editForm.name" required maxlength="100"
+                           class="w-full bg-[#FAF7F2] border border-[#E4DCCC] focus:border-[#D9973E] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-3.5 py-2 rounded-xl text-xs sm:text-sm text-[#1F1812] transition">
+                </div>
+
+                <!-- Nilai Diskon & Maksimal Diskon -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div>
+                        <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold mb-1"
+                               x-text="editForm.type === 'percentage' ? 'Besar Diskon (%): *' : 'Nominal Diskon (Rp): *'">
+                        </label>
+                        <div class="relative">
+                            <input type="number" name="discount_value" x-model="editForm.discount_value" required min="1"
+                                   :max="editForm.type === 'percentage' ? 100 : 100000000"
+                                   class="w-full bg-[#FAF7F2] border border-[#E4DCCC] focus:border-[#D9973E] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-3.5 py-2 rounded-xl font-mono text-sm font-bold text-[#1F1812] transition">
+                            <span class="absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-xs font-bold text-[#8A7B66]"
+                                  x-text="editForm.type === 'percentage' ? '%' : 'Rp'"></span>
+                        </div>
+                    </div>
+
+                    <div x-show="editForm.type === 'percentage'">
+                        <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold mb-1">
+                            Maks. Potongan (Rp):
+                        </label>
+                        <input type="number" name="max_discount" x-model="editForm.max_discount" min="0"
+                               placeholder="Opsional (misal: 15000)"
+                               class="w-full bg-[#FAF7F2] border border-[#E4DCCC] focus:border-[#D9973E] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-3.5 py-2 rounded-xl font-mono text-xs sm:text-sm text-[#1F1812] transition">
+                    </div>
+                </div>
+
+                <!-- Syarat Minimal Belanja & Batas Kuota -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div>
+                        <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold mb-1">
+                            Minimal Belanja (Rp):
+                        </label>
+                        <input type="number" name="min_order" x-model="editForm.min_order" min="0"
+                               class="w-full bg-[#FAF7F2] border border-[#E4DCCC] focus:border-[#D9973E] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-3.5 py-2 rounded-xl font-mono text-xs sm:text-sm text-[#1F1812] transition">
+                    </div>
+
+                    <div>
+                        <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold mb-1">
+                            Batas Kuota Pemakaian:
+                        </label>
+                        <input type="number" name="usage_limit" x-model="editForm.usage_limit" min="1"
+                               placeholder="Kosongkan jika tak terbatas"
+                               class="w-full bg-[#FAF7F2] border border-[#E4DCCC] focus:border-[#D9973E] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-3.5 py-2 rounded-xl font-mono text-xs sm:text-sm text-[#1F1812] transition">
+                    </div>
+                </div>
+
+                <!-- Periode Berlaku (Opsional) -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div>
+                        <label class="block font-mono text-[10px] uppercase tracking-wider text-[#8A7B66] mb-1">
+                            Tanggal Mulai (Opsional):
+                        </label>
+                        <input type="date" name="start_date" x-model="editForm.start_date"
+                               class="w-full bg-[#FAF7F2] border border-[#E4DCCC] focus:border-[#D9973E] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-3 py-1.5 rounded-xl font-mono text-xs text-[#1F1812] transition">
+                    </div>
+                    <div>
+                        <label class="block font-mono text-[10px] uppercase tracking-wider text-[#8A7B66] mb-1">
+                            Tanggal Berakhir (Opsional):
+                        </label>
+                        <input type="date" name="end_date" x-model="editForm.end_date"
+                               class="w-full bg-[#FAF7F2] border border-[#E4DCCC] focus:border-[#D9973E] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-3 py-1.5 rounded-xl font-mono text-xs text-[#1F1812] transition">
+                    </div>
+                </div>
+
+                <!-- Deskripsi -->
+                <div>
+                    <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold mb-1">
+                        Deskripsi / Catatan Promo (Opsional):
+                    </label>
+                    <textarea name="description" x-model="editForm.description" rows="2" maxlength="255"
+                              placeholder="Keterangan singkat tentang promo ini..."
+                              class="w-full bg-[#FAF7F2] border border-[#E4DCCC] focus:border-[#D9973E] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-3.5 py-2 rounded-xl text-xs text-[#1F1812] transition"></textarea>
+                </div>
+
+                <!-- Status Aktif Toggle -->
+                <div class="pt-2 border-t border-[#F2EDE4] flex items-center justify-between">
+                    <div>
+                        <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold">
+                            Status Kupon:
+                        </label>
+                        <span class="text-[11px] text-[#8A7B66]" x-text="editForm.is_active ? 'Kupon aktif & dapat diinput kasir' : 'Kupon dinonaktifkan sementara'"></span>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" name="is_active" value="1" x-model="editForm.is_active" class="sr-only peer">
+                        <div class="w-11 h-6 bg-[#D8CFC4] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#D8CFC4] after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5F7F42]"></div>
+                    </label>
+                </div>
+
+                <!-- Tombol Submit Edit -->
+                <div class="pt-3 border-t border-[#E4DCCC] flex items-center justify-end gap-2.5">
+                    <button type="button" @click="showEditModal = false"
+                            class="px-4 py-2 border border-[#E4DCCC] hover:bg-[#FAF7F2] text-[#8A7B66] hover:text-[#1F1812] font-mono text-xs uppercase tracking-wider font-bold rounded-xl transition cursor-pointer">
+                        Batal
+                    </button>
+                    <button type="submit"
+                            class="px-5 py-2 bg-[#1F1812] hover:bg-[#D9973E] text-[#FAF7F2] hover:text-[#1F1812] font-mono text-xs uppercase tracking-wider font-bold rounded-xl transition shadow-md cursor-pointer active:scale-98">
+                        Simpan Perubahan ›
                     </button>
                 </div>
             </form>

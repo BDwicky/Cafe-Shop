@@ -210,7 +210,7 @@
     <div class="mt-2 pt-2 border-t border-[#261D16]">
         <button type="button"
                 @click="toggleManualAdzanMode()"
-                :title="isAdzanMode ? 'Mode Adzan Sedang Aktif (Klik untuk Matikan)' : 'Aktifkan Mode Adzan Manual (Volume otomatis diturunkan ke 10%)'"
+                :title="isAdzanMode ? 'Mode Adzan Sedang Aktif (Klik untuk Matikan)' : ('Aktifkan Mode Adzan Manual (Volume otomatis diturunkan ke ' + (adzanTargetVolume ?? 10) + '%)')"
                 class="w-full py-1.5 px-2.5 rounded-lg font-mono text-[9px] font-bold flex items-center justify-between transition-all cursor-pointer border shadow-sm"
                 :class="isAdzanMode
                     ? 'bg-[#5F7F42] border-[#85BF5C] text-white animate-pulse shadow-[0_0_12px_rgba(95,127,66,0.6)]'
@@ -1670,7 +1670,12 @@ function navbarMusicWidget() {
                     }
                     break;
                 case 'TOGGLE_MANUAL_ADZAN':
-                    this.toggleManualAdzanMode(data ? data.action : null);
+                    this.toggleManualAdzanMode(data ? data.action : null, data && typeof data.target_volume !== 'undefined' ? data.target_volume : null);
+                    break;
+                case 'SET_ADZAN_VOLUME':
+                    if (data && typeof data.target_volume !== 'undefined') {
+                        this.setLiveAdzanVolume(data.target_volume);
+                    }
                     break;
                 case 'REFRESH_QUEUE':
                     this.refreshQueue();
@@ -2703,7 +2708,7 @@ function navbarMusicWidget() {
             }
         },
 
-        toggleManualAdzanMode(forceAction = null) {
+        toggleManualAdzanMode(forceAction = null, customTargetVol = null) {
             // Idempotency: jika sudah aktif dan disuruh start lagi, abaikan
             if (forceAction === 'start' && this.isAdzanMode && this.isManualAdzan) {
                 return;
@@ -2711,6 +2716,18 @@ function navbarMusicWidget() {
             // Idempotency: jika sudah mati dan disuruh stop lagi, abaikan
             if (forceAction === 'stop' && !this.isAdzanMode) {
                 return;
+            }
+
+            // Segera sinkronkan target volume terbaru dari parameter atau localStorage
+            if (customTargetVol !== null && typeof customTargetVol !== 'undefined') {
+                this.adzanTargetVolume = Number(customTargetVol);
+            } else {
+                try {
+                    const saved = JSON.parse(localStorage.getItem('pos_soundstation_announcer_settings') || 'null');
+                    if (saved && typeof saved.adzan_target_volume !== 'undefined') {
+                        this.adzanTargetVolume = Number(saved.adzan_target_volume);
+                    }
+                } catch (e) {}
             }
 
             const shouldStart = (forceAction === 'start') || (forceAction === null && !this.isAdzanMode);
@@ -2750,10 +2767,10 @@ function navbarMusicWidget() {
                 this.isAdzanMode = true;
                 this.isManualAdzan = true;
                 this.activePrayerName = prayerName;
-                if (this.preAdzanVolume === null || this.preAdzanVolume <= (this.adzanTargetVolume ?? 10)) {
+                const targetVol = Math.max(0, Math.min(100, Number(this.adzanTargetVolume ?? 10)));
+                if (this.preAdzanVolume === null || this.preAdzanVolume <= targetVol) {
                     this.preAdzanVolume = (this.volume && this.volume > 15) ? this.volume : (parseInt(localStorage.getItem('pos_music_volume') || '75'));
                 }
-                const targetVol = Math.max(0, Math.min(100, this.adzanTargetVolume ?? 10));
 
                 if (window.customToast) {
                     window.customToast({
@@ -2862,11 +2879,28 @@ function navbarMusicWidget() {
             }
         },
 
+        setLiveAdzanVolume(vol) {
+            const v = Math.max(0, Math.min(100, Number(vol)));
+            this.adzanTargetVolume = v;
+            if (this.isAdzanMode) {
+                this.volume = v;
+                if (this.isMasterHost && this.player && this.playerReady && typeof this.player.setVolume === 'function') {
+                    try {
+                        this.player.setVolume(v);
+                    } catch (e) {}
+                }
+                this.broadcastSync();
+            }
+        },
+
         applyAnnouncerSettings(settings) {
             if (!settings || typeof settings !== 'object') return;
             this.announcerSettings = { ...this.announcerSettings, ...settings };
             if (typeof settings.adzan_target_volume !== 'undefined') {
                 this.adzanTargetVolume = Number(settings.adzan_target_volume);
+                if (this.isAdzanMode) {
+                    this.setLiveAdzanVolume(this.adzanTargetVolume);
+                }
             }
             if (typeof settings.duck_volume !== 'undefined') {
                 this.duckedVolume = Number(settings.duck_volume);

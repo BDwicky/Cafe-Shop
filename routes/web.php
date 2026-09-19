@@ -100,7 +100,7 @@ Route::middleware('auth')->prefix('kasir')->name('kasir.')->group(function () {
     Route::delete('/categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
 
     // Kelola Kupon & Promo Diskon
-    Route::resource('promos', PromoController::class)->only(['index', 'store', 'destroy']);
+    Route::resource('promos', PromoController::class)->only(['index', 'store', 'update', 'destroy']);
     Route::patch('/promos/{promo}/toggle', [PromoController::class, 'toggle'])->name('promos.toggle');
 
     // Manajemen Inventaris & Bahan Baku (Stok & Resep BOM)

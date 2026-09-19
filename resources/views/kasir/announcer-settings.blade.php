@@ -543,6 +543,7 @@
                                   x-text="form.adzan_target_volume === 0 ? '0% (Mute/Hening Total)' : (form.adzan_target_volume === 1 ? '1% (Super Hening)' : (form.adzan_target_volume === 2 ? '2% (Hening Sayup)' : form.adzan_target_volume + '%'))"></span>
                         </div>
                         <input type="range" min="0" max="30" step="1" x-model.number="form.adzan_target_volume"
+                               @input="onAdzanVolumeInput()" @change="triggerAutoSave()"
                                class="w-full accent-[#5F7F42] cursor-pointer h-2 bg-[#E4DCCC] rounded-lg">
                         <div class="flex justify-between text-[10px] text-[#A89A85] font-mono">
                             <span :class="form.adzan_target_volume == 0 ? 'text-[#5F7F42] font-bold' : ''">0% (Mute)</span>
@@ -556,32 +557,32 @@
                         <!-- Opsi Cepat Persentase Volume Hening Adzan -->
                         <div class="flex flex-wrap items-center gap-1.5 pt-1">
                             <span class="text-[10px] font-mono text-[#8A7B66] mr-1">Opsi Cepat:</span>
-                            <button type="button" @click="form.adzan_target_volume = 0"
+                            <button type="button" @click="onAdzanVolumeInput(0)"
                                     class="px-2 py-0.5 text-[10px] font-mono rounded-lg border transition cursor-pointer select-none active:scale-95"
                                     :class="form.adzan_target_volume === 0 ? 'bg-[#5F7F42] text-white border-[#5F7F42] font-bold shadow-xs' : 'bg-white border-[#E4DCCC] text-[#7A6A58] hover:border-[#5F7F42]/50'">
                                 0% (Mute)
                             </button>
-                            <button type="button" @click="form.adzan_target_volume = 1"
+                            <button type="button" @click="onAdzanVolumeInput(1)"
                                     class="px-2 py-0.5 text-[10px] font-mono rounded-lg border transition cursor-pointer select-none active:scale-95"
                                     :class="form.adzan_target_volume === 1 ? 'bg-[#5F7F42] text-white border-[#5F7F42] font-bold shadow-xs' : 'bg-white border-[#E4DCCC] text-[#7A6A58] hover:border-[#5F7F42]/50'">
                                 1% (Super Hening)
                             </button>
-                            <button type="button" @click="form.adzan_target_volume = 2"
+                            <button type="button" @click="onAdzanVolumeInput(2)"
                                     class="px-2.5 py-0.5 text-[10px] font-mono rounded-lg border transition cursor-pointer select-none active:scale-95"
                                     :class="form.adzan_target_volume === 2 ? 'bg-[#5F7F42] text-white border-[#5F7F42] font-bold shadow-xs' : 'bg-white border-[#E4DCCC] text-[#7A6A58] hover:border-[#5F7F42]/50'">
                                 2% (Hening Sayup)
                             </button>
-                            <button type="button" @click="form.adzan_target_volume = 5"
+                            <button type="button" @click="onAdzanVolumeInput(5)"
                                     class="px-2 py-0.5 text-[10px] font-mono rounded-lg border transition cursor-pointer select-none active:scale-95"
                                     :class="form.adzan_target_volume === 5 ? 'bg-[#5F7F42] text-white border-[#5F7F42] font-bold shadow-xs' : 'bg-white border-[#E4DCCC] text-[#7A6A58] hover:border-[#5F7F42]/50'">
                                 5%
                             </button>
-                            <button type="button" @click="form.adzan_target_volume = 10"
+                            <button type="button" @click="onAdzanVolumeInput(10)"
                                     class="px-2 py-0.5 text-[10px] font-mono rounded-lg border transition cursor-pointer select-none active:scale-95"
                                     :class="form.adzan_target_volume === 10 ? 'bg-[#5F7F42] text-white border-[#5F7F42] font-bold shadow-xs' : 'bg-white border-[#E4DCCC] text-[#7A6A58] hover:border-[#5F7F42]/50'">
                                 10% (Rekomendasi)
                             </button>
-                            <button type="button" @click="form.adzan_target_volume = 20"
+                            <button type="button" @click="onAdzanVolumeInput(20)"
                                     class="px-2 py-0.5 text-[10px] font-mono rounded-lg border transition cursor-pointer select-none active:scale-95"
                                     :class="form.adzan_target_volume === 20 ? 'bg-[#5F7F42] text-white border-[#5F7F42] font-bold shadow-xs' : 'bg-white border-[#E4DCCC] text-[#7A6A58] hover:border-[#5F7F42]/50'">
                                 20%
@@ -853,14 +854,14 @@ function announcerSettingsManager(initialSettings) {
                 } catch (e) {}
             }
 
-            // Watch perubahan form untuk Auto-Save otomatis
+            // Watch perubahan form untuk Auto-Save otomatis (deep watch)
             this.$nextTick(() => {
                 this._initialized = true;
                 this.$watch('form', () => {
                     if (this._initialized) {
                         this.triggerAutoSave();
                     }
-                });
+                }, { deep: true });
             });
 
             // Pastikan data tersimpan instan ke server & localStorage saat meninggalkan halaman
@@ -879,6 +880,21 @@ function announcerSettingsManager(initialSettings) {
                     });
                 } catch (e) {}
             });
+        },
+
+        onAdzanVolumeInput(val = null) {
+            if (val !== null && typeof val !== 'undefined') {
+                this.form.adzan_target_volume = parseInt(val);
+            }
+            const targetVol = Math.max(0, Math.min(100, parseInt(this.form.adzan_target_volume ?? 10)));
+            this.triggerAutoSave();
+
+            // Broadcast penyesuaian volume instan (real-time) ke pemutar musik aktif
+            if (window.SoundStationHub && typeof window.SoundStationHub.sendCommand === 'function') {
+                window.SoundStationHub.sendCommand('SET_ADZAN_VOLUME', { target_volume: targetVol });
+            } else if (window.SoundStation && typeof window.SoundStation.setLiveAdzanVolume === 'function') {
+                window.SoundStation.setLiveAdzanVolume(targetVol);
+            }
         },
 
         triggerAutoSave() {
@@ -949,11 +965,19 @@ function announcerSettingsManager(initialSettings) {
         toggleManualAdzan() {
             this.isManualAdzanActive = !this.isManualAdzanActive;
             const action = this.isManualAdzanActive ? 'start' : 'stop';
+            const targetVol = Math.max(0, Math.min(100, parseInt(this.form.adzan_target_volume ?? 10)));
+
+            // Segera simpan dan broadcast pengaturan terbaru
+            this.triggerAutoSave();
 
             if (window.SoundStationHub && typeof window.SoundStationHub.sendCommand === 'function') {
-                window.SoundStationHub.sendCommand('TOGGLE_MANUAL_ADZAN', { action: action });
+                window.SoundStationHub.sendCommand('TOGGLE_MANUAL_ADZAN', {
+                    action: action,
+                    target_volume: targetVol,
+                    duration_minutes: this.form.adzan_duration_minutes
+                });
             } else if (window.SoundStation && typeof window.SoundStation.toggleManualAdzanMode === 'function') {
-                window.SoundStation.toggleManualAdzanMode(action);
+                window.SoundStation.toggleManualAdzanMode(action, targetVol);
             }
         },
 
