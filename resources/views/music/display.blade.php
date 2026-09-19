@@ -250,7 +250,19 @@
                                         this.queue = this.queue.filter(item => item.id !== this.nowPlaying.id && item.id !== this.nowPlaying.request_id);
                                     }
                                 }
-                                if (typeof s.isPlaying !== 'undefined') this.isPlaying = !!s.isPlaying;
+                                if (typeof s.isPlaying !== 'undefined') {
+                                    const oldPlaying = this.isPlaying;
+                                    this.isPlaying = !!s.isPlaying;
+                                    if (oldPlaying !== this.isPlaying && this.tvPlayer) {
+                                        if (!this.isPlaying && typeof this.tvPlayer.pauseVideo === 'function') {
+                                            this._isManualPausing = true;
+                                            this.tvPlayer.pauseVideo();
+                                            setTimeout(() => { this._isManualPausing = false; }, 400);
+                                        } else if (this.isPlaying && typeof this.tvPlayer.playVideo === 'function') {
+                                            this.tvPlayer.playVideo();
+                                        }
+                                    }
+                                }
                                 if (typeof s.queueCount !== 'undefined') this.queueCount = s.queueCount;
                                 if (Array.isArray(s.queue)) {
                                     this.queue = s.queue.filter(item => !this.nowPlaying || (item.id !== this.nowPlaying.id && item.id !== this.nowPlaying.request_id));
@@ -302,26 +314,30 @@
                         }
                     });
 
-                    // Polling status lagu & pesanan siap setiap 2 detik
+                    // Polling status lagu & pesanan siap setiap 750ms untuk respon ultra-cepat
                     this.fetchStatus();
-                    setInterval(() => this.fetchStatus(), 2000);
+                    setInterval(() => this.fetchStatus(), 750);
 
                     // Muat YouTube Iframe API untuk sinkronisasi Live Video Mode dengan Audio Kasir
                     this.loadYouTubeApi();
 
-                    // Progress bar interpolator (60fps halus)
+                    // Progress bar interpolator presisi tinggi berbasis wall-clock delta (bebas lag antar-perangkat)
+                    let _lastTick = Date.now();
                     setInterval(() => {
+                        const now = Date.now();
+                        const dt = (now - _lastTick) / 1000;
+                        _lastTick = now;
                         if (this.isPlaying && this.playbackDuration > 0) {
-                            this.playbackCurrentTime = Math.min(this.playbackCurrentTime + 0.1, this.playbackDuration);
+                            this.playbackCurrentTime = Math.min(this.playbackCurrentTime + dt, this.playbackDuration);
                             this.playbackProgressPercent = Math.min(100, (this.playbackCurrentTime / this.playbackDuration) * 100);
                             this.playbackCurrentTimeFormatted = this.formatSeconds(Math.floor(this.playbackCurrentTime));
                         }
                     }, 100);
 
-                    // Sinkronisasi Video TV dengan status playback audio Kasir setiap 1 detik
+                    // Sinkronisasi Video TV dengan status playback audio Kasir setiap 800ms
                     setInterval(() => {
                         this.syncTvPlayerState();
-                    }, 1000);
+                    }, 800);
 
                     // TV Browser Autoplay & Remote Interaction Unlock Listener
                     // Menghilangkan batasan autoplay browser TV (Tizen/webOS/Android TV) pada interaksi pertama (remote OK/click/touch)
@@ -471,12 +487,12 @@
                                             }
                                         } catch (e) {}
 
-                                        // Kalibrasi awal saat video baru mulai memutar jika buffering awal memakan waktu > 1.5 detik
+                                        // Kalibrasi awal saat video baru mulai memutar agar seluruh TV mulai di detik yang sama (< 0.35s)
                                         if (!this._initialSynced && this.playbackCurrentTime > 0) {
                                             this._initialSynced = true;
                                             const tvCurTime = (typeof this.tvPlayer.getCurrentTime === 'function') ? (this.tvPlayer.getCurrentTime() || 0) : 0;
                                             const absDrift = Math.abs(this.playbackCurrentTime - tvCurTime);
-                                            if (absDrift > 1.5 && absDrift < 86400) {
+                                            if (absDrift > 0.35 && absDrift < 86400) {
                                                 this._lastSeekTime = Date.now();
                                                 this.tvPlayer.seekTo(this.playbackCurrentTime, true);
                                             }
@@ -578,7 +594,7 @@
                             } catch (e) {}
                         }
 
-                        // Sinkronisasi posisi detik (Hanya jika terjadi selisih signifikan seperti kasir scrub timeline)
+                        // Sinkronisasi posisi detik presisi antar-TV (< 0.8s)
                         if (this.isPlaying && typeof this.tvPlayer.getCurrentTime === 'function' && this.playbackDuration > 0 && this.playbackCurrentTime < 86400) {
                             if (state !== YT.PlayerState.BUFFERING) {
                                 const tvCurTime = this.tvPlayer.getCurrentTime() || 0;
@@ -586,8 +602,8 @@
                                 const absDrift = Math.abs(diff);
                                 const now = Date.now();
 
-                                // Hanya seek jika selisih waktu > 2.5 detik (misal jeda buffering panjang atau kasir menggeser slider lagu)
-                                if (absDrift > 2.5 && (!this._lastSeekTime || (now - this._lastSeekTime > 4000))) {
+                                // Jika selisih antar TV > 0.8 detik, sinkronkan ulang secara instan
+                                if (absDrift > 0.8 && (!this._lastSeekTime || (now - this._lastSeekTime > 2500))) {
                                     this._lastSeekTime = now;
                                     this.tvPlayer.seekTo(this.playbackCurrentTime, true);
                                 }
@@ -648,10 +664,19 @@
                         }
 
                         if (data.playback) {
-                            this.isPlaying = typeof data.playback.is_playing !== 'undefined' ? !!data.playback.is_playing : true;
+                            const newIsPlaying = typeof data.playback.is_playing !== 'undefined' ? !!data.playback.is_playing : true;
+                            const playStateChanged = this.isPlaying !== newIsPlaying;
+                            this.isPlaying = newIsPlaying;
+
                             let elapsed = 0;
+                            const serverTime = Number(data.server_time || 0);
                             const serverUpdated = Number(data.playback.updated_at || 0);
-                            if (serverUpdated > 0) {
+                            if (serverTime > 0 && serverUpdated > 0) {
+                                const diffSec = (serverTime - serverUpdated) / 1000;
+                                if (diffSec >= 0 && diffSec <= 30) {
+                                    elapsed = diffSec;
+                                }
+                            } else if (serverUpdated > 0) {
                                 const diffSec = (Date.now() - serverUpdated) / 1000;
                                 if (diffSec >= 0 && diffSec <= 15) {
                                     elapsed = diffSec;
@@ -665,6 +690,21 @@
                             this.playbackCurrentTime = cur;
                             this.playbackProgressPercent = this.playbackDuration > 0 ? (this.playbackCurrentTime / this.playbackDuration) * 100 : 0;
                             this.playbackCurrentTimeFormatted = this.formatSeconds(this.playbackCurrentTime);
+
+                            // Jika status play/pause berubah dari kasir, langsung eksekusi tanpa menunggu interval berikutnya!
+                            if (playStateChanged && this.tvPlayer) {
+                                if (!this.isPlaying) {
+                                    if (typeof this.tvPlayer.pauseVideo === 'function') {
+                                        this._isManualPausing = true;
+                                        this.tvPlayer.pauseVideo();
+                                        setTimeout(() => { this._isManualPausing = false; }, 400);
+                                    }
+                                } else {
+                                    if (typeof this.tvPlayer.playVideo === 'function') {
+                                        this.tvPlayer.playVideo();
+                                    }
+                                }
+                            }
                         } else if (data.now_playing) {
                             this.isPlaying = true;
                             if (!this.playbackCurrentTime || this.playbackCurrentTime === 0) {

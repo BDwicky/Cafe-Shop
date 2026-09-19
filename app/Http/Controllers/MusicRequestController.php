@@ -235,6 +235,7 @@ class MusicRequestController extends Controller
             'total_queue_count' => $state['total_queue_count'] ?? count($state['queue']),
             'ready_orders' => $readyOrders,
             'playback' => $playback,
+            'server_time' => (int) round(microtime(true) * 1000),
             'prayer_times' => $prayerScheduleData,
             'adzan_settings' => [
                 'enabled' => ! empty($voiceSettings['adzan_mode_enabled'] ?? true),

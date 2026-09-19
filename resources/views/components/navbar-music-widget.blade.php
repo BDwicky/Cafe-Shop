@@ -1806,10 +1806,13 @@ function navbarMusicWidget() {
             }
 
             if (this.isPlaying) {
+                this.isPlaying = false;
                 this.player.pauseVideo();
             } else {
+                this.isPlaying = true;
                 this.player.playVideo();
             }
+            this.broadcastSync();
             this.broadcastTimeSync(true);
         },
 
