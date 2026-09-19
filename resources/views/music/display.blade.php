@@ -1140,7 +1140,7 @@
 
                 <!-- 2. MODE VIDEO: CINEMATIC YOUTUBE PLAYER SCREEN (STREAM-ONLY DI DALAM FRAME DENGAN 100% ZOOM) -->
                 <div x-show="displayMode === 'video'" class="w-full select-none">
-                    <div class="w-full aspect-video rounded-2xl overflow-hidden border-2 border-[#3A2D22] shadow-[0_20px_60px_rgba(0,0,0,0.9)] bg-black relative select-none cursor-default">
+                    <div class="w-full aspect-[16/10] min-h-[420px] sm:min-h-[460px] md:min-h-[500px] lg:min-h-[540px] xl:min-h-[580px] max-h-[76vh] rounded-2xl overflow-hidden border-2 border-[#3A2D22] shadow-[0_20px_60px_rgba(0,0,0,0.9)] bg-black relative select-none cursor-default flex items-center justify-center">
                         <div class="w-full h-full relative select-none">
                             <div id="tv-player-wrap" class="w-full h-full pointer-events-none select-none" x-show="nowPlaying && nowPlaying.youtube_id">
                                 <div id="tv-yt-player" class="w-full h-full pointer-events-none select-none"></div>
@@ -1153,8 +1153,8 @@
                                 </div>
                             </template>
 
-                            <!-- OVERLAY BOTTOM INSIDE VIDEO FRAME (NOW PLAYING TITLE & LIVE SYNC PROGRESS BAR WITH SUBTLE BLUR) -->
-                            <div class="absolute bottom-0 inset-x-0 z-20 bg-[#120D09]/75 backdrop-blur-md border-t border-white/10 px-4 py-3 sm:px-5 sm:py-3.5 flex flex-col gap-1.5 pointer-events-none select-none">
+                            <!-- OVERLAY BOTTOM INSIDE VIDEO FRAME (NOW PLAYING TITLE & LIVE SYNC PROGRESS BAR WITH 75% TRANSPARENCY & SUBTLE BLUR) -->
+                            <div class="absolute bottom-0 inset-x-0 z-20 bg-[#120D09]/25 backdrop-blur-md border-t border-white/10 px-4 py-3 sm:px-5 sm:py-3.5 flex flex-col gap-1.5 pointer-events-none select-none">
                                 <div class="flex items-center justify-between gap-3">
                                     <div class="min-w-0 flex-1 flex items-center gap-2.5">
                                         <span class="w-2 h-2 rounded-full bg-[#D9973E] shrink-0" :class="isPlaying ? 'animate-ping' : 'opacity-40'"></span>
