@@ -149,9 +149,6 @@
 
                 displayMode: localStorage.getItem('tv_display_mode') || 'visualizer', // 'visualizer' atau 'video'
                 isFullscreen: false,
-                tvSoundEnabled: localStorage.getItem('tv_sound_enabled') === 'true', // Mengontrol suara video TV & notifikasi chime secara terpadu
-                tvVolume: Number(localStorage.getItem('tv_volume') || 100),
-                adzanTargetVolume: 10,
 
                 playbackCurrentTime: 0,
                 playbackDuration: 0,
@@ -273,24 +270,15 @@
                             } else if (data.type === 'ORDER_READY') {
                                 this.triggerNewReadyOrderNotification(data.orderId, data.isRecall);
                             } else if (data.type === 'ADZAN_MODE_STARTED') {
-                                if (!this.isAdzanMode) {
-                                    this.playAdzanChime();
-                                }
                                 this.isAdzanMode = true;
                                 this.adzanPrayerName = data.prayer || 'Adzan';
                                 this._isTestAdzan = !!data.isTest;
                                 this._isManualAdzan = !!data.isManual;
-                                if (this.tvPlayer && this.tvSoundEnabled && typeof this.tvPlayer.setVolume === 'function') {
-                                    this.tvPlayer.setVolume(this.adzanTargetVolume ?? 10);
-                                }
                             } else if (data.type === 'ADZAN_MODE_ENDED') {
                                 this.isAdzanMode = false;
                                 this.adzanPrayerName = '';
                                 this._isTestAdzan = false;
                                 this._isManualAdzan = false;
-                                if (this.tvPlayer && this.tvSoundEnabled && typeof this.tvPlayer.setVolume === 'function') {
-                                    this.tvPlayer.setVolume(this.tvVolume ?? 100);
-                                }
                             }
                         };
                     }
@@ -340,10 +328,7 @@
                     const unlockTvAutoplay = () => {
                         if (this.tvPlayer && typeof this.tvPlayer.playVideo === 'function') {
                             try {
-                                if (this.tvSoundEnabled && typeof this.tvPlayer.unMute === 'function') {
-                                    this.tvPlayer.unMute();
-                                    this.tvPlayer.setVolume(this.isAdzanMode ? (this.adzanTargetVolume ?? 10) : (this.tvVolume ?? 100));
-                                } else if (!this.tvSoundEnabled && typeof this.tvPlayer.mute === 'function') {
+                                if (typeof this.tvPlayer.mute === 'function') {
                                     this.tvPlayer.mute();
                                 }
                             } catch (e) {}
@@ -442,7 +427,7 @@
                                 modestbranding: 1,
                                 rel: 0,
                                 playsinline: 1,
-                                mute: this.tvSoundEnabled ? 0 : 1, // TV bersuara jika toggle suara aktif
+                                mute: 1, // Audio berpusat 100% di stasiun kasir & sound system kafe
                                 origin: window.location.origin,
                                 cc_load_policy: 0,
                                 iv_load_policy: 3,
@@ -456,12 +441,7 @@
                                             event.target.setPlaybackRate(1);
                                         }
                                     } catch (e) {}
-                                    if (this.tvSoundEnabled) {
-                                        event.target.unMute();
-                                        event.target.setVolume(this.isAdzanMode ? (this.adzanTargetVolume ?? 10) : (this.tvVolume ?? 100));
-                                    } else {
-                                        event.target.mute();
-                                    }
+                                    event.target.mute();
                                     this.disableCaptions();
 
                                     if (this.nowPlaying && this.nowPlaying.youtube_id) {
@@ -514,10 +494,7 @@
                                         setTimeout(() => {
                                             if (this.isPlaying && this.tvPlayer && typeof this.tvPlayer.playVideo === 'function') {
                                                 try {
-                                                    if (this.tvSoundEnabled && typeof this.tvPlayer.unMute === 'function') {
-                                                        this.tvPlayer.unMute();
-                                                        this.tvPlayer.setVolume(this.isAdzanMode ? (this.adzanTargetVolume ?? 10) : (this.tvVolume ?? 100));
-                                                    } else if (!this.tvSoundEnabled && typeof this.tvPlayer.mute === 'function') {
+                                                    if (typeof this.tvPlayer.mute === 'function') {
                                                         this.tvPlayer.mute();
                                                     }
                                                 } catch (e) {}
@@ -570,10 +547,7 @@
                         if (this.isPlaying) {
                             if (state !== YT.PlayerState.PLAYING && state !== YT.PlayerState.BUFFERING) {
                                 try {
-                                    if (this.tvSoundEnabled && typeof this.tvPlayer.unMute === 'function') {
-                                        this.tvPlayer.unMute();
-                                        this.tvPlayer.setVolume(this.isAdzanMode ? (this.adzanTargetVolume ?? 10) : (this.tvVolume ?? 100));
-                                    } else if (!this.tvSoundEnabled && typeof this.tvPlayer.mute === 'function') {
+                                    if (typeof this.tvPlayer.mute === 'function') {
                                         this.tvPlayer.mute();
                                     }
                                 } catch (e) {}
@@ -587,15 +561,11 @@
                             }
                         }
 
-                        // Sinkronkan status mute/volume player dengan toggle tvSoundEnabled
-                        if (typeof this.tvPlayer.isMuted === 'function') {
-                            const isMuted = this.tvPlayer.isMuted();
-                            if (this.tvSoundEnabled && isMuted) {
-                                this.tvPlayer.unMute();
-                                this.tvPlayer.setVolume(this.isAdzanMode ? (this.adzanTargetVolume ?? 10) : (this.tvVolume ?? 100));
-                            } else if (!this.tvSoundEnabled && !isMuted) {
+                        // Pastikan TV player selalu mute (audio berpusat 100% di stasiun kasir & sound system kafe)
+                        if (typeof this.tvPlayer.isMuted === 'function' && !this.tvPlayer.isMuted()) {
+                            try {
                                 this.tvPlayer.mute();
-                            }
+                            } catch (e) {}
                         }
 
                         // Pastikan kecepatan putar selalu normal 1.0x (mencegah efek slowmo atau nada terseret pada audio TV)
@@ -709,19 +679,9 @@
                         }
 
                         if (data.prayer_times && data.prayer_times.active_prayer && data.adzan_settings && data.adzan_settings.enabled) {
-                            if (!this.isAdzanMode) {
-                                this.playAdzanChime();
-                            }
                             this.isAdzanMode = true;
                             this.adzanPrayerName = data.prayer_times.active_prayer.name;
-                            this.adzanTargetVolume = Number(data.adzan_settings.target_volume ?? 10);
-                            if (this.tvPlayer && this.tvSoundEnabled && typeof this.tvPlayer.setVolume === 'function') {
-                                this.tvPlayer.setVolume(this.adzanTargetVolume);
-                            }
                         } else if (!this._isTestAdzan && !this._isManualAdzan) {
-                            if (this.isAdzanMode && this.tvPlayer && this.tvSoundEnabled && typeof this.tvPlayer.setVolume === 'function') {
-                                this.tvPlayer.setVolume(this.tvVolume ?? 100);
-                            }
                             this.isAdzanMode = false;
                             this.adzanPrayerName = '';
                         }
@@ -767,8 +727,6 @@
                     };
                     this.activeFlyingCards.push(cardObj);
 
-                    this.playReadyChime();
-
                     setTimeout(() => {
                         this.activeFlyingCards = this.activeFlyingCards.filter(c => c.uniqueKey !== cardObj.uniqueKey);
                     }, 18000);
@@ -798,58 +756,6 @@
                         return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
                     }
                     return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
-                },
-
-                playReadyChime() {
-                    if (!this.tvSoundEnabled) return;
-                    try {
-                        const AudioContext = window.AudioContext || window.webkitAudioContext;
-                        if (!AudioContext) return;
-                        const ctx = new AudioContext();
-                        const now = ctx.currentTime;
-
-                        const osc1 = ctx.createOscillator();
-                        const gain1 = ctx.createGain();
-                        osc1.type = 'sine';
-                        osc1.frequency.setValueAtTime(659.25, now);
-                        gain1.gain.setValueAtTime(0.3, now);
-                        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
-                        osc1.connect(gain1);
-                        gain1.connect(ctx.destination);
-                        osc1.start(now);
-                        osc1.stop(now + 0.65);
-
-                        const osc2 = ctx.createOscillator();
-                        const gain2 = ctx.createGain();
-                        osc2.type = 'sine';
-                        osc2.frequency.setValueAtTime(523.25, now + 0.22);
-                        gain2.gain.setValueAtTime(0.35, now + 0.22);
-                        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.95);
-                        osc2.connect(gain2);
-                        gain2.connect(ctx.destination);
-                        osc2.start(now + 0.22);
-                        osc2.stop(now + 1.0);
-                    } catch (e) {}
-                },
-
-                toggleTvSound() {
-                    this.tvSoundEnabled = !this.tvSoundEnabled;
-                    try {
-                        localStorage.setItem('tv_sound_enabled', this.tvSoundEnabled ? 'true' : 'false');
-                    } catch (e) {}
-
-                    if (this.tvPlayer) {
-                        try {
-                            if (this.tvSoundEnabled) {
-                                if (typeof this.tvPlayer.unMute === 'function') this.tvPlayer.unMute();
-                                if (typeof this.tvPlayer.setVolume === 'function') {
-                                    this.tvPlayer.setVolume(this.isAdzanMode ? (this.adzanTargetVolume ?? 10) : (this.tvVolume ?? 100));
-                                }
-                            } else {
-                                if (typeof this.tvPlayer.mute === 'function') this.tvPlayer.mute();
-                            }
-                        } catch (e) {}
-                    }
                 },
 
                 initParticles() {
@@ -924,32 +830,6 @@
                             this.syncTvPlayerState();
                         });
                     }
-                },
-
-                playAdzanChime() {
-                    if (!this.tvSoundEnabled) return;
-                    try {
-                        const AudioContext = window.AudioContext || window.webkitAudioContext;
-                        if (!AudioContext) return;
-                        const ctx = new AudioContext();
-                        const now = ctx.currentTime;
-
-                        // Nada lembut pengingat waktu sholat (F4 -> C5 -> A4)
-                        const notes = [349.23, 523.25, 440.00];
-                        notes.forEach((freq, i) => {
-                            const osc = ctx.createOscillator();
-                            const gain = ctx.createGain();
-                            const t = now + (i * 0.25);
-                            osc.type = 'sine';
-                            osc.frequency.setValueAtTime(freq, t);
-                            gain.gain.setValueAtTime(0.2, t);
-                            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
-                            osc.connect(gain);
-                            gain.connect(ctx.destination);
-                            osc.start(t);
-                            osc.stop(t + 0.85);
-                        });
-                    } catch (e) {}
                 },
 
                 toggleFullscreen() {
@@ -1127,15 +1007,6 @@
                     </span>
                 </button>
 
-                <!-- Toggle Terpadu: Suara TV (Video) & Notifikasi (Chime) -->
-                <button type="button" @click="toggleTvSound()"
-                        class="h-9 px-2.5 sm:px-3 flex items-center gap-1.5 rounded-xl bg-[#261D16] hover:bg-[#32261C] border transition shadow-sm active:scale-95 cursor-pointer relative"
-                        :class="tvSoundEnabled ? 'border-[#5F7F42] text-[#85BF5C]' : 'border-[#3A2D22] text-[#A89A85] hover:border-[#D9973E] hover:text-[#D9973E]'"
-                        :title="tvSoundEnabled ? 'Suara TV & Notifikasi: AKTIF (Musik & Chime Bersuara — Klik untuk Mute)' : 'Suara TV & Notifikasi: HENING (TV Mute Total — Klik untuk Bunyikan TV)'">
-                    <span class="text-sm" x-text="tvSoundEnabled ? '🔊' : '🔇'"></span>
-                    <span class="hidden sm:inline font-mono text-xs font-bold" x-text="tvSoundEnabled ? 'Suara ON' : 'Mute'"></span>
-                    <span x-show="tvSoundEnabled" class="w-2 h-2 rounded-full bg-[#5F7F42] absolute -top-0.5 -right-0.5 border border-[#140E0A] animate-pulse"></span>
-                </button>
 
                 <!-- Toggle Fullscreen -->
                 <button type="button" @click="toggleFullscreen()"
