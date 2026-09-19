@@ -74,14 +74,29 @@
             height: 100% !important;
             overflow: hidden !important;
             position: relative !important;
+            pointer-events: none !important;
+            user-select: none !important;
         }
         #tv-player-wrap iframe, #tv-yt-player {
             width: 100% !important;
             height: 100% !important;
             border: none !important;
             pointer-events: none !important;
+            user-select: none !important;
             transform: scale(1.06);
             transform-origin: center center;
+        }
+        .video-shield {
+            position: absolute !important;
+            inset: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            z-index: 25 !important;
+            background: transparent !important;
+            cursor: default !important;
+            user-select: none !important;
+            touch-action: none !important;
+            pointer-events: auto !important;
         }
         @keyframes cardFlyIn {
             0% {
@@ -298,6 +313,28 @@
                     } catch (e) {}
                 },
 
+                setOptimalQuality() {
+                    if (!this.tvPlayer) return;
+                    try {
+                        const highResQualities = ['highres', 'hd1440', 'hd2160', 'hd2880', 'hd4320'];
+                        const currentQuality = (typeof this.tvPlayer.getPlaybackQuality === 'function')
+                            ? this.tvPlayer.getPlaybackQuality()
+                            : null;
+
+                        // Jika resolusi melebihi 1080p (seperti 2K/4K/8K di TV UHD), batasi ke Full HD (1080p)
+                        if (currentQuality && highResQualities.includes(currentQuality)) {
+                            if (typeof this.tvPlayer.setPlaybackQuality === 'function') {
+                                this.tvPlayer.setPlaybackQuality('hd1080');
+                            }
+                        } else if (!currentQuality || currentQuality === 'default' || currentQuality === 'auto') {
+                            // Tetapkan target kualitas maksimal Full HD (1080p) secara adaptif
+                            if (typeof this.tvPlayer.setPlaybackQuality === 'function') {
+                                this.tvPlayer.setPlaybackQuality('hd1080');
+                            }
+                        }
+                    } catch (e) {}
+                },
+
                 initTvPlayer() {
                     if (this.tvPlayer) return;
                     const targetEl = document.getElementById('tv-yt-player');
@@ -330,32 +367,39 @@
                                     this.tvPlayerReady = true;
                                     event.target.mute();
                                     this.disableCaptions();
+                                    this.setOptimalQuality();
 
                                     if (this.nowPlaying && this.nowPlaying.youtube_id) {
                                         const startSec = Math.max(0, Math.floor(this.playbackCurrentTime || 0));
-                                        if (startSec > 0 && startSec < 86400) {
-                                            event.target.loadVideoById({
-                                                videoId: this.nowPlaying.youtube_id,
-                                                startSeconds: startSec
-                                            });
-                                        } else {
-                                            event.target.loadVideoById(this.nowPlaying.youtube_id);
-                                        }
+                                        this.tvPlayer.loadVideoById({
+                                            videoId: this.nowPlaying.youtube_id,
+                                            startSeconds: (startSec > 0 && startSec < 86400) ? startSec : 0,
+                                            suggestedQuality: 'hd1080'
+                                        });
                                         if (this.isPlaying) {
                                             event.target.playVideo();
                                         } else {
                                             event.target.pauseVideo();
                                         }
-                                        setTimeout(() => this.disableCaptions(), 500);
+                                        setTimeout(() => {
+                                            this.disableCaptions();
+                                            this.setOptimalQuality();
+                                        }, 600);
                                     }
                                 },
                                 onStateChange: (event) => {
-                                    // Matikan paksa closed caption / subtitle setiap kali video mulai memutar
+                                    // Matikan paksa closed caption & set resolusi maksimal 1080p saat video memutar
                                     if (event.data === YT.PlayerState.PLAYING) {
                                         this.disableCaptions();
-                                        setTimeout(() => this.disableCaptions(), 400);
-                                        setTimeout(() => this.disableCaptions(), 1200);
-                                        setTimeout(() => this.disableCaptions(), 2500);
+                                        this.setOptimalQuality();
+                                        setTimeout(() => {
+                                            this.disableCaptions();
+                                            this.setOptimalQuality();
+                                        }, 500);
+                                        setTimeout(() => {
+                                            this.disableCaptions();
+                                            this.setOptimalQuality();
+                                        }, 1500);
                                     }
 
                                     if (event.data === YT.PlayerState.PAUSED && this.isPlaying && !this._isManualPausing) {
@@ -364,6 +408,14 @@
                                                 this.syncTvPlayerState();
                                             }
                                         }, 600);
+                                    }
+                                },
+                                onPlaybackQualityChange: (event) => {
+                                    // Cegah resolusi di atas 1080p (seperti 1440p atau 4K/highres) agar hemat bandwidth
+                                    if (event.data === 'highres' || event.data === 'hd1440' || event.data === 'hd2160') {
+                                        if (this.tvPlayer && typeof this.tvPlayer.setPlaybackQuality === 'function') {
+                                            this.tvPlayer.setPlaybackQuality('hd1080');
+                                        }
                                     }
                                 }
                             }
@@ -384,17 +436,21 @@
                         if (this.currentTvVideoId !== this.nowPlaying.youtube_id) {
                             this.currentTvVideoId = this.nowPlaying.youtube_id;
                             const startSec = Math.max(0, Math.floor(this.playbackCurrentTime || 0));
-                            if (startSec > 0 && startSec < 86400) {
-                                this.tvPlayer.loadVideoById({
-                                    videoId: this.nowPlaying.youtube_id,
-                                    startSeconds: startSec
-                                });
-                            } else {
-                                this.tvPlayer.loadVideoById(this.nowPlaying.youtube_id);
-                            }
+                            this.tvPlayer.loadVideoById({
+                                videoId: this.nowPlaying.youtube_id,
+                                startSeconds: (startSec > 0 && startSec < 86400) ? startSec : 0,
+                                suggestedQuality: 'hd1080'
+                            });
                             this.disableCaptions();
-                            setTimeout(() => this.disableCaptions(), 500);
-                            setTimeout(() => this.disableCaptions(), 1500);
+                            this.setOptimalQuality();
+                            setTimeout(() => {
+                                this.disableCaptions();
+                                this.setOptimalQuality();
+                            }, 600);
+                            setTimeout(() => {
+                                this.disableCaptions();
+                                this.setOptimalQuality();
+                            }, 1800);
                         }
 
                         const state = (typeof this.tvPlayer.getPlayerState === 'function') ? this.tvPlayer.getPlayerState() : -1;
@@ -946,16 +1002,16 @@
                     </div>
                 </div>
 
-                <!-- 2. MODE VIDEO: CINEMATIC YOUTUBE PLAYER SCREEN -->
-                <div x-show="displayMode === 'video'" class="space-y-3.5 w-full">
-                    <div class="w-full aspect-video rounded-2xl overflow-hidden border-2 border-[#3A2D22] shadow-[0_20px_60px_rgba(0,0,0,0.9)] bg-black relative group">
-                        <div class="w-full h-full relative">
-                            <div id="tv-player-wrap" class="w-full h-full pointer-events-none" x-show="nowPlaying && nowPlaying.youtube_id">
-                                <div id="tv-yt-player" class="w-full h-full"></div>
+                <!-- 2. MODE VIDEO: CINEMATIC YOUTUBE PLAYER SCREEN (STREAM-ONLY TANPA INTERAKSI) -->
+                <div x-show="displayMode === 'video'" class="space-y-3.5 w-full select-none">
+                    <div class="w-full aspect-video rounded-2xl overflow-hidden border-2 border-[#3A2D22] shadow-[0_20px_60px_rgba(0,0,0,0.9)] bg-black relative select-none cursor-default">
+                        <div class="w-full h-full relative select-none">
+                            <div id="tv-player-wrap" class="w-full h-full pointer-events-none select-none" x-show="nowPlaying && nowPlaying.youtube_id">
+                                <div id="tv-yt-player" class="w-full h-full pointer-events-none select-none"></div>
                             </div>
 
                             <template x-if="!nowPlaying || !nowPlaying.youtube_id">
-                                <div class="w-full h-full flex flex-col items-center justify-center bg-[#140E0A] text-[#A89A85]">
+                                <div class="w-full h-full flex flex-col items-center justify-center bg-[#140E0A] text-[#A89A85] select-none pointer-events-none">
                                     <span class="text-5xl mb-2 text-[#D9973E]">🎬</span>
                                     <span class="font-mono text-xs">Memuat tayangan video...</span>
                                 </div>
@@ -963,12 +1019,23 @@
 
                             <!-- OVERLAY INDIKATOR KETIKA KASIR MENJEDA MUSIK -->
                             <div x-show="!isPlaying && nowPlaying"
-                                 class="absolute inset-0 bg-black/65 backdrop-blur-xs flex items-center justify-center pointer-events-none transition-opacity">
-                                <div class="px-5 py-2.5 bg-[#1F1812]/95 border border-[#D9973E]/60 rounded-full text-[#D9973E] font-mono text-xs font-bold flex items-center gap-2 shadow-2xl animate-pulse">
+                                 class="absolute inset-0 z-30 bg-black/65 backdrop-blur-xs flex items-center justify-center pointer-events-none transition-opacity select-none">
+                                <div class="px-5 py-2.5 bg-[#1F1812]/95 border border-[#D9973E]/60 rounded-full text-[#D9973E] font-mono text-xs font-bold flex items-center gap-2 shadow-2xl animate-pulse select-none">
                                     <span class="w-2 h-2 rounded-full bg-[#D9973E] animate-ping"></span>
                                     <span>⏸️ AUDIO & VIDEO TERJEDA DI KASIR</span>
                                 </div>
                             </div>
+
+                            <!-- SHIELD PELINDUNG TRANSPARAN: Memblokir 100% interaksi mouse/touch/klik agar murni stream pasif dari kasir -->
+                            <div class="video-shield absolute inset-0 z-20 cursor-default select-none"
+                                 @click.prevent.stop
+                                 @dblclick.prevent.stop
+                                 @mousedown.prevent.stop
+                                 @mouseup.prevent.stop
+                                 @contextmenu.prevent.stop
+                                 @touchstart.prevent.stop
+                                 @touchend.prevent.stop
+                                 title=""></div>
                         </div>
                     </div>
 
