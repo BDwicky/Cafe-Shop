@@ -487,6 +487,11 @@ class KasirMusicController extends Controller
         $isPlaying = $request->boolean('is_playing');
         $currentTrack = $request->input('current_track');
 
+        if ($request->has('volume')) {
+            $volume = max(0, min(100, (int) $request->input('volume')));
+            Cache::put('soundstation_playback_volume', $volume, now()->addDays(30));
+        }
+
         $existing = Cache::get('soundstation_playback_state', []);
 
         if ($duration <= 0 && is_array($currentTrack) && ! empty($currentTrack['duration_seconds'])) {
@@ -498,6 +503,7 @@ class KasirMusicController extends Controller
             'duration' => $duration > 0 ? $duration : ($existing['duration'] ?? 0),
             'is_playing' => $isPlaying,
             'current_track' => $currentTrack ?: ($existing['current_track'] ?? null),
+            'volume' => (int) Cache::get('soundstation_playback_volume', 50),
             'updated_at' => (int) round(microtime(true) * 1000),
             'client_id' => $clientId ?: ($master['client_id'] ?? null),
         ];
@@ -566,6 +572,7 @@ class KasirMusicController extends Controller
                             'message' => 'Master host sedang dipegang oleh perangkat lain.',
                             'current_master' => $existingMaster,
                             'playback_state' => $playbackState,
+                            'volume' => (int) Cache::get('soundstation_playback_volume', 50),
                             'now_playing' => $playerState['now_playing'],
                             'queue_count' => $playerState['queue_count'],
                             'queue' => $playerState['queue'],
@@ -594,6 +601,7 @@ class KasirMusicController extends Controller
             'status' => 'granted',
             'master' => $newMaster,
             'playback_state' => $playbackState,
+            'volume' => (int) Cache::get('soundstation_playback_volume', 50),
             'now_playing' => $playerState['now_playing'],
             'queue_count' => $playerState['queue_count'],
             'queue' => $playerState['queue'],
@@ -669,11 +677,17 @@ class KasirMusicController extends Controller
             }
         }
 
+        if ($request->has('volume')) {
+            $volume = max(0, min(100, (int) $request->input('volume')));
+            Cache::put('soundstation_playback_volume', $volume, now()->addDays(30));
+        }
+
         // Ambil dan bersihkan perintah remote (pending commands)
         $commands = Cache::pull('soundstation_pending_commands', []);
 
         return response()->json([
             'status' => 'ok',
+            'volume' => (int) Cache::get('soundstation_playback_volume', 50),
             'commands' => is_array($commands) ? array_values($commands) : [],
         ]);
     }
@@ -709,6 +723,7 @@ class KasirMusicController extends Controller
         return response()->json([
             'has_master' => $isMasterAlive,
             'master' => $isMasterAlive ? $master : null,
+            'volume' => (int) Cache::get('soundstation_playback_volume', 50),
             'playback_state' => $playbackState,
             'now_playing' => $playerState['now_playing'],
             'queue_count' => $playerState['queue_count'],
@@ -744,6 +759,11 @@ class KasirMusicController extends Controller
             } else {
                 Cache::forget('soundstation_manual_adzan');
             }
+        }
+
+        if ($validated['command'] === 'SET_VOLUME' && isset($validated['data']['volume'])) {
+            $volume = max(0, min(100, (int) $validated['data']['volume']));
+            Cache::put('soundstation_playback_volume', $volume, now()->addDays(30));
         }
 
         // Cek apakah perintah dikirim oleh Master Host itu sendiri

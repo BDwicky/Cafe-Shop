@@ -270,7 +270,13 @@
             progressPercent: 0,
             currentTimeFormatted: '00:00',
             durationFormatted: '00:00',
-            volume: parseInt(localStorage.getItem('pos_music_volume') || '75'),
+            volume: (() => {
+                const local = localStorage.getItem('pos_music_volume');
+                if (local !== null && !isNaN(parseInt(local))) {
+                    return Math.max(0, Math.min(100, parseInt(local)));
+                }
+                return {{ (int) (\Illuminate\Support\Facades\Cache::get('soundstation_playback_volume', 50)) }};
+            })(),
             isMuted: false,
             queueCount: 0,
             queue: [],
@@ -413,7 +419,13 @@ function navbarMusicWidget() {
         player: null,
         playerReady: false,
         isPlaying: false,
-        volume: parseInt(localStorage.getItem('pos_music_volume') || '75'),
+        volume: (() => {
+            const local = localStorage.getItem('pos_music_volume');
+            if (local !== null && !isNaN(parseInt(local))) {
+                return Math.max(0, Math.min(100, parseInt(local)));
+            }
+            return {{ (int) (\Illuminate\Support\Facades\Cache::get('soundstation_playback_volume', 50)) }};
+        })(),
         isMuted: false,
 
         currentTrack: null,
@@ -600,6 +612,19 @@ function navbarMusicWidget() {
             }
             if (Array.isArray(data.queue)) {
                 this.queue = data.queue;
+            }
+            if (typeof data.volume !== 'undefined') {
+                const sVol = Math.max(0, Math.min(100, parseInt(data.volume)));
+                if (!isNaN(sVol)) {
+                    this.volume = sVol;
+                    localStorage.setItem('pos_music_volume', sVol);
+                }
+            } else if (data.playback_state && typeof data.playback_state.volume !== 'undefined') {
+                const sVol = Math.max(0, Math.min(100, parseInt(data.playback_state.volume)));
+                if (!isNaN(sVol)) {
+                    this.volume = sVol;
+                    localStorage.setItem('pos_music_volume', sVol);
+                }
             }
         },
 
@@ -894,6 +919,7 @@ function navbarMusicWidget() {
                     current_time: this.currentTime,
                     duration: this.duration,
                     is_playing: this.isPlaying,
+                    volume: this.volume,
                     current_track: this.currentTrack
                 })
             })
@@ -1028,8 +1054,9 @@ function navbarMusicWidget() {
                         this.isAdzanMode = false;
                         this.isManualAdzan = false;
                         this.activePrayerName = '';
-                        if (!this.isMasterHost && typeof e.data.restoreVolume !== 'undefined') {
-                            this.volume = e.data.restoreVolume;
+                        if (typeof e.data.restoreVolume !== 'undefined') {
+                            this.volume = Number(e.data.restoreVolume);
+                            localStorage.setItem('pos_music_volume', this.volume);
                         }
                     } else if (e.data.type === 'ANNOUNCER_SETTINGS_UPDATED' && e.data.settings) {
                         this.applyAnnouncerSettings(e.data.settings);
@@ -1059,7 +1086,10 @@ function navbarMusicWidget() {
                     if (!this.isMasterHost) {
                         this.isPlaying = !!state.isPlaying;
                         if (state.currentTrack) this.currentTrack = state.currentTrack;
-                        if (typeof state.volume !== 'undefined') this.volume = state.volume;
+                        if (typeof state.volume !== 'undefined') {
+                            this.volume = Number(state.volume);
+                            localStorage.setItem('pos_music_volume', this.volume);
+                        }
                         if (typeof state.isMuted !== 'undefined') this.isMuted = !!state.isMuted;
                         if (typeof state.queueCount !== 'undefined') this.queueCount = state.queueCount;
                         if (Array.isArray(state.queue)) this.queue = state.queue;
@@ -1230,7 +1260,7 @@ function navbarMusicWidget() {
                         'onReady': () => {
                             this._isInitializingPlayer = false;
                             this.playerReady = true;
-                            const initialVol = this.isAdzanMode ? Math.max(0, Math.min(100, this.adzanTargetVolume ?? 10)) : (this.volume || 75);
+                            const initialVol = this.isAdzanMode ? Math.max(0, Math.min(100, this.adzanTargetVolume ?? 10)) : (typeof this.volume === 'number' ? this.volume : 50);
                             this.player.setVolume(initialVol);
                             if (this.isMuted) this.player.mute();
 
@@ -1534,6 +1564,7 @@ function navbarMusicWidget() {
                             duration: this.duration > 0 ? this.duration : (this.currentTrack?.duration_seconds || 0),
                             is_playing: this.isPlaying,
                             is_live: this.isLive,
+                            volume: this.volume,
                             current_track: this.currentTrack
                         })
                     }).catch(() => {});
@@ -2080,7 +2111,7 @@ function navbarMusicWidget() {
                     if (typeof this.player.unMute === 'function' && !this.isMuted) {
                         this.player.unMute();
                     }
-                    const targetVol = this.isAdzanMode ? Math.max(0, Math.min(100, this.adzanTargetVolume ?? 10)) : (this.volume || 75);
+                    const targetVol = this.isAdzanMode ? Math.max(0, Math.min(100, this.adzanTargetVolume ?? 10)) : (typeof this.volume === 'number' ? this.volume : 50);
                     if (typeof this.player.setVolume === 'function') {
                         this.player.setVolume(targetVol);
                     }
@@ -2159,7 +2190,7 @@ function navbarMusicWidget() {
         },
 
         changeVolume(val) {
-            const v = parseInt(val);
+            const v = Math.max(0, Math.min(100, parseInt(val) || 0));
             this.volume = v;
             localStorage.setItem('pos_music_volume', v);
 
@@ -2177,6 +2208,22 @@ function navbarMusicWidget() {
                 }
             }
             this.broadcastSync();
+
+            // Simpan juga ke server cache
+            try {
+                fetch('{{ route('kasir.music.master.command') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        client_id: this.myTabId,
+                        command: 'SET_VOLUME',
+                        data: { volume: v }
+                    })
+                }).catch(() => {});
+            } catch (e) {}
         },
 
         toggleMute() {
@@ -2643,8 +2690,9 @@ function navbarMusicWidget() {
                 if (!this.isAdzanMode) {
                     this.isAdzanMode = true;
                     this.activePrayerName = activePrayer.name;
-                    if (this.preAdzanVolume === null || this.preAdzanVolume <= (this.adzanTargetVolume ?? 10)) {
-                        this.preAdzanVolume = (this.volume && this.volume > 15) ? this.volume : (parseInt(localStorage.getItem('pos_music_volume') || '75'));
+                    if (this.preAdzanVolume === null || typeof this.preAdzanVolume !== 'number') {
+                        const stored = parseInt(localStorage.getItem('pos_music_volume') || '50');
+                        this.preAdzanVolume = (typeof this.volume === 'number' && !isNaN(this.volume)) ? this.volume : stored;
                     }
 
                     const targetVol = Math.max(0, Math.min(100, this.adzanTargetVolume ?? 10));
@@ -2678,7 +2726,11 @@ function navbarMusicWidget() {
                     const finishedPrayer = this.activePrayerName || 'Adzan';
                     this.isAdzanMode = false;
                     this.activePrayerName = '';
-                    const restoreVol = (this.preAdzanVolume !== null && this.preAdzanVolume > 15) ? this.preAdzanVolume : 75;
+                    const stored = parseInt(localStorage.getItem('pos_music_volume') || '50');
+                    const restoreVol = (typeof this.preAdzanVolume === 'number' && !isNaN(this.preAdzanVolume)) ? this.preAdzanVolume : stored;
+
+                    this.volume = restoreVol;
+                    localStorage.setItem('pos_music_volume', restoreVol);
 
                     // Tampilkan Toast Notifikasi Selesai
                     if (window.customToast) {
@@ -2704,6 +2756,7 @@ function navbarMusicWidget() {
                     }
 
                     this.preAdzanVolume = null;
+                    this.broadcastSync();
                 }
             }
         },
@@ -2768,8 +2821,9 @@ function navbarMusicWidget() {
                 this.isManualAdzan = true;
                 this.activePrayerName = prayerName;
                 const targetVol = Math.max(0, Math.min(100, Number(this.adzanTargetVolume ?? 10)));
-                if (this.preAdzanVolume === null || this.preAdzanVolume <= targetVol) {
-                    this.preAdzanVolume = (this.volume && this.volume > 15) ? this.volume : (parseInt(localStorage.getItem('pos_music_volume') || '75'));
+                if (this.preAdzanVolume === null || typeof this.preAdzanVolume !== 'number') {
+                    const stored = parseInt(localStorage.getItem('pos_music_volume') || '50');
+                    this.preAdzanVolume = (typeof this.volume === 'number' && !isNaN(this.volume)) ? this.volume : stored;
                 }
 
                 if (window.customToast) {
@@ -2833,7 +2887,11 @@ function navbarMusicWidget() {
                 this.isAdzanMode = false;
                 this.isManualAdzan = false;
                 this.activePrayerName = '';
-                const restoreVol = (this.preAdzanVolume !== null && this.preAdzanVolume > 15) ? this.preAdzanVolume : 75;
+                const stored = parseInt(localStorage.getItem('pos_music_volume') || '50');
+                const restoreVol = (typeof this.preAdzanVolume === 'number' && !isNaN(this.preAdzanVolume)) ? this.preAdzanVolume : stored;
+
+                this.volume = restoreVol;
+                localStorage.setItem('pos_music_volume', restoreVol);
 
                 if (window.customToast) {
                     window.customToast({
@@ -2876,6 +2934,7 @@ function navbarMusicWidget() {
                 } catch (e) {}
 
                 this.preAdzanVolume = null;
+                this.broadcastSync();
             }
         },
 
@@ -2935,8 +2994,9 @@ function navbarMusicWidget() {
                 : (this.adzanTargetVolume ?? 10);
             const targetVol = Math.max(0, Math.min(100, effectiveTarget));
 
-            if (this.preAdzanVolume === null || this.preAdzanVolume <= targetVol) {
-                this.preAdzanVolume = (this.volume && this.volume > 15) ? this.volume : (parseInt(localStorage.getItem('pos_music_volume') || '75'));
+            if (this.preAdzanVolume === null || typeof this.preAdzanVolume !== 'number') {
+                const stored = parseInt(localStorage.getItem('pos_music_volume') || '50');
+                this.preAdzanVolume = (typeof this.volume === 'number' && !isNaN(this.volume)) ? this.volume : stored;
             }
 
             if (window.customToast) {
@@ -2964,7 +3024,12 @@ function navbarMusicWidget() {
             setTimeout(() => {
                 this.isAdzanMode = false;
                 this._isTestAdzan = false;
-                const restoreVol = (this.preAdzanVolume !== null && this.preAdzanVolume > 15) ? this.preAdzanVolume : 75;
+                const stored = parseInt(localStorage.getItem('pos_music_volume') || '50');
+                const restoreVol = (typeof this.preAdzanVolume === 'number' && !isNaN(this.preAdzanVolume)) ? this.preAdzanVolume : stored;
+
+                this.volume = restoreVol;
+                localStorage.setItem('pos_music_volume', restoreVol);
+
                 if (window.customToast) {
                     window.customToast({
                         message: '✓ [UJI COBA] Waktu adzan selesai. Volume musik dikembalikan ke ' + restoreVol + '%.',
@@ -2983,6 +3048,7 @@ function navbarMusicWidget() {
                     });
                 }
                 this.preAdzanVolume = null;
+                this.broadcastSync();
             }, 8000);
         },
 

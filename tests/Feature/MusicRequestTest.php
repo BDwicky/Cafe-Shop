@@ -1175,4 +1175,57 @@ class MusicRequestTest extends TestCase
             ->assertJsonPath('closing_settings.closing_time', '00:00')
             ->assertJsonPath('closing_settings.reopen_time', '06:00');
     }
+
+    public function test_sync_playback_and_remote_command_persist_volume(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        // 1. Klaim master host terlebih dahulu
+        $claim = $this->postJson(route('kasir.music.master.claim'), [
+            'client_id' => 'master_tab_vol_test',
+            'device_id' => 'dev_123',
+            'device_name' => 'PC Kasir',
+            'priority' => 100,
+        ]);
+        $claim->assertOk()->assertJsonPath('status', 'granted');
+
+        // 2. Sync playback dengan volume
+        $sync = $this->postJson(route('kasir.music.playback.sync'), [
+            'client_id' => 'master_tab_vol_test',
+            'current_time' => 12.5,
+            'duration' => 200,
+            'is_playing' => true,
+            'volume' => 35,
+        ]);
+        $sync->assertOk()->assertJsonPath('status', 'ok');
+
+        $this->assertSame(35, Cache::get('soundstation_playback_volume'));
+
+        // 3. Status endpoint mengembalikan volume yang dipersist
+        $status = $this->getJson(route('kasir.music.master.status'));
+        $status->assertOk()
+            ->assertJsonPath('has_master', true)
+            ->assertJsonPath('volume', 35);
+
+        // 4. Remote command SET_VOLUME memperbarui volume di cache
+        $remote = $this->postJson(route('kasir.music.master.command'), [
+            'command' => 'SET_VOLUME',
+            'data' => ['volume' => 15],
+        ]);
+        $remote->assertOk()->assertJsonPath('status', 'queued');
+
+        $this->assertSame(15, Cache::get('soundstation_playback_volume'));
+
+        // 5. Heartbeat master mengembalikan volume terbaru
+        $heartbeat = $this->postJson(route('kasir.music.master.heartbeat'), [
+            'client_id' => 'master_tab_vol_test',
+            'volume' => 20,
+        ]);
+        $heartbeat->assertOk()
+            ->assertJsonPath('status', 'ok')
+            ->assertJsonPath('volume', 20);
+
+        $this->assertSame(20, Cache::get('soundstation_playback_volume'));
+    }
 }

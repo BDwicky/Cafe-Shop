@@ -162,7 +162,13 @@
                 progressPercent: 0,
                 currentTimeFormatted: '00:00',
                 durationFormatted: '00:00',
-                volume: parseInt(localStorage.getItem('pos_music_volume') || '75'),
+                volume: (() => {
+                    const local = localStorage.getItem('pos_music_volume');
+                    if (local !== null && !isNaN(parseInt(local))) {
+                        return Math.max(0, Math.min(100, parseInt(local)));
+                    }
+                    return {{ (int) (\Illuminate\Support\Facades\Cache::get('soundstation_playback_volume', 50)) }};
+                })(),
                 isMuted: false,
                 queueCount: 0,
                 isAnnouncing: false,
@@ -218,7 +224,13 @@
     function soundStationMini() {
         return {
             isPlaying: false,
-            volume: parseInt(localStorage.getItem('pos_music_volume') || '75'),
+            volume: (() => {
+                const local = localStorage.getItem('pos_music_volume');
+                if (local !== null && !isNaN(parseInt(local))) {
+                    return Math.max(0, Math.min(100, parseInt(local)));
+                }
+                return {{ (int) (\Illuminate\Support\Facades\Cache::get('soundstation_playback_volume', 50)) }};
+            })(),
             isMuted: false,
 
             currentTrack: null,
@@ -247,7 +259,10 @@
                         if (!state) return;
                         this.isPlaying = !!state.isPlaying;
                         if (state.currentTrack) this.currentTrack = state.currentTrack;
-                        if (typeof state.volume !== 'undefined') this.volume = state.volume;
+                        if (typeof state.volume !== 'undefined') {
+                            this.volume = Number(state.volume);
+                            localStorage.setItem('pos_music_volume', this.volume);
+                        }
                         if (typeof state.isMuted !== 'undefined') this.isMuted = !!state.isMuted;
                         if (typeof state.isLive !== 'undefined') this.isLive = !!state.isLive;
                         if (typeof state.queueCount !== 'undefined') this.queueCount = state.queueCount;
@@ -303,8 +318,9 @@
             },
 
             changeVolume(val) {
-                const v = parseInt(val);
+                const v = Math.max(0, Math.min(100, parseInt(val) || 0));
                 this.volume = v;
+                localStorage.setItem('pos_music_volume', v);
                 if (window.SoundStationHub) {
                     window.SoundStationHub.sendCommand('SET_VOLUME', { volume: v });
                 }

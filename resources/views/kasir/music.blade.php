@@ -863,7 +863,13 @@
 function musicStationPage() {
     return {
         isPlaying: false,
-        volume: parseInt(localStorage.getItem('pos_music_volume') || '75'),
+        volume: (() => {
+            const local = localStorage.getItem('pos_music_volume');
+            if (local !== null && !isNaN(parseInt(local))) {
+                return Math.max(0, Math.min(100, parseInt(local)));
+            }
+            return {{ (int) (\Illuminate\Support\Facades\Cache::get('soundstation_playback_volume', 50)) }};
+        })(),
         isMuted: false,
 
         currentTrack: {!! json_encode($state['now_playing']) !!},
@@ -1061,7 +1067,10 @@ function musicStationPage() {
             if (!state) return;
             this.isPlaying = !!state.isPlaying;
             if (state.currentTrack) this.currentTrack = state.currentTrack;
-            if (typeof state.volume !== 'undefined') this.volume = state.volume;
+            if (typeof state.volume !== 'undefined') {
+                this.volume = Number(state.volume);
+                localStorage.setItem('pos_music_volume', this.volume);
+            }
             if (typeof state.isMuted !== 'undefined') this.isMuted = !!state.isMuted;
             if (typeof state.currentTime !== 'undefined') this.currentTime = state.currentTime;
             if (typeof state.duration !== 'undefined') this.duration = state.duration;
@@ -1083,7 +1092,10 @@ function musicStationPage() {
             if (!m) return;
             this.isPlaying = m.isPlaying;
             if (m.currentTrack) this.currentTrack = m.currentTrack;
-            this.volume = m.volume;
+            if (typeof m.volume !== 'undefined') {
+                this.volume = Number(m.volume);
+                localStorage.setItem('pos_music_volume', this.volume);
+            }
             this.isMuted = m.isMuted;
             this.currentTime = m.currentTime || 0;
             this.duration = m.duration || 0;
@@ -1522,8 +1534,9 @@ function musicStationPage() {
         },
 
         changeVolume(val) {
-            const v = parseInt(val);
+            const v = Math.max(0, Math.min(100, parseInt(val) || 0));
             this.volume = v;
+            localStorage.setItem('pos_music_volume', v);
             if (window.SoundStationHub) {
                 window.SoundStationHub.sendCommand('SET_VOLUME', { volume: v });
             }
