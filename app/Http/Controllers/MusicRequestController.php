@@ -301,7 +301,7 @@ class MusicRequestController extends Controller
         $master = Cache::get('soundstation_master_host');
         $isMasterAlive = false;
         if ($master && ! empty($master['updated_at'])) {
-            $isMasterAlive = (now()->timestamp - $master['updated_at']) < 25;
+            $isMasterAlive = (now()->timestamp - $master['updated_at']) < 45;
         }
 
         $playback = Cache::get('soundstation_playback_state');

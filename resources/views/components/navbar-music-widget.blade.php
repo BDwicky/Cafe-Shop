@@ -576,7 +576,9 @@ function navbarMusicWidget() {
                         this.currentTime = this._reloadedCurrentTime;
                     }
                     this._isRecoveringFromReload = false;
-                } else {
+                } else if (!this.isMasterHost) {
+                    // HANYA tab Remote yang mengadopsi status play/pause dan detik dari server!
+                    // Tab Master Host adalah sumber kebenaran (source of truth), tidak boleh ditimpa status server yang berpotensi stale!
                     this.currentTime = Number(pb.current_time || 0);
                     this.isPlaying = !!pb.is_playing;
                 }
@@ -709,6 +711,10 @@ function navbarMusicWidget() {
                     }
 
                     if (data.status === 'granted') {
+                        this.isMasterHost = true;
+                        this.hasActiveHost = true;
+                        this.activeHostTabId = this.myTabId;
+                        this.activeHostPageTitle = this.deviceName + ' (' + this.getPageLabel() + ')';
                         this.applyServerState(data);
                     }
                 } else {

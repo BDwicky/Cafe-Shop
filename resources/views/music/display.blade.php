@@ -350,8 +350,10 @@
                     this.fetchStatus();
                     setInterval(() => this.fetchStatus(), 750);
 
-                    // Muat YouTube Iframe API untuk sinkronisasi Live Video Mode dengan Audio Kasir
-                    this.loadYouTubeApi();
+                    // Muat YouTube Iframe API HANYA jika mode awal adalah video
+                    if (this.displayMode === 'video') {
+                        this.loadYouTubeApi();
+                    }
 
                     // Progress bar interpolator presisi tinggi berbasis wall-clock delta (bebas lag antar-perangkat)
                     let _lastTick = Date.now();
@@ -366,9 +368,11 @@
                         }
                     }, 100);
 
-                    // Sinkronisasi Video TV dengan status playback audio Kasir setiap 800ms
+                    // Sinkronisasi Video TV dengan status playback audio Kasir setiap 800ms HANYA jika mode video aktif
                     setInterval(() => {
-                        this.syncTvPlayerState();
+                        if (this.displayMode === 'video') {
+                            this.syncTvPlayerState();
+                        }
                     }, 800);
 
                     // TV Browser Autoplay & Remote Interaction Unlock Listener
@@ -542,19 +546,6 @@
                                             }, 400);
                                         }
                                     }
-
-                                    if ((event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.CUED || event.data === -1) && this.isPlaying && !this._isManualPausing) {
-                                        setTimeout(() => {
-                                            if (this.isPlaying && this.tvPlayer && typeof this.tvPlayer.playVideo === 'function') {
-                                                try {
-                                                    if (typeof this.tvPlayer.mute === 'function') {
-                                                        this.tvPlayer.mute();
-                                                    }
-                                                } catch (e) {}
-                                                this.tvPlayer.playVideo();
-                                            }
-                                        }, 500);
-                                    }
                                 },
                                 onPlaybackQualityChange: (event) => {
                                     // Batasi maksimal Full HD (1080p) agar tidak memboroskan bandwidth atau buffering 4K
@@ -573,6 +564,14 @@
                 },
 
                 syncTvPlayerState() {
+                    // Jika sedang dalam Mode Visualizer (Vinyl), DILARANG keras memutar player YouTube
+                    if (this.displayMode !== 'video') {
+                        if (this.tvPlayer && typeof this.tvPlayer.pauseVideo === 'function') {
+                            try { this.tvPlayer.pauseVideo(); } catch (e) {}
+                        }
+                        return;
+                    }
+
                     if (!this.tvPlayer || !this.tvPlayerReady) {
                         if (!this.tvPlayer) this.loadYouTubeApi();
                         return;
@@ -953,6 +952,11 @@
                             this.loadYouTubeApi();
                             this.syncTvPlayerState();
                         });
+                    } else {
+                        // Mode Vinyl / Visualizer aktif: segera hentikan video YouTube agar tidak bentrok atau mengganggu pemutar kasir
+                        if (this.tvPlayer && typeof this.tvPlayer.pauseVideo === 'function') {
+                            try { this.tvPlayer.pauseVideo(); } catch (e) {}
+                        }
                     }
                 },
 
