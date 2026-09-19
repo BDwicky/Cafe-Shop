@@ -854,14 +854,24 @@ class KasirMusicController extends Controller
     }
 
     /**
+     * Dapatkan pengaturan announcer aktif (gabungan default + cache).
+     *
+     * @return array<string, mixed>
+     */
+    public static function getActiveAnnouncerSettings(): array
+    {
+        return array_merge(
+            self::getDefaultAnnouncerSettings(),
+            Cache::get('soundstation_voice_settings', [])
+        );
+    }
+
+    /**
      * Halaman Pengaturan Suara & Aksen Announcer Kasir.
      */
     public function announcerSettings(Request $request): View
     {
-        $settings = array_merge(
-            self::getDefaultAnnouncerSettings(),
-            Cache::get('soundstation_voice_settings', [])
-        );
+        $settings = self::getActiveAnnouncerSettings();
 
         $prayerSchedule = PrayerTimeService::getSchedule(null, (int) ($settings['adzan_duration_minutes'] ?? 5));
 
@@ -911,10 +921,7 @@ class KasirMusicController extends Controller
      */
     public function announcerSettingsJson(): JsonResponse
     {
-        $settings = array_merge(
-            self::getDefaultAnnouncerSettings(),
-            Cache::get('soundstation_voice_settings', [])
-        );
+        $settings = self::getActiveAnnouncerSettings();
 
         return response()->json([
             'success' => true,
@@ -927,10 +934,7 @@ class KasirMusicController extends Controller
      */
     public function prayerTimes(Request $request): JsonResponse
     {
-        $voiceSettings = array_merge(
-            self::getDefaultAnnouncerSettings(),
-            Cache::get('soundstation_voice_settings', [])
-        );
+        $voiceSettings = self::getActiveAnnouncerSettings();
         $duration = (int) ($voiceSettings['adzan_duration_minutes'] ?? 5);
         $scheduleData = PrayerTimeService::getSchedule(null, $duration);
         $manualAdzan = Cache::get('soundstation_manual_adzan');

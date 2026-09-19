@@ -453,18 +453,42 @@ function navbarMusicWidget() {
         manualAdzanTimer: null,
         activePrayerName: '',
         preAdzanVolume: null,
-        adzanTargetVolume: 10,
-        adzanDurationMinutes: 5,
-        adzanModeEnabled: true,
+        adzanTargetVolume: (() => {
+            try {
+                const saved = JSON.parse(localStorage.getItem('pos_soundstation_announcer_settings') || 'null');
+                if (saved && typeof saved.adzan_target_volume !== 'undefined') return Number(saved.adzan_target_volume);
+            } catch (e) {}
+            return {{ (int) (\App\Http\Controllers\KasirMusicController::getActiveAnnouncerSettings()['adzan_target_volume'] ?? 10) }};
+        })(),
+        adzanDurationMinutes: (() => {
+            try {
+                const saved = JSON.parse(localStorage.getItem('pos_soundstation_announcer_settings') || 'null');
+                if (saved && typeof saved.adzan_duration_minutes !== 'undefined') return Number(saved.adzan_duration_minutes);
+            } catch (e) {}
+            return {{ (int) (\App\Http\Controllers\KasirMusicController::getActiveAnnouncerSettings()['adzan_duration_minutes'] ?? 5) }};
+        })(),
+        adzanModeEnabled: (() => {
+            try {
+                const saved = JSON.parse(localStorage.getItem('pos_soundstation_announcer_settings') || 'null');
+                if (saved && typeof saved.adzan_mode_enabled !== 'undefined') return !!saved.adzan_mode_enabled;
+            } catch (e) {}
+            return {{ \App\Http\Controllers\KasirMusicController::getActiveAnnouncerSettings()['adzan_mode_enabled'] ? 'true' : 'false' }};
+        })(),
 
         voiceAnnouncerEnabled: true,
         isAnnouncing: false,
-        duckedVolume: 12,
+        duckedVolume: (() => {
+            try {
+                const saved = JSON.parse(localStorage.getItem('pos_soundstation_announcer_settings') || 'null');
+                if (saved && typeof saved.duck_volume !== 'undefined') return Number(saved.duck_volume);
+            } catch (e) {}
+            return {{ (int) (\App\Http\Controllers\KasirMusicController::getActiveAnnouncerSettings()['duck_volume'] ?? 12) }};
+        })(),
         announcerSettings: (() => {
             try {
-                return JSON.parse(localStorage.getItem('pos_soundstation_announcer_settings') || 'null') || @json(\App\Http\Controllers\KasirMusicController::getDefaultAnnouncerSettings());
+                return JSON.parse(localStorage.getItem('pos_soundstation_announcer_settings') || 'null') || @json(\App\Http\Controllers\KasirMusicController::getActiveAnnouncerSettings());
             } catch (e) {
-                return @json(\App\Http\Controllers\KasirMusicController::getDefaultAnnouncerSettings());
+                return @json(\App\Http\Controllers\KasirMusicController::getActiveAnnouncerSettings());
             }
         })(),
 
@@ -912,6 +936,8 @@ function navbarMusicWidget() {
                         if (!this.isMasterHost && typeof e.data.restoreVolume !== 'undefined') {
                             this.volume = e.data.restoreVolume;
                         }
+                    } else if (e.data.type === 'ANNOUNCER_SETTINGS_UPDATED' && e.data.settings) {
+                        this.applyAnnouncerSettings(e.data.settings);
                     }
                 });
 
@@ -1454,7 +1480,10 @@ function navbarMusicWidget() {
                     this.announceOrder({ id: 0, code: 'TEST-01', customer_name: 'Budi Santoso' }, true);
                     break;
                 case 'TEST_ADZAN_MODE':
-                    this.triggerTestAdzanMode();
+                    this.triggerTestAdzanMode(data ? data.target_volume : null);
+                    break;
+                case 'UPDATE_ANNOUNCER_SETTINGS':
+                    this.applyAnnouncerSettings(data ? data.settings : null);
                     break;
                 case 'TOGGLE_MANUAL_ADZAN':
                     this.toggleManualAdzanMode(data ? data.action : null);
@@ -1567,6 +1596,14 @@ function navbarMusicWidget() {
 
                 const targetFrom = Math.max(0, Math.min(100, Math.round(Number(fromVol))));
                 const targetTo = Math.max(0, Math.min(100, Math.round(Number(toVol))));
+
+                // Jika targetTo > 0 dan player sempat mute, unMute terlebih dahulu
+                try {
+                    if (targetTo > 0 && typeof this.player.unMute === 'function') {
+                        this.player.unMute();
+                    }
+                } catch (e) {}
+
                 const steps = 20;
                 const stepTime = Math.max(35, Math.floor(durationMs / steps));
                 const volDiff = targetTo - targetFrom;
@@ -1589,6 +1626,19 @@ function navbarMusicWidget() {
                         clearInterval(this._fadeInterval);
                         this._fadeInterval = null;
                         this.isFadingAudio = false;
+
+                        // Pastikan volume akhir tepat targetTo dan jika 0% panggil mute()
+                        try {
+                            if (this.player && typeof this.player.setVolume === 'function') {
+                                this.player.setVolume(targetTo);
+                                if (targetTo === 0 && typeof this.player.mute === 'function') {
+                                    this.player.mute();
+                                } else if (targetTo > 0 && typeof this.player.unMute === 'function') {
+                                    this.player.unMute();
+                                }
+                            }
+                        } catch (e) {}
+
                         resolve();
                     }
                 }, stepTime);
@@ -2457,15 +2507,39 @@ function navbarMusicWidget() {
             }
         },
 
-        triggerTestAdzanMode() {
+        applyAnnouncerSettings(settings) {
+            if (!settings || typeof settings !== 'object') return;
+            this.announcerSettings = { ...this.announcerSettings, ...settings };
+            if (typeof settings.adzan_target_volume !== 'undefined') {
+                this.adzanTargetVolume = Number(settings.adzan_target_volume);
+            }
+            if (typeof settings.duck_volume !== 'undefined') {
+                this.duckedVolume = Number(settings.duck_volume);
+            }
+            if (typeof settings.adzan_duration_minutes !== 'undefined') {
+                this.adzanDurationMinutes = Number(settings.adzan_duration_minutes);
+            }
+            if (typeof settings.adzan_mode_enabled !== 'undefined') {
+                this.adzanModeEnabled = !!settings.adzan_mode_enabled;
+            }
+            try {
+                localStorage.setItem('pos_soundstation_announcer_settings', JSON.stringify(this.announcerSettings));
+            } catch (e) {}
+        },
+
+        triggerTestAdzanMode(customTargetVol = null) {
             const samplePrayer = 'Maghrib';
             this.isAdzanMode = true;
             this._isTestAdzan = true;
             this.activePrayerName = samplePrayer;
-            if (this.preAdzanVolume === null || this.preAdzanVolume <= (this.adzanTargetVolume ?? 10)) {
+            const effectiveTarget = (customTargetVol !== null && !isNaN(customTargetVol))
+                ? Number(customTargetVol)
+                : (this.adzanTargetVolume ?? 10);
+            const targetVol = Math.max(0, Math.min(100, effectiveTarget));
+
+            if (this.preAdzanVolume === null || this.preAdzanVolume <= targetVol) {
                 this.preAdzanVolume = (this.volume && this.volume > 15) ? this.volume : (parseInt(localStorage.getItem('pos_music_volume') || '75'));
             }
-            const targetVol = Math.max(0, Math.min(100, this.adzanTargetVolume ?? 10));
 
             if (window.customToast) {
                 window.customToast({

@@ -22,6 +22,19 @@
         </div>
 
         <div class="flex items-center gap-2.5">
+            <!-- Auto-Save Status Indicator -->
+            <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#E4DCCC] text-[11px] font-mono shadow-2xs">
+                <span x-show="autoSaveStatus === 'saving'" class="text-[#8A7B66] flex items-center gap-1.5">
+                    <span class="animate-spin text-xs">⟳</span> Menyimpan...
+                </span>
+                <span x-show="autoSaveStatus === 'saved'" class="text-[#5F7F42] font-bold flex items-center gap-1.5">
+                    <span class="text-xs">✓</span> Tersimpan otomatis
+                </span>
+                <span x-show="!autoSaveStatus" class="text-[#A89A85] flex items-center gap-1.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-[#5F7F42]"></span> Siap
+                </span>
+            </div>
+
             <a href="{{ route('kasir.music.index') }}"
                class="px-4 py-2.5 bg-white hover:bg-[#FAF7F2] text-[#1F1812] border border-[#E4DCCC] hover:border-[#D9973E] font-mono text-xs font-bold rounded-xl transition shadow-2xs flex items-center gap-1.5 active:scale-98">
                 <span>‹ Sound Station</span>
@@ -332,8 +345,15 @@
                         </div>
                         <span class="font-mono font-bold px-2.5 py-0.5 rounded-full bg-[#5F7F42]/15 text-[#5F7F42] text-xs" x-text="form.duck_volume + '%'"></span>
                     </div>
-                    <input type="range" min="5" max="35" step="1" x-model="form.duck_volume"
+                    <input type="range" min="0" max="35" step="1" x-model.number="form.duck_volume"
                            class="w-full accent-[#D9973E] cursor-pointer h-2 bg-[#E4DCCC] rounded-lg">
+                    <div class="flex justify-between text-[10px] text-[#A89A85] font-mono">
+                        <span :class="form.duck_volume == 0 ? 'text-[#5F7F42] font-bold' : ''">0% (Hening)</span>
+                        <span :class="form.duck_volume == 2 ? 'text-[#5F7F42] font-bold' : ''">2%</span>
+                        <span :class="form.duck_volume == 12 ? 'text-[#5F7F42] font-bold' : ''">12% (Standar)</span>
+                        <span>25%</span>
+                        <span>35%</span>
+                    </div>
                 </div>
             </div>
 
@@ -520,15 +540,16 @@
                         <div class="flex items-center justify-between text-xs">
                             <span class="font-mono font-bold text-[#5C4D3C] uppercase tracking-wider">Persentase Volume saat Adzan:</span>
                             <span class="font-mono font-bold px-2.5 py-0.5 rounded-full bg-[#5F7F42]/15 text-[#5F7F42] text-xs"
-                                  x-text="form.adzan_target_volume === 0 ? '0% (Mute/Hening Total)' : (form.adzan_target_volume === 2 ? '2% (Hening Sayup)' : form.adzan_target_volume + '%')"></span>
+                                  x-text="form.adzan_target_volume === 0 ? '0% (Mute/Hening Total)' : (form.adzan_target_volume === 1 ? '1% (Super Hening)' : (form.adzan_target_volume === 2 ? '2% (Hening Sayup)' : form.adzan_target_volume + '%'))"></span>
                         </div>
-                        <input type="range" min="0" max="30" step="2" x-model.number="form.adzan_target_volume"
+                        <input type="range" min="0" max="30" step="1" x-model.number="form.adzan_target_volume"
                                class="w-full accent-[#5F7F42] cursor-pointer h-2 bg-[#E4DCCC] rounded-lg">
                         <div class="flex justify-between text-[10px] text-[#A89A85] font-mono">
-                            <span>0% (Hening)</span>
+                            <span :class="form.adzan_target_volume == 0 ? 'text-[#5F7F42] font-bold' : ''">0% (Mute)</span>
+                            <span :class="form.adzan_target_volume == 1 ? 'text-[#5F7F42] font-bold' : ''">1%</span>
                             <span :class="form.adzan_target_volume == 2 ? 'text-[#5F7F42] font-bold' : ''">2%</span>
                             <span :class="form.adzan_target_volume == 10 ? 'text-[#5F7F42] font-bold' : ''">10% (Rekomendasi)</span>
-                            <span>20% (Latar Pelan)</span>
+                            <span>20%</span>
                             <span>30%</span>
                         </div>
 
@@ -539,6 +560,11 @@
                                     class="px-2 py-0.5 text-[10px] font-mono rounded-lg border transition cursor-pointer select-none active:scale-95"
                                     :class="form.adzan_target_volume === 0 ? 'bg-[#5F7F42] text-white border-[#5F7F42] font-bold shadow-xs' : 'bg-white border-[#E4DCCC] text-[#7A6A58] hover:border-[#5F7F42]/50'">
                                 0% (Mute)
+                            </button>
+                            <button type="button" @click="form.adzan_target_volume = 1"
+                                    class="px-2 py-0.5 text-[10px] font-mono rounded-lg border transition cursor-pointer select-none active:scale-95"
+                                    :class="form.adzan_target_volume === 1 ? 'bg-[#5F7F42] text-white border-[#5F7F42] font-bold shadow-xs' : 'bg-white border-[#E4DCCC] text-[#7A6A58] hover:border-[#5F7F42]/50'">
+                                1% (Super Hening)
                             </button>
                             <button type="button" @click="form.adzan_target_volume = 2"
                                     class="px-2.5 py-0.5 text-[10px] font-mono rounded-lg border transition cursor-pointer select-none active:scale-95"
@@ -690,6 +716,9 @@ function announcerSettingsManager(initialSettings) {
         availableVoices: [],
         isPlayingSample: false,
         saving: false,
+        autoSaveStatus: '',
+        _autoSaveTimer: null,
+        _initialized: false,
         prayerSchedule: @js($prayerSchedule ?? null),
         isTestingAdzan: false,
         isManualAdzanActive: false,
@@ -698,18 +727,33 @@ function announcerSettingsManager(initialSettings) {
             if (this.isTestingAdzan) return;
             this.isTestingAdzan = true;
 
+            const targetVol = Math.max(0, Math.min(100, parseInt(this.form.adzan_target_volume ?? 10)));
+
             if (window.customToast) {
                 window.customToast({
-                    message: '🕌 [UJI COBA] Memasuki Waktu Adzan Maghrib (Surabaya & Sidoarjo). Volume musik otomatis diturunkan ke ' + this.form.adzan_target_volume + '%...',
+                    message: '🕌 [UJI COBA] Memasuki Waktu Adzan Maghrib (Surabaya & Sidoarjo). Volume musik otomatis diturunkan ke ' + targetVol + '%...',
                     type: 'info',
                     duration: 7000
                 });
             }
 
+            // Simpan lokal & broadcast segera ke tab host pemutar musik
+            try {
+                localStorage.setItem('pos_soundstation_announcer_settings', JSON.stringify(this.form));
+                if (typeof BroadcastChannel !== 'undefined') {
+                    const bc = new BroadcastChannel('cafe_soundstation_sync');
+                    bc.postMessage({
+                        type: 'ANNOUNCER_SETTINGS_UPDATED',
+                        settings: this.form
+                    });
+                    bc.close();
+                }
+            } catch (e) {}
+
             if (window.SoundStationHub && typeof window.SoundStationHub.sendCommand === 'function') {
-                window.SoundStationHub.sendCommand('TEST_ADZAN_MODE');
+                window.SoundStationHub.sendCommand('TEST_ADZAN_MODE', { target_volume: targetVol });
             } else if (window.SoundStation && typeof window.SoundStation.triggerTestAdzanMode === 'function') {
-                window.SoundStation.triggerTestAdzanMode();
+                window.SoundStation.triggerTestAdzanMode(targetVol);
             }
 
             setTimeout(() => {
@@ -738,6 +782,98 @@ function announcerSettingsManager(initialSettings) {
                     };
                 } catch (e) {}
             }
+
+            // Watch perubahan form untuk Auto-Save otomatis
+            this.$nextTick(() => {
+                this._initialized = true;
+                this.$watch('form', () => {
+                    if (this._initialized) {
+                        this.triggerAutoSave();
+                    }
+                });
+            });
+
+            // Pastikan data tersimpan instan ke server & localStorage saat meninggalkan halaman
+            window.addEventListener('beforeunload', () => {
+                try {
+                    localStorage.setItem('pos_soundstation_announcer_settings', JSON.stringify(this.form));
+                    fetch('{{ route('kasir.announcer.save') }}', {
+                        method: 'POST',
+                        keepalive: true,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify(this.form)
+                    });
+                } catch (e) {}
+            });
+        },
+
+        triggerAutoSave() {
+            // 1. Langsung simpan di localStorage & broadcast ke tab lain
+            try {
+                localStorage.setItem('pos_soundstation_announcer_settings', JSON.stringify(this.form));
+                if (typeof BroadcastChannel !== 'undefined') {
+                    const bc = new BroadcastChannel('cafe_soundstation_sync');
+                    bc.postMessage({
+                        type: 'ANNOUNCER_SETTINGS_UPDATED',
+                        settings: this.form
+                    });
+                    bc.close();
+                }
+            } catch (e) {}
+
+            this.autoSaveStatus = 'saving';
+
+            if (this._autoSaveTimer) {
+                clearTimeout(this._autoSaveTimer);
+            }
+
+            // 2. Debounce penyimpanan ke server (500ms)
+            this._autoSaveTimer = setTimeout(() => {
+                this.executeServerSave(false);
+            }, 500);
+        },
+
+        async executeServerSave(isManual = false) {
+            if (isManual) this.saving = true;
+            try {
+                const res = await fetch('{{ route('kasir.announcer.save') }}', {
+                    method: 'POST',
+                    keepalive: true,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(this.form)
+                });
+
+                if (res.ok) {
+                    this.autoSaveStatus = 'saved';
+                    setTimeout(() => {
+                        if (this.autoSaveStatus === 'saved') this.autoSaveStatus = '';
+                    }, 2500);
+
+                    if (isManual && window.customToast) {
+                        window.customToast({
+                            message: '✓ Pengaturan suara announcer & adzan berhasil disimpan!',
+                            type: 'success',
+                            duration: 3500
+                        });
+                    }
+                }
+            } catch (e) {
+                this.autoSaveStatus = '';
+            } finally {
+                if (isManual) this.saving = false;
+            }
+        },
+
+        async saveSettings() {
+            await this.executeServerSave(true);
         },
 
         toggleManualAdzan() {
@@ -950,46 +1086,6 @@ function announcerSettingsManager(initialSettings) {
             utter.onend = () => { if (callback) callback(); };
             utter.onerror = () => { if (callback) callback(); };
             window.speechSynthesis.speak(utter);
-        },
-
-        async saveSettings() {
-            this.saving = true;
-            try {
-                const res = await fetch('{{ route('kasir.announcer.save') }}', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify(this.form)
-                });
-
-                if (res.ok) {
-                    const data = await res.json();
-                    try {
-                        localStorage.setItem('pos_soundstation_announcer_settings', JSON.stringify(this.form));
-                        // Broadcast ke tab lain
-                        if (window.SoundStationHub && typeof window.SoundStationHub.broadcast === 'function') {
-                            window.SoundStationHub.broadcast('announcer_settings_updated', this.form);
-                        }
-                    } catch (e) {}
-
-                    if (window.customToast) {
-                        window.customToast({
-                            message: '✓ Pengaturan suara announcer berhasil disimpan!',
-                            type: 'success',
-                            duration: 3500
-                        });
-                    }
-                } else {
-                    alert('Gagal menyimpan pengaturan. Silakan coba lagi.');
-                }
-            } catch (e) {
-                alert('Terjadi kesalahan koneksi.');
-            } finally {
-                this.saving = false;
-            }
         }
     };
 }
