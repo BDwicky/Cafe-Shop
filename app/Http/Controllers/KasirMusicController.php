@@ -555,30 +555,22 @@ class KasirMusicController extends Controller
 
         // Cek jika master sebelumnya masih aktif
         if ($existingMaster && ! empty($existingMaster['client_id']) && $existingMaster['client_id'] !== $clientId) {
-            $isFresh = ($now - ($existingMaster['updated_at'] ?? 0)) < 20;
+            $isFresh = ($now - ($existingMaster['updated_at'] ?? 0)) < 18;
 
             if ($isFresh && ! $force) {
-                // Jangan tolak jika klaim berasal dari perangkat yang sama (misal refresh/reload halaman kasir di peramban yang sama)
-                $isSameDevice = ! empty($existingMaster['device_id']) && ! empty($deviceId) && $existingMaster['device_id'] === $deviceId;
+                $playerState = $this->musicService->getPlayerState();
+                $playbackState = Cache::get('soundstation_playback_state');
 
-                if (! $isSameDevice) {
-                    $existingPriority = $existingMaster['priority'] ?? 10;
-                    if ($existingPriority >= $priority) {
-                        $playerState = $this->musicService->getPlayerState();
-                        $playbackState = Cache::get('soundstation_playback_state');
-
-                        return response()->json([
-                            'status' => 'rejected',
-                            'message' => 'Master host sedang dipegang oleh perangkat lain.',
-                            'current_master' => $existingMaster,
-                            'playback_state' => $playbackState,
-                            'volume' => (int) Cache::get('soundstation_playback_volume', 50),
-                            'now_playing' => $playerState['now_playing'],
-                            'queue_count' => $playerState['queue_count'],
-                            'queue' => $playerState['queue'],
-                        ]);
-                    }
-                }
+                return response()->json([
+                    'status' => 'rejected',
+                    'message' => 'Master host sedang dipegang oleh perangkat/tab lain.',
+                    'current_master' => $existingMaster,
+                    'playback_state' => $playbackState,
+                    'volume' => (int) Cache::get('soundstation_playback_volume', 50),
+                    'now_playing' => $playerState['now_playing'],
+                    'queue_count' => $playerState['queue_count'],
+                    'queue' => $playerState['queue'],
+                ]);
             }
         }
 

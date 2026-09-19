@@ -638,7 +638,7 @@ function navbarMusicWidget() {
             // 1. Cek dulu apakah di browser lokal ada tab master yang sedang aktif
             try {
                 const savedHost = JSON.parse(localStorage.getItem('pos_soundstation_active_host') || '{}');
-                const isLocalHostActive = savedHost.tabId && (Date.now() - (savedHost.timestamp || 0) < 2500);
+                const isLocalHostActive = savedHost.tabId && (Date.now() - (savedHost.timestamp || 0) < 10000);
 
                 if (isLocalHostActive && savedHost.tabId !== this.myTabId) {
                     this.isMasterHost = false;
@@ -657,17 +657,7 @@ function navbarMusicWidget() {
                 if (res.ok) {
                     const data = await res.json();
                     if (data.has_master && data.master && data.master.client_id !== this.myTabId) {
-                        // JIKA master host di server berasal dari perangkat lokal yang sama (device_id sama),
-                        // dan tidak ada tab lokal lain yang aktif (isLocalHostActive false):
-                        // Berarti master di server adalah bekas tab lama yang baru saja di-refresh!
-                        // Tab ini harus KLAIM ULANG sebagai Master Host, BUKAN turun ke Remote!
-                        const isSameDevice = data.master.device_id && data.master.device_id === this.deviceId;
-                        if (isSameDevice) {
-                            this.claimMasterHost(true);
-                            return;
-                        }
-
-                        // Perangkat lain sudah menjadi Master Host! Tab ini mulai sebagai REMOTE.
+                        // Perangkat lain atau tab lain sudah menjadi Master Host! Tab ini mulai sebagai REMOTE secara damai.
                         this.isMasterHost = false;
                         this.hasActiveHost = true;
                         const dev = data.master.device_name || 'Perangkat Lain';
@@ -794,7 +784,7 @@ function navbarMusicWidget() {
 
             if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
             this.broadcastHostHeartbeat();
-            this.heartbeatTimer = setInterval(() => this.broadcastHostHeartbeat(), 7000);
+            this.heartbeatTimer = setInterval(() => this.broadcastHostHeartbeat(), 2500);
 
             this.loadYouTubeApi();
 
@@ -851,13 +841,13 @@ function navbarMusicWidget() {
 
             const baseDelay = this.isDedicatedPage ? 20 : 120;
             const jitter = Math.abs(this.myTabId.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0) % 250);
-            const delay = baseDelay + (this.isDedicatedPage ? 0 : jitter);
+            const delay = baseDelay + jitter;
 
             setTimeout(() => {
                 if (this.isMasterHost) return;
                 try {
                     const saved = JSON.parse(localStorage.getItem('pos_soundstation_active_host') || '{}');
-                    if (saved.tabId && saved.tabId !== this.myTabId && (Date.now() - (saved.timestamp || 0) < 2200)) {
+                    if (saved.tabId && saved.tabId !== this.myTabId && (Date.now() - (saved.timestamp || 0) < 10000)) {
                         this.hasActiveHost = true;
                         this.activeHostTabId = saved.tabId;
                         this.activeHostPageTitle = saved.pageTitle || 'Perangkat Lain';
@@ -865,7 +855,7 @@ function navbarMusicWidget() {
                     }
                 } catch (e) {}
 
-                if (this.isDedicatedPage) {
+                if (this.isDedicatedPage && !this.hasActiveHost) {
                     this.claimMasterHost(false);
                 }
             }, delay);
@@ -1025,20 +1015,11 @@ function navbarMusicWidget() {
                             this.activeHostTabId = e.data.tabId;
                             this.activeHostPageTitle = e.data.pageTitle || 'Tab Lain';
                             this.lastHostHeartbeatTime = Date.now();
-
-                            if (this.isMasterHost) {
-                                const myPriority = this.isDedicatedPage ? 100 : 10;
-                                const otherPriority = e.data.priority || 0;
-                                if (otherPriority > myPriority || (otherPriority === myPriority && e.data.tabId < this.myTabId)) {
-                                    this.stepDownToRemote(e.data.pageTitle, e.data.tabId);
-                                }
-                            }
                         }
                     } else if (e.data.type === 'CLAIM_HOST') {
                         if (e.data.tabId !== this.myTabId) {
-                            const myPriority = this.isDedicatedPage ? 100 : 10;
-                            const otherPriority = e.data.priority || 0;
-                            if (e.data.force || otherPriority > myPriority || (otherPriority === myPriority && e.data.tabId < this.myTabId)) {
+                            // HANYA mundur ke Remote jika tab lain secara eksplisit memaksa (force: true dari klik tombol 'Ambil Alih')
+                            if (e.data.force) {
                                 this.stepDownToRemote(e.data.pageTitle, e.data.tabId);
                             }
                         }
@@ -1120,7 +1101,7 @@ function navbarMusicWidget() {
                     try {
                         const saved = JSON.parse(localStorage.getItem('pos_soundstation_active_host') || '{}');
                         const now = Date.now();
-                        if (saved.tabId && (now - (saved.timestamp || 0) < 2500)) {
+                        if (saved.tabId && (now - (saved.timestamp || 0) < 10000)) {
                             this.hasActiveHost = true;
                             this.activeHostTabId = saved.tabId;
                             this.activeHostPageTitle = saved.pageTitle || 'Tab Lain';
