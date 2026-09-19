@@ -213,6 +213,17 @@ class MusicRequestController extends Controller
 
         $voiceSettings = Cache::get('soundstation_voice_settings', []);
         $adzanDuration = (int) ($voiceSettings['adzan_duration_minutes'] ?? 5);
+        $prayerScheduleData = PrayerTimeService::getSchedule(null, $adzanDuration);
+        $manualAdzan = Cache::get('soundstation_manual_adzan');
+
+        if ($manualAdzan && ! empty($manualAdzan['active'])) {
+            $prayerScheduleData['active_prayer'] = [
+                'name' => $manualAdzan['prayer'] ?? 'Waktu Adzan',
+                'time' => date('H:i', $manualAdzan['started_at'] ?? time()),
+                'duration_minutes' => (int) ($manualAdzan['duration_minutes'] ?? $adzanDuration),
+                'is_manual' => true,
+            ];
+        }
 
         return response()->json([
             'now_playing' => $state['now_playing'],
@@ -224,7 +235,7 @@ class MusicRequestController extends Controller
             'total_queue_count' => $state['total_queue_count'] ?? count($state['queue']),
             'ready_orders' => $readyOrders,
             'playback' => $playback,
-            'prayer_times' => PrayerTimeService::getSchedule(null, $adzanDuration),
+            'prayer_times' => $prayerScheduleData,
             'adzan_settings' => [
                 'enabled' => ! empty($voiceSettings['adzan_mode_enabled'] ?? true),
                 'target_volume' => (int) ($voiceSettings['adzan_target_volume'] ?? 10),

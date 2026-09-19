@@ -2276,6 +2276,24 @@ function navbarMusicWidget() {
                     });
                 }
 
+                // Sync ke server cache agar TV Display dan semua client langsung otomatis mendeteksi
+                try {
+                    fetch('{{ route('kasir.music.master.command') }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify({
+                            command: 'TOGGLE_MANUAL_ADZAN',
+                            data: {
+                                action: 'start',
+                                prayer: this.activePrayerName
+                            }
+                        })
+                    }).catch(() => {});
+                } catch (e) {}
+
                 // Auto-expiry safety timer (sesuai durasi adzan, default 5 menit)
                 const durationMs = (this.adzanDurationMinutes || 5) * 60 * 1000;
                 this.manualAdzanTimer = setTimeout(() => {
@@ -2317,6 +2335,23 @@ function navbarMusicWidget() {
                         restoreVolume: restoreVol
                     });
                 }
+
+                // Sync ke server cache agar status adzan dibersihkan di server
+                try {
+                    fetch('{{ route('kasir.music.master.command') }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify({
+                            command: 'TOGGLE_MANUAL_ADZAN',
+                            data: {
+                                action: 'stop'
+                            }
+                        })
+                    }).catch(() => {});
+                } catch (e) {}
 
                 this.preAdzanVolume = null;
             }

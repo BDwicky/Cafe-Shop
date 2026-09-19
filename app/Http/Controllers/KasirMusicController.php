@@ -712,6 +712,26 @@ class KasirMusicController extends Controller
             'data' => 'nullable|array',
         ]);
 
+        if ($validated['command'] === 'TOGGLE_MANUAL_ADZAN') {
+            $action = $validated['data']['action'] ?? 'toggle';
+            $currentManual = Cache::get('soundstation_manual_adzan');
+            $voiceSettings = Cache::get('soundstation_voice_settings', []);
+            $durationMinutes = (int) ($voiceSettings['adzan_duration_minutes'] ?? 5);
+
+            $shouldStart = ($action === 'start') || ($action === 'toggle' && empty($currentManual));
+
+            if ($shouldStart) {
+                Cache::put('soundstation_manual_adzan', [
+                    'active' => true,
+                    'prayer' => $validated['data']['prayer'] ?? 'Waktu Adzan',
+                    'started_at' => now()->timestamp,
+                    'duration_minutes' => $durationMinutes,
+                ], now()->addMinutes($durationMinutes));
+            } else {
+                Cache::forget('soundstation_manual_adzan');
+            }
+        }
+
         $commands = Cache::get('soundstation_pending_commands', []);
         if (! is_array($commands)) {
             $commands = [];
