@@ -163,6 +163,9 @@
                 tvPlayerReady: false,
                 currentTvVideoId: '',
                 _isManualPausing: false,
+                _lastSeekTime: 0,
+                _currentRate: 1,
+                _initialSynced: false,
 
                 init() {
                     this.isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
@@ -253,9 +256,9 @@
                         }
                     });
 
-                    // Polling status lagu & pesanan siap setiap 3 detik
+                    // Polling status lagu & pesanan siap setiap 2 detik
                     this.fetchStatus();
-                    setInterval(() => this.fetchStatus(), 3000);
+                    setInterval(() => this.fetchStatus(), 2000);
 
                     // Muat YouTube Iframe API untuk sinkronisasi Live Video Mode dengan Audio Kasir
                     this.loadYouTubeApi();
@@ -269,10 +272,10 @@
                         }
                     }, 100);
 
-                    // Sinkronisasi Video TV dengan status playback audio Kasir setiap 3 detik
+                    // Sinkronisasi Video TV dengan status playback audio Kasir setiap 1 detik
                     setInterval(() => {
                         this.syncTvPlayerState();
-                    }, 3000);
+                    }, 1000);
                 },
 
                 loadYouTubeApi() {
@@ -387,6 +390,17 @@
                                     // Matikan paksa closed caption saat video memutar
                                     if (event.data === YT.PlayerState.PLAYING) {
                                         this.disableCaptions();
+
+                                        // Kalibrasi awal saat video baru mulai memutar jika buffering awal memakan waktu > 2 detik
+                                        if (!this._initialSynced && this.playbackCurrentTime > 0) {
+                                            this._initialSynced = true;
+                                            const tvCurTime = (typeof this.tvPlayer.getCurrentTime === 'function') ? (this.tvPlayer.getCurrentTime() || 0) : 0;
+                                            const drift = this.playbackCurrentTime - tvCurTime;
+                                            if (drift > 2 && drift < 86400) {
+                                                this._lastSeekTime = Date.now();
+                                                this.tvPlayer.seekTo(this.playbackCurrentTime + 0.2, true);
+                                            }
+                                        }
                                     }
 
                                     if (event.data === YT.PlayerState.PAUSED && this.isPlaying && !this._isManualPausing) {
@@ -423,6 +437,8 @@
                     try {
                         if (this.currentTvVideoId !== this.nowPlaying.youtube_id) {
                             this.currentTvVideoId = this.nowPlaying.youtube_id;
+                            this._initialSynced = false;
+                            this._currentRate = 1;
                             const startSec = Math.max(0, Math.floor(this.playbackCurrentTime || 0));
                             this.tvPlayer.loadVideoById({
                                 videoId: this.nowPlaying.youtube_id,
@@ -448,15 +464,48 @@
                             }
                         }
 
-                        // Sinkronisasi posisi detik (HANYA jika selisih > 12 detik dan ada jeda minimal 10 detik antar seek)
-                        // agar tidak terjadi buffering berulang-ulang karena selisih latency normal
+                        // Sinkronisasi posisi detik ultra-halus (Micro-Rate Auto Sync)
+                        // Mengeliminasi delay sekecil mungkin tanpa memicu buffering loop
                         if (this.isPlaying && typeof this.tvPlayer.getCurrentTime === 'function' && this.playbackDuration > 0 && this.playbackCurrentTime < 86400) {
-                            const tvCurTime = this.tvPlayer.getCurrentTime() || 0;
-                            const drift = Math.abs(tvCurTime - this.playbackCurrentTime);
-                            const now = Date.now();
-                            if (drift > 12 && (!this._lastSeekTime || (now - this._lastSeekTime > 10000))) {
-                                this._lastSeekTime = now;
-                                this.tvPlayer.seekTo(this.playbackCurrentTime, true);
+                            if (state !== YT.PlayerState.BUFFERING) {
+                                const tvCurTime = this.tvPlayer.getCurrentTime() || 0;
+                                const diff = this.playbackCurrentTime - tvCurTime; // > 0: TV tertinggal, < 0: TV mendahului
+                                const absDrift = Math.abs(diff);
+                                const now = Date.now();
+
+                                // 1. Selisih drastis (> 5 detik, misal kasir menggeser scrubber/slider lagu)
+                                if (absDrift > 5 && (!this._lastSeekTime || (now - this._lastSeekTime > 5000))) {
+                                    this._lastSeekTime = now;
+                                    this.tvPlayer.seekTo(this.playbackCurrentTime, true);
+                                    if (this._currentRate !== 1 && typeof this.tvPlayer.setPlaybackRate === 'function') {
+                                        this.tvPlayer.setPlaybackRate(1);
+                                        this._currentRate = 1;
+                                    }
+                                }
+                                // 2. Selisih halus (0.8s s/d 5s): Gunakan penyesuaian kecepatan putar (micro-rate)
+                                // Mulus 100% TANPA buffering, TANPA spinner loading, dan gambar tidak pernah tersendat!
+                                else if (absDrift >= 0.8 && absDrift <= 5) {
+                                    if (diff > 0.8 && this._currentRate !== 1.25) {
+                                        // TV sedikit tertinggal -> percepat 1.25x agar mengejar dalam beberapa detik
+                                        if (typeof this.tvPlayer.setPlaybackRate === 'function') {
+                                            this.tvPlayer.setPlaybackRate(1.25);
+                                            this._currentRate = 1.25;
+                                        }
+                                    } else if (diff < -0.8 && this._currentRate !== 0.75) {
+                                        // TV sedikit mendahului -> perlambat 0.75x agar audio kasir menyusul
+                                        if (typeof this.tvPlayer.setPlaybackRate === 'function') {
+                                            this.tvPlayer.setPlaybackRate(0.75);
+                                            this._currentRate = 0.75;
+                                        }
+                                    }
+                                }
+                                // 3. Selisih presisi (< 0.8 detik): Video dan Audio sudah sinkron sempurna
+                                else if (absDrift < 0.8 && this._currentRate !== 1) {
+                                    if (typeof this.tvPlayer.setPlaybackRate === 'function') {
+                                        this.tvPlayer.setPlaybackRate(1);
+                                        this._currentRate = 1;
+                                    }
+                                }
                             }
                         }
                     } catch (e) {}

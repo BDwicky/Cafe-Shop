@@ -1236,9 +1236,9 @@ function navbarMusicWidget() {
                 });
             }
 
-            // Laporkan status detik & durasi ke server setiap 2.5 detik untuk Smart TV / display external
+            // Laporkan status detik & durasi ke server setiap 1.8 detik untuk Smart TV / display external
             const now = Date.now();
-            if (this.isMasterHost && (!this._lastServerSync || now - this._lastServerSync > 2500)) {
+            if (this.isMasterHost && (!this._lastServerSync || now - this._lastServerSync > 1800)) {
                 this._lastServerSync = now;
                 try {
                     fetch('{{ route('kasir.music.playback.sync') }}', {
