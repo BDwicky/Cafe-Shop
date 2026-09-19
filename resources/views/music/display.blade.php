@@ -801,9 +801,11 @@
                         if (data.prayer_times && data.prayer_times.active_prayer && data.adzan_settings && data.adzan_settings.enabled) {
                             this.isAdzanMode = true;
                             this.adzanPrayerName = data.prayer_times.active_prayer.name;
-                        } else if (!this._isTestAdzan && !this._isManualAdzan) {
+                            this._isManualAdzan = !!data.prayer_times.active_prayer.is_manual;
+                        } else if (!this._isTestAdzan) {
                             this.isAdzanMode = false;
                             this.adzanPrayerName = '';
+                            this._isManualAdzan = false;
                         }
                     } catch (e) {
                         console.error('[TV Display] Sync Error:', e);

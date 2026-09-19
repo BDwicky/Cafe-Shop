@@ -987,6 +987,14 @@ function navbarMusicWidget() {
                             this._manualPlaybackOverride = true;
                             this._hasAutoPausedTonight = true;
                         }
+                        if (reloadIntent.isAdzanMode) {
+                            this.isAdzanMode = true;
+                            this.isManualAdzan = !!reloadIntent.isManualAdzan;
+                            this.activePrayerName = reloadIntent.activePrayerName || 'Adzan';
+                            if (typeof reloadIntent.preAdzanVolume === 'number') {
+                                this.preAdzanVolume = reloadIntent.preAdzanVolume;
+                            }
+                        }
                     }
                 }
             } catch (e) {}
@@ -1177,6 +1185,10 @@ function navbarMusicWidget() {
                         duration: this.duration,
                         currentTrack: this.currentTrack,
                         manualOverride: !!this._manualPlaybackOverride,
+                        isAdzanMode: !!this.isAdzanMode,
+                        isManualAdzan: !!this.isManualAdzan,
+                        activePrayerName: this.activePrayerName,
+                        preAdzanVolume: this.preAdzanVolume,
                         timestamp: Date.now()
                     }));
                 } catch (e) {}
@@ -2564,7 +2576,38 @@ function navbarMusicWidget() {
                             this.reopenTime = data.settings.reopen_time;
                         }
                     }
-                    this.checkPrayerTimeAdzan();
+                    // Sinkronisasi status active_prayer dari server (jadwal otomatis maupun manual adzan)
+                    if (data.data.active_prayer && this.adzanModeEnabled) {
+                        const ap = data.data.active_prayer;
+                        this.isAdzanMode = true;
+                        this.isManualAdzan = !!ap.is_manual;
+                        this.activePrayerName = ap.name || 'Adzan';
+                        if (this.preAdzanVolume === null || typeof this.preAdzanVolume !== 'number') {
+                            const stored = parseInt(localStorage.getItem('pos_music_volume') || '50');
+                            this.preAdzanVolume = (typeof this.volume === 'number' && !isNaN(this.volume) && this.volume > (this.adzanTargetVolume ?? 10)) ? this.volume : stored;
+                        }
+                        const targetVol = Math.max(0, Math.min(100, Number(this.adzanTargetVolume ?? 10)));
+                        if (this.isMasterHost && this.player && this.playerReady && typeof this.player.setVolume === 'function') {
+                            this.player.setVolume(targetVol);
+                        }
+                    } else if (this.isAdzanMode && this.isManualAdzan && (!data.data.active_prayer || !this.adzanModeEnabled)) {
+                        // Jika server menyatakan manual adzan telah berakhir atau dimatikan saat kasir reload
+                        this.isAdzanMode = false;
+                        this.isManualAdzan = false;
+                        this.activePrayerName = '';
+                        const stored = parseInt(localStorage.getItem('pos_music_volume') || '50');
+                        const restoreVol = (typeof this.preAdzanVolume === 'number' && !isNaN(this.preAdzanVolume)) ? this.preAdzanVolume : stored;
+                        this.volume = restoreVol;
+                        localStorage.setItem('pos_music_volume', restoreVol);
+                        if (this.isMasterHost) {
+                            this.fadeAudio(this.adzanTargetVolume ?? 10, restoreVol, 2000);
+                        }
+                        this.preAdzanVolume = null;
+                        this.broadcastSync();
+                    } else {
+                        this.checkPrayerTimeAdzan();
+                    }
+
                     this.checkClosingTimeAutoPause();
                 }
             } catch (e) {}
@@ -2657,6 +2700,9 @@ function navbarMusicWidget() {
 
         checkPrayerTimeAdzan() {
             if (!this.adzanModeEnabled || !this.prayerSchedule) return;
+
+            // Jika sedang dalam Mode Adzan Manual yang masih aktif, jangan ditimpa oleh pengecekan jadwal harian
+            if (this.isAdzanMode && this.isManualAdzan) return;
 
             const now = new Date();
             const wibStr = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Jakarta', hour12: false });
