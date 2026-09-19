@@ -1367,7 +1367,11 @@ function navbarMusicWidget() {
                     }
                 }
             });
-        },
+        } catch (e) {
+            this._isInitializingPlayer = false;
+            console.warn('[SoundStation] Init YT Player error:', e);
+        }
+    },
 
         clearPlaybackWatchdog() {
             if (this.playbackWatchdog) {

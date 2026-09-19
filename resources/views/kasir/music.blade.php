@@ -1099,6 +1099,10 @@ function musicStationPage() {
         },
 
         togglePlayPause() {
+            if (window.SoundStation) {
+                window.SoundStation.togglePlayPause();
+                return;
+            }
             if (window.SoundStationHub) {
                 window.SoundStationHub.sendCommand('TOGGLE_PLAY_PAUSE');
             }
@@ -1117,7 +1121,9 @@ function musicStationPage() {
 
         skipCurrentTrack() {
             this.isSkipping = true;
-            if (window.SoundStationHub) {
+            if (window.SoundStation && window.SoundStation.isMasterHost) {
+                window.SoundStation.playNextTrack(this.currentTrack?.id || null);
+            } else if (window.SoundStationHub) {
                 window.SoundStationHub.sendCommand('SKIP');
             }
             setTimeout(() => {
