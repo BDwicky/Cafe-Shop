@@ -520,15 +520,46 @@
                         <div class="flex items-center justify-between text-xs">
                             <span class="font-mono font-bold text-[#5C4D3C] uppercase tracking-wider">Persentase Volume saat Adzan:</span>
                             <span class="font-mono font-bold px-2.5 py-0.5 rounded-full bg-[#5F7F42]/15 text-[#5F7F42] text-xs"
-                                  x-text="form.adzan_target_volume === 0 ? '0% (Mute/Hening Total)' : form.adzan_target_volume + '%'"></span>
+                                  x-text="form.adzan_target_volume === 0 ? '0% (Mute/Hening Total)' : (form.adzan_target_volume === 2 ? '2% (Hening Sayup)' : form.adzan_target_volume + '%')"></span>
                         </div>
-                        <input type="range" min="0" max="30" step="5" x-model="form.adzan_target_volume"
+                        <input type="range" min="0" max="30" step="2" x-model.number="form.adzan_target_volume"
                                class="w-full accent-[#5F7F42] cursor-pointer h-2 bg-[#E4DCCC] rounded-lg">
                         <div class="flex justify-between text-[10px] text-[#A89A85] font-mono">
                             <span>0% (Hening)</span>
-                            <span class="text-[#5F7F42] font-bold">10% (Rekomendasi)</span>
+                            <span :class="form.adzan_target_volume == 2 ? 'text-[#5F7F42] font-bold' : ''">2%</span>
+                            <span :class="form.adzan_target_volume == 10 ? 'text-[#5F7F42] font-bold' : ''">10% (Rekomendasi)</span>
                             <span>20% (Latar Pelan)</span>
                             <span>30%</span>
+                        </div>
+
+                        <!-- Opsi Cepat Persentase Volume Hening Adzan -->
+                        <div class="flex flex-wrap items-center gap-1.5 pt-1">
+                            <span class="text-[10px] font-mono text-[#8A7B66] mr-1">Opsi Cepat:</span>
+                            <button type="button" @click="form.adzan_target_volume = 0"
+                                    class="px-2 py-0.5 text-[10px] font-mono rounded-lg border transition cursor-pointer select-none active:scale-95"
+                                    :class="form.adzan_target_volume === 0 ? 'bg-[#5F7F42] text-white border-[#5F7F42] font-bold shadow-xs' : 'bg-white border-[#E4DCCC] text-[#7A6A58] hover:border-[#5F7F42]/50'">
+                                0% (Mute)
+                            </button>
+                            <button type="button" @click="form.adzan_target_volume = 2"
+                                    class="px-2.5 py-0.5 text-[10px] font-mono rounded-lg border transition cursor-pointer select-none active:scale-95"
+                                    :class="form.adzan_target_volume === 2 ? 'bg-[#5F7F42] text-white border-[#5F7F42] font-bold shadow-xs' : 'bg-white border-[#E4DCCC] text-[#7A6A58] hover:border-[#5F7F42]/50'">
+                                2% (Hening Sayup)
+                            </button>
+                            <button type="button" @click="form.adzan_target_volume = 5"
+                                    class="px-2 py-0.5 text-[10px] font-mono rounded-lg border transition cursor-pointer select-none active:scale-95"
+                                    :class="form.adzan_target_volume === 5 ? 'bg-[#5F7F42] text-white border-[#5F7F42] font-bold shadow-xs' : 'bg-white border-[#E4DCCC] text-[#7A6A58] hover:border-[#5F7F42]/50'">
+                                5%
+                            </button>
+                            <button type="button" @click="form.adzan_target_volume = 10"
+                                    class="px-2 py-0.5 text-[10px] font-mono rounded-lg border transition cursor-pointer select-none active:scale-95"
+                                    :class="form.adzan_target_volume === 10 ? 'bg-[#5F7F42] text-white border-[#5F7F42] font-bold shadow-xs' : 'bg-white border-[#E4DCCC] text-[#7A6A58] hover:border-[#5F7F42]/50'">
+                                10% (Rekomendasi)
+                            </button>
+                            <button type="button" @click="form.adzan_target_volume = 20"
+                                    class="px-2 py-0.5 text-[10px] font-mono rounded-lg border transition cursor-pointer select-none active:scale-95"
+                                    :class="form.adzan_target_volume === 20 ? 'bg-[#5F7F42] text-white border-[#5F7F42] font-bold shadow-xs' : 'bg-white border-[#E4DCCC] text-[#7A6A58] hover:border-[#5F7F42]/50'">
+                                20%
+                            </button>
                         </div>
                     </div>
 

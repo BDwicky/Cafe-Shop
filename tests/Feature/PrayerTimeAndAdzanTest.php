@@ -64,7 +64,7 @@ class PrayerTimeAndAdzanTest extends TestCase
             'pitch' => 1.05,
             'duck_volume' => 15,
             'adzan_mode_enabled' => true,
-            'adzan_target_volume' => 10,
+            'adzan_target_volume' => 2,
             'adzan_duration_minutes' => 5,
         ]);
 
@@ -73,7 +73,7 @@ class PrayerTimeAndAdzanTest extends TestCase
                 'success' => true,
                 'settings' => [
                     'adzan_mode_enabled' => true,
-                    'adzan_target_volume' => 10,
+                    'adzan_target_volume' => 2,
                     'adzan_duration_minutes' => 5,
                 ],
             ]);
