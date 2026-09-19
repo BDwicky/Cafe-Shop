@@ -1139,7 +1139,7 @@
                 </div>
 
                 <!-- 2. MODE VIDEO: CINEMATIC YOUTUBE PLAYER SCREEN (STREAM-ONLY DI DALAM FRAME DENGAN 100% ZOOM) -->
-                <div x-show="displayMode === 'video'" class="space-y-3.5 w-full select-none">
+                <div x-show="displayMode === 'video'" class="w-full select-none">
                     <div class="w-full aspect-video rounded-2xl overflow-hidden border-2 border-[#3A2D22] shadow-[0_20px_60px_rgba(0,0,0,0.9)] bg-black relative select-none cursor-default">
                         <div class="w-full h-full relative select-none">
                             <div id="tv-player-wrap" class="w-full h-full pointer-events-none select-none" x-show="nowPlaying && nowPlaying.youtube_id">
@@ -1152,6 +1152,36 @@
                                     <span class="font-mono text-xs">Memuat tayangan video...</span>
                                 </div>
                             </template>
+
+                            <!-- OVERLAY BOTTOM INSIDE VIDEO FRAME (NOW PLAYING TITLE & LIVE SYNC PROGRESS BAR WITH SUBTLE BLUR) -->
+                            <div class="absolute bottom-0 inset-x-0 z-20 bg-[#120D09]/75 backdrop-blur-md border-t border-white/10 px-4 py-3 sm:px-5 sm:py-3.5 flex flex-col gap-1.5 pointer-events-none select-none">
+                                <div class="flex items-center justify-between gap-3">
+                                    <div class="min-w-0 flex-1 flex items-center gap-2.5">
+                                        <span class="w-2 h-2 rounded-full bg-[#D9973E] animate-ping shrink-0"></span>
+                                        <div class="min-w-0 flex-1">
+                                            <h2 class="text-sm sm:text-base font-serif font-bold text-[#FAF7F2] truncate drop-shadow-md leading-tight"
+                                                x-text="nowPlaying ? (nowPlaying.song_title || nowPlaying.title) : 'Playlist Kafe KopiKita'"></h2>
+                                            <p class="text-xs text-[#D9973E] font-mono truncate mt-0.5"
+                                               x-text="nowPlaying ? (nowPlaying.artist || 'Artis Musik') : 'Chill Lo-Fi & Jazz Vibes'"></p>
+                                        </div>
+                                    </div>
+                                    <template x-if="nowPlaying && nowPlaying.customer_name">
+                                        <div class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-[#D9973E]/20 border border-[#D9973E]/40 rounded-lg shrink-0">
+                                            <span class="text-[10px] font-mono text-[#D9973E] font-semibold" x-text="'★ Kak ' + nowPlaying.customer_name"></span>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                <!-- Timeline Progress Bar in Overlay -->
+                                <div class="w-full flex items-center gap-2.5 pt-0.5">
+                                    <span class="font-mono text-[11px] text-[#D9973E] font-bold shrink-0" x-text="playbackCurrentTimeFormatted">00:00</span>
+                                    <div class="w-full bg-white/20 h-1.5 rounded-full overflow-hidden backdrop-blur-xs">
+                                        <div class="bg-gradient-to-r from-[#D9973E] via-[#E5A955] to-[#5F7F42] h-full transition-all duration-300 rounded-full shadow-[0_0_10px_rgba(217,151,62,0.8)]"
+                                             :style="'width: ' + playbackProgressPercent + '%'"></div>
+                                    </div>
+                                    <span class="font-mono text-[11px] text-[#FAF7F2] font-semibold shrink-0" x-text="playbackDurationFormatted">00:00</span>
+                                </div>
+                            </div>
 
                             <!-- END-SCREEN CURTAIN: Menutup 100% kartu/grid rekomendasi YouTube di detik-detik akhir -->
                             <div x-show="isNearTrackEnd"
@@ -1187,7 +1217,7 @@
                             </div>
 
                             <!-- SHIELD PELINDUNG TRANSPARAN: Memblokir 100% interaksi mouse/touch/klik agar murni stream pasif dari kasir -->
-                            <div class="video-shield absolute inset-0 z-20 cursor-default select-none"
+                            <div class="video-shield absolute inset-0 z-25 cursor-default select-none"
                                  @click.prevent.stop
                                  @dblclick.prevent.stop
                                  @mousedown.prevent.stop
@@ -1196,35 +1226,6 @@
                                  @touchstart.prevent.stop
                                  @touchend.prevent.stop
                                  title=""></div>
-                        </div>
-                    </div>
-
-                    <!-- VIDEO NOW PLAYING METADATA & PROGRESS BAR UNDER VIDEO -->
-                    <div class="flex items-center justify-between gap-4 px-1">
-                        <div class="min-w-0 flex-1">
-                            <div class="flex items-center gap-2 mb-1">
-                                <span class="w-2 h-2 rounded-full bg-[#D9973E] animate-ping shrink-0"></span>
-                                <span class="font-mono text-[10px] uppercase tracking-widest text-[#D9973E] font-bold">Now Playing Video</span>
-                            </div>
-                            <h2 class="text-xl sm:text-2xl font-serif font-bold text-[#FAF7F2] truncate drop-shadow-sm"
-                                x-text="nowPlaying ? (nowPlaying.song_title || nowPlaying.title) : 'Playlist Kafe KopiKita'">
-                            </h2>
-                            <p class="text-xs sm:text-sm text-[#D9973E] font-mono truncate mt-0.5"
-                               x-text="nowPlaying ? (nowPlaying.artist || 'Artis Musik') : 'Chill Lo-Fi & Jazz Vibes'">
-                            </p>
-                        </div>
-                    </div>
-
-                    <!-- Timeline Progress Bar for Video Mode -->
-                    <div class="w-full px-1">
-                        <div class="w-full bg-[#261D16] h-2 rounded-full overflow-hidden border border-[#3A2D22]">
-                            <div class="bg-gradient-to-r from-[#D9973E] via-[#E5A955] to-[#5F7F42] h-full transition-all duration-300 rounded-full shadow-[0_0_10px_rgba(217,151,62,0.6)]"
-                                 :style="'width: ' + playbackProgressPercent + '%'"></div>
-                        </div>
-                        <div class="mt-1 flex items-center justify-between font-mono text-[11px] text-[#A89A85]">
-                            <span class="text-[#D9973E] font-bold" x-text="playbackCurrentTimeFormatted">00:00</span>
-                            <span class="text-[9px] text-[#8A7B66] uppercase tracking-wider font-semibold">// Live Sync Video</span>
-                            <span class="text-[#FAF7F2] font-semibold" x-text="playbackDurationFormatted">00:00</span>
                         </div>
                     </div>
                 </div>
