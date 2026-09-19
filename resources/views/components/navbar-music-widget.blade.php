@@ -443,6 +443,7 @@ function navbarMusicWidget() {
 
         queueCount: 0,
         queue: [],
+        _isSmartFadingOut: false,
 
         // PRAYER TIMES & ADZAN RESPECT MODE (SURABAYA & SIDOARJO)
         prayerSchedule: null,
@@ -1261,8 +1262,26 @@ function navbarMusicWidget() {
                         ct = dur;
                     }
 
-                    // SEAMLESS AUTO-TRANSITION (1.5 detik sebelum durasi habis agar tidak muncul kartu rekomendasi YouTube)
-                    if (dur > 15 && (dur - ct <= 1.5) && this.isPlaying && !this.isTransitioningTrack) {
+                    // SMART TRANSISI ANTAR LAGU (DJ CROSSFADE & SEAMLESS RECO-BLOCKER)
+                    const remainingSec = dur - ct;
+
+                    // 1. Smart Fade-Out Audio: 3.5 detik sebelum lagu berakhir, pudarkan audio secara halus (DJ Crossfade)
+                    if (dur > 15 && remainingSec <= 3.5 && remainingSec > 1.0 && this.isPlaying && !this.isTransitioningTrack && !this._isSmartFadingOut && !this.isFadingAudio && !this.isAdzanMode && !this.isAnnouncing) {
+                        this._isSmartFadingOut = true;
+                        this.fadeAudio(this.volume, 0, 3000);
+                        if (window.SoundStationHub && window.SoundStationHub.channel) {
+                            try {
+                                window.SoundStationHub.channel.postMessage({
+                                    type: 'TRACK_TRANSITION',
+                                    action: 'pre_fade',
+                                    remaining: remainingSec
+                                });
+                            } catch (e) {}
+                        }
+                    }
+
+                    // 2. Transisi ganti track pada 1.0 detik sebelum durasi habis agar rekomendasi YouTube 100% terblokir
+                    if (dur > 15 && (remainingSec <= 1.0) && this.isPlaying && !this.isTransitioningTrack) {
                         this.playNextTrack(this.currentRequestId);
                         return;
                     }
@@ -1407,7 +1426,12 @@ function navbarMusicWidget() {
                     }
                     break;
                 case 'SKIP':
-                    this.playNextTrack(this.currentRequestId);
+                    (async () => {
+                        if (this.isPlaying && this.player && this.playerReady && !this.isTransitioningTrack && !this.isFadingAudio && !this.isAdzanMode) {
+                            await this.fadeAudio(this.volume, 0, 500);
+                        }
+                        this.playNextTrack(this.currentRequestId);
+                    })();
                     break;
                 case 'SET_VOLUME':
                     if (typeof data.volume !== 'undefined') {
@@ -1477,17 +1501,41 @@ function navbarMusicWidget() {
                 this.claimMasterHost(true);
             }
 
+            this._isSmartFadingOut = false;
+
             if (this.player && this.playerReady) {
+                // SMART CROSSFADE: Mulai dari 0 untuk mencegah letupan audio
+                try {
+                    this.player.setVolume(0);
+                } catch (e) {}
+
                 this.player.loadVideoById(track.youtube_id);
                 this.player.playVideo();
                 this.isPlaying = true;
                 document.title = '♫ ' + track.title + ' — POS';
+
+                const targetReturnVol = this.isAdzanMode
+                    ? Math.max(0, Math.min(100, this.adzanTargetVolume ?? 10))
+                    : (this.isMuted ? 0 : this.volume);
+                if (targetReturnVol > 0) {
+                    this.fadeAudio(0, targetReturnVol, 1800);
+                }
             } else {
                 this.loadYouTubeApi();
             }
 
             this.broadcastSync();
             this.broadcastTimeSync();
+
+            if (window.SoundStationHub && window.SoundStationHub.channel) {
+                try {
+                    window.SoundStationHub.channel.postMessage({
+                        type: 'TRACK_CHANGED',
+                        track: this.currentTrack,
+                        senderTabId: this.myTabId
+                    });
+                } catch (e) {}
+            }
 
             // SINKRONKAN KE BACKEND SERVER (AGAR /music/request & /music/display LANGSUNG TERBARUKAN)
             fetch('{{ route('kasir.music.playback.sync') }}', {
@@ -1602,6 +1650,7 @@ function navbarMusicWidget() {
         async playNextTrack(finishId = null, wasBlocked = false, blockedReason = null) {
             if (this.isTransitioningTrack) return;
             this.isTransitioningTrack = true;
+            this._isSmartFadingOut = false;
             this.clearPlaybackWatchdog();
 
             // Cek apakah ada track kasir yang terpause untuk di-resume
@@ -1645,6 +1694,11 @@ function navbarMusicWidget() {
                     this.currentTimeFormatted = this.formatTime(startSec);
 
                     if (this.player && this.playerReady) {
+                        // SMART CROSSFADE: Mulai dari volume 0 sebelum memuat video baru
+                        try {
+                            this.player.setVolume(0);
+                        } catch (e) {}
+
                         if (isResume && startSec > 0 && startSec < 86400) {
                             this.player.loadVideoById({
                                 videoId: track.youtube_id,
@@ -1656,12 +1710,6 @@ function navbarMusicWidget() {
                         this.isPlaying = true;
                         document.title = '♫ ' + track.title + ' — POS';
 
-                        // Kunci volume jika sedang dalam mode adzan
-                        if (this.isAdzanMode) {
-                            const targetVol = Math.max(0, Math.min(100, this.adzanTargetVolume ?? 10));
-                            this.player.setVolume(targetVol);
-                        }
-
                         // Watchdog: jika dalam 7 detik player tidak masuk ke state PLAYING (1), video mungkin diblokir diam-diam
                         this.playbackWatchdog = setTimeout(() => {
                             if (!this.isPlaying && this.currentTrack && !this.isTransitioningTrack) {
@@ -1670,9 +1718,14 @@ function navbarMusicWidget() {
                             }
                         }, 7000);
 
-                        // Jika ini adalah resume lagu kasir, lakukan fade-in halus 3 detik dan notifikasi
+                        // SMART CROSSFADE FADE-IN:
+                        // Tentukan volume target (menghormati mode adzan jika aktif)
+                        const targetReturnVol = this.isAdzanMode
+                            ? Math.max(0, Math.min(100, this.adzanTargetVolume ?? 10))
+                            : (this.isMuted ? 0 : this.volume);
+
                         if (isResume) {
-                            this.fadeAudio(0, this.volume, 3000);
+                            this.fadeAudio(0, targetReturnVol, 2500);
                             if (window.customToast) {
                                 window.customToast({
                                     message: '✓ Antrean request selesai. Melanjutkan musik kasir dari ' + this.formatTime(startSec) + '...',
@@ -1683,6 +1736,13 @@ function navbarMusicWidget() {
                             this.pausedCashierTrack = null;
                             try {
                                 localStorage.removeItem('pos_soundstation_paused_cashier_track');
+                            } catch (e) {}
+                        } else if (!wasBlocked && targetReturnVol > 0) {
+                            // Fade-in halus 1.8 detik untuk lagu baru
+                            this.fadeAudio(0, targetReturnVol, 1800);
+                        } else if (targetReturnVol === 0) {
+                            try {
+                                this.player.setVolume(0);
                             } catch (e) {}
                         }
                     }
@@ -1756,7 +1816,7 @@ function navbarMusicWidget() {
             if (window.customConfirm) {
                 const ok = await window.customConfirm({
                     title: 'Lewati Lagu',
-                    message: 'Lewati lagu ini?',
+                    message: 'Lewati lagu ini ke antrean berikutnya?',
                     type: 'warning',
                     confirmText: 'Lewati',
                     cancelText: 'Batal'
@@ -1769,6 +1829,11 @@ function navbarMusicWidget() {
                     window.SoundStationHub.sendCommand('SKIP');
                 }
                 return;
+            }
+
+            // SMART CROSSFADE: Fade-out cepat (500ms) jika sedang memutar sebelum beralih ke lagu berikutnya
+            if (this.isPlaying && this.player && this.playerReady && !this.isTransitioningTrack && !this.isFadingAudio && !this.isAdzanMode) {
+                await this.fadeAudio(this.volume, 0, 500);
             }
 
             this.playNextTrack(this.currentRequestId);

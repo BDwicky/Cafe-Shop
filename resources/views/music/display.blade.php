@@ -170,6 +170,8 @@
                 adzanPrayerName: '',
                 _isTestAdzan: false,
                 _isManualAdzan: false,
+                isTrackTransitioning: false,
+                _trackTransitionTimer: null,
 
                 get isNearTrackEnd() {
                     if (!this.playbackDuration || this.playbackDuration <= 8) return false;
@@ -178,8 +180,29 @@
                     const remaining = this.playbackDuration - this.playbackCurrentTime;
                     const isEnded = this.tvPlayer && typeof this.tvPlayer.getPlayerState === 'function' && this.tvPlayer.getPlayerState() === 0;
 
-                    // Tutup 6 detik sebelum video selesai atau saat status ended agar rekomendasi YouTube 100% tersembunyi
-                    return (remaining > 0 && remaining <= 6.5) || isEnded;
+                    // Tutup 6.5 detik sebelum video selesai, saat status ended, atau saat smart transition aktif
+                    return (remaining > 0 && remaining <= 6.5) || isEnded || this.isTrackTransitioning;
+                },
+
+                triggerTrackTransition(newTrack = null) {
+                    if (this._trackTransitionTimer) {
+                        clearTimeout(this._trackTransitionTimer);
+                    }
+                    this.isTrackTransitioning = true;
+                    if (newTrack) {
+                        this.nowPlaying = newTrack;
+                        if (Array.isArray(this.queue)) {
+                            this.queue = this.queue.filter(item => item.id !== this.nowPlaying.id && item.id !== this.nowPlaying.request_id);
+                        }
+                    }
+                    this.isPlaying = true;
+                    this.syncTvPlayerState();
+
+                    // Selesaikan transisi visual setelah 1.5 detik
+                    this._trackTransitionTimer = setTimeout(() => {
+                        this.isTrackTransitioning = false;
+                        this._trackTransitionTimer = null;
+                    }, 1500);
                 },
 
                 init() {
@@ -237,13 +260,12 @@
                             } else if (data.type === 'SYNC_STATE') {
                                 this.applySyncData(data);
                                 this.syncTvPlayerState();
-                            } else if (data.type === 'TRACK_CHANGED') {
-                                this.nowPlaying = data.track;
-                                this.isPlaying = true;
-                                if (this.nowPlaying && Array.isArray(this.queue)) {
-                                    this.queue = this.queue.filter(item => item.id !== this.nowPlaying.id && item.id !== this.nowPlaying.request_id);
+                            } else if (data.type === 'TRACK_TRANSITION') {
+                                if (data.action === 'pre_fade') {
+                                    this.isTrackTransitioning = true;
                                 }
-                                this.syncTvPlayerState();
+                            } else if (data.type === 'TRACK_CHANGED') {
+                                this.triggerTrackTransition(data.track);
                             } else if (data.type === 'QUEUE_UPDATED') {
                                 this.fetchStatus();
                             } else if (data.type === 'ORDER_READY') {
@@ -429,6 +451,13 @@
                                                 this.tvPlayer.seekTo(this.playbackCurrentTime + 0.2, true);
                                             }
                                         }
+
+                                        // Selesaikan transisi video segera setelah frame video aktif memutar
+                                        if (this.isTrackTransitioning) {
+                                            setTimeout(() => {
+                                                this.isTrackTransitioning = false;
+                                            }, 400);
+                                        }
                                     }
 
                                     if (event.data === YT.PlayerState.PAUSED && this.isPlaying && !this._isManualPausing) {
@@ -564,8 +593,13 @@
                             }
                         });
                         if (!res.ok) return;
-                        const data = await res.json();
-                        this.nowPlaying = data.now_playing;
+                        const oldTrackId = this.nowPlaying ? (this.nowPlaying.id || this.nowPlaying.youtube_id) : null;
+                        const newTrackId = data.now_playing ? (data.now_playing.id || data.now_playing.youtube_id) : null;
+                        if (newTrackId && oldTrackId && newTrackId !== oldTrackId) {
+                            this.triggerTrackTransition(data.now_playing);
+                        } else {
+                            this.nowPlaying = data.now_playing;
+                        }
                         const rawQueue = data.queue || [];
                         this.queue = rawQueue.filter(item => !this.nowPlaying || (item.id !== this.nowPlaying.id && item.id !== this.nowPlaying.request_id));
                         this.queueCount = data.queue_count || 0;
@@ -1057,7 +1091,8 @@
                                 <div class="w-full h-full rounded-full border border-[#3A2D22] flex items-center justify-center p-3.5 sm:p-4">
                                     <div class="w-full h-full rounded-full border border-dashed border-[#554637]/70 flex items-center justify-center p-4 sm:p-5">
                                         <!-- CENTER ALBUM COVER LABEL -->
-                                        <div class="w-full h-full rounded-full border-2 border-[#D9973E]/60 overflow-hidden flex items-center justify-center bg-[#140E0A] shadow-inner relative">
+                                        <div class="w-full h-full rounded-full border-2 border-[#D9973E]/60 overflow-hidden flex items-center justify-center bg-[#140E0A] shadow-inner relative transition-opacity duration-500"
+                                             :class="isTrackTransitioning ? 'opacity-30' : 'opacity-100'">
                                             <template x-if="nowPlaying && nowPlaying.thumbnail_url">
                                                 <img :src="nowPlaying.thumbnail_url" alt="Cover" class="w-full h-full object-cover">
                                             </template>
@@ -1097,11 +1132,13 @@
                             <span x-text="isPlaying ? 'SEDANG MEMUTAR' : 'AUDIO TERJEDA'"></span>
                         </div>
 
-                        <h2 class="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-serif font-bold text-[#FAF7F2] leading-tight tracking-tight line-clamp-2 drop-shadow-md"
+                        <h2 class="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-serif font-bold text-[#FAF7F2] leading-tight tracking-tight line-clamp-2 drop-shadow-md transition-all duration-500"
+                            :class="isTrackTransitioning ? 'opacity-30 scale-98 translate-y-1' : 'opacity-100 scale-100 translate-y-0'"
                             x-text="nowPlaying ? (nowPlaying.song_title || nowPlaying.title) : 'Playlist Kafe KopiKita'">
                         </h2>
 
-                        <p class="text-base sm:text-lg lg:text-xl text-[#D9973E] mt-1.5 font-mono font-medium truncate"
+                        <p class="text-base sm:text-lg lg:text-xl text-[#D9973E] mt-1.5 font-mono font-medium truncate transition-all duration-500"
+                           :class="isTrackTransitioning ? 'opacity-30' : 'opacity-100'"
                            x-text="nowPlaying ? (nowPlaying.artist || 'Artis Musik') : 'Chill Lo-Fi & Jazz Vibes'">
                         </p>
 
@@ -1159,9 +1196,11 @@
                                     <div class="min-w-0 flex-1 flex items-center gap-2.5">
                                         <span class="w-2 h-2 rounded-full bg-[#D9973E] shrink-0" :class="isPlaying ? 'animate-ping' : 'opacity-40'"></span>
                                         <div class="min-w-0 flex-1">
-                                            <h2 class="text-sm sm:text-base font-serif font-bold text-[#FAF7F2] truncate drop-shadow-md leading-tight"
+                                            <h2 class="text-sm sm:text-base font-serif font-bold text-[#FAF7F2] truncate drop-shadow-md leading-tight transition-all duration-500"
+                                                :class="isTrackTransitioning ? 'opacity-30 translate-y-0.5' : 'opacity-100 translate-y-0'"
                                                 x-text="nowPlaying ? (nowPlaying.song_title || nowPlaying.title) : 'Playlist Kafe KopiKita'"></h2>
-                                            <p class="text-xs text-[#D9973E] font-mono truncate mt-0.5"
+                                            <p class="text-xs text-[#D9973E] font-mono truncate mt-0.5 transition-all duration-500"
+                                               :class="isTrackTransitioning ? 'opacity-30' : 'opacity-100'"
                                                x-text="nowPlaying ? (nowPlaying.artist || 'Artis Musik') : 'Chill Lo-Fi & Jazz Vibes'"></p>
                                         </div>
                                     </div>
@@ -1209,36 +1248,41 @@
                                 </div>
                             </div>
 
-                            <!-- END-SCREEN CURTAIN: Menutup 100% kartu/grid rekomendasi YouTube di detik-detik akhir -->
+                            <!-- END-SCREEN CURTAIN & SMART TRANSITION: Menutup 100% rekomendasi YouTube & transisi antar lagu -->
                             <div x-show="isNearTrackEnd"
                                  x-cloak
-                                 x-transition:enter="transition ease-out duration-700"
+                                 x-transition:enter="transition ease-out duration-500"
                                  x-transition:enter-start="opacity-0 scale-98"
                                  x-transition:enter-end="opacity-100 scale-100"
                                  x-transition:leave="transition ease-in duration-500"
-                                 x-transition:leave-start="opacity-100"
-                                 x-transition:leave-end="opacity-0"
+                                 x-transition:leave-start="opacity-100 scale-100"
+                                 x-transition:leave-end="opacity-0 scale-98"
                                  class="absolute inset-0 z-30 flex flex-col items-center justify-center bg-[#0E0906]/95 backdrop-blur-2xl text-center p-6 select-none pointer-events-none">
-                                <div class="w-24 h-24 rounded-full bg-[#D9973E]/15 blur-2xl absolute animate-pulse"></div>
+                                <div class="w-28 h-28 rounded-full bg-[#D9973E]/15 blur-3xl absolute animate-pulse"></div>
                                 <div class="relative z-10 flex flex-col items-center max-w-md">
-                                    <div class="w-12 h-12 rounded-xl bg-[#1C1611] border border-[#D9973E]/40 flex items-center justify-center shadow-xl mb-2.5">
-                                        <span class="text-2xl animate-spin-slow">☕</span>
+                                    <div class="w-13 h-13 rounded-2xl bg-[#1C1611] border-2 border-[#D9973E]/50 flex items-center justify-center shadow-2xl mb-2.5 relative">
+                                        <span class="text-3xl animate-spin-slow">☕</span>
+                                        <span class="w-2.5 h-2.5 rounded-full bg-[#D9973E] absolute -top-1 -right-1 animate-ping"></span>
                                     </div>
-                                    <div class="inline-flex items-center gap-1.5 px-3 py-0.5 bg-[#D9973E]/15 border border-[#D9973E]/40 rounded-full mb-2">
+                                    <div class="inline-flex items-center gap-2 px-3 py-1 bg-[#D9973E]/15 border border-[#D9973E]/40 rounded-full mb-2">
                                         <span class="w-1.5 h-1.5 rounded-full bg-[#D9973E] animate-ping"></span>
-                                        <span class="font-mono text-[10px] font-bold text-[#D9973E] uppercase tracking-widest">Menyiapkan Lagu Berikutnya</span>
+                                        <span class="font-mono text-[10px] font-bold text-[#D9973E] uppercase tracking-widest"
+                                              x-text="isTrackTransitioning ? 'Transisi Lagu Pintar...' : 'Menyiapkan Lagu Berikutnya'"></span>
                                     </div>
-                                    <template x-if="queue && queue.length > 0">
-                                        <div class="mt-0.5">
-                                            <div class="font-serif text-lg font-bold text-[#FAF7F2] truncate max-w-sm drop-shadow-md" x-text="queue[0].song_title || queue[0].title"></div>
-                                            <div class="font-mono text-xs text-[#D9973E] mt-0.5" x-text="queue[0].artist || 'Artis Musik'"></div>
-                                        </div>
-                                    </template>
-                                    <template x-if="!queue || queue.length === 0">
-                                        <div class="mt-0.5 font-serif text-sm text-[#A89A85]">
-                                            Playlist Santai Kafe KopiKita
-                                        </div>
-                                    </template>
+                                    <div class="mt-0.5 min-w-0 px-2">
+                                        <div class="font-serif text-lg sm:text-xl font-bold text-[#FAF7F2] truncate max-w-sm drop-shadow-md"
+                                             x-text="nowPlaying ? (nowPlaying.song_title || nowPlaying.title) : (queue && queue.length > 0 ? (queue[0].song_title || queue[0].title) : 'Playlist Kafe KopiKita')"></div>
+                                        <div class="font-mono text-xs text-[#D9973E] mt-0.5 truncate"
+                                             x-text="nowPlaying ? (nowPlaying.artist || 'Artis Musik') : (queue && queue.length > 0 ? (queue[0].artist || 'Artis Musik') : 'Chill Vibes')"></div>
+                                    </div>
+                                    <!-- Animated Wave Equalizer -->
+                                    <div class="flex items-center gap-1.5 mt-2.5 h-4">
+                                        <span class="w-1 h-2.5 bg-[#D9973E] rounded-full animate-pulse"></span>
+                                        <span class="w-1 h-4 bg-[#D9973E] rounded-full animate-pulse" style="animation-delay: 150ms;"></span>
+                                        <span class="w-1 h-3.5 bg-[#5F7F42] rounded-full animate-pulse" style="animation-delay: 300ms;"></span>
+                                        <span class="w-1 h-4 bg-[#D9973E] rounded-full animate-pulse" style="animation-delay: 450ms;"></span>
+                                        <span class="w-1 h-2 bg-[#5F7F42] rounded-full animate-pulse" style="animation-delay: 600ms;"></span>
+                                    </div>
                                 </div>
                             </div>
 
