@@ -15,67 +15,15 @@
         html, body {
             margin: 0 !important;
             padding: 0 !important;
-            width: 100% !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            min-width: 100vw !important;
             min-height: 100vh !important;
+            max-width: 100vw !important;
+            max-height: 100vh !important;
+            overflow: hidden !important;
             box-sizing: border-box !important;
             background-color: #0E0906;
-        }
-
-        /* Desktop & TV Screens (>= 1024px): 100vh Non-scrollable Full Display */
-        @media (min-width: 1024px) {
-            html, body {
-                width: 100vw !important;
-                height: 100vh !important;
-                max-width: 100vw !important;
-                max-height: 100vh !important;
-                overflow: hidden !important;
-            }
-        }
-
-        /* Mobile View (Samsung A15 & Smartphones < 1024px): Natural Smooth Scroll */
-        @media (max-width: 1023px) {
-            html, body {
-                overflow-x: hidden !important;
-                overflow-y: auto !important;
-                height: auto !important;
-                min-height: 100% !important;
-            }
-            .tv-content-wrap {
-                height: auto !important;
-                min-height: 100vh !important;
-                max-height: none !important;
-                overflow-y: visible !important;
-            }
-        }
-
-        /* Mobile Landscape Optimization (Samsung A15 in Landscape <= 500px height) */
-        @media (max-height: 500px) and (orientation: landscape) {
-            .tv-content-wrap {
-                padding: 0.5rem 0.75rem !important;
-            }
-            .mobile-landscape-grid {
-                display: grid !important;
-                grid-template-columns: repeat(12, minmax(0, 1fr)) !important;
-                gap: 0.75rem !important;
-            }
-            .mobile-landscape-left {
-                grid-column: span 7 / span 7 !important;
-            }
-            .mobile-landscape-right {
-                grid-column: span 5 / span 5 !important;
-            }
-        }
-
-        /* Large TV Displays (24" - 43" Smart TV & Monitors: Full HD 1080p, 2K, 4K) */
-        @media (min-width: 1800px) {
-            html {
-                font-size: 19px; /* Fluid rem scaling for 24"-43" TV viewing distance (3-8m) */
-            }
-        }
-        @media (min-width: 2500px) {
-            html {
-                font-size: 24px; /* 4K Ultra HD TV scaling */
-            }
         }
         *, *::before, *::after {
             box-sizing: border-box;
@@ -980,7 +928,7 @@
         }
     </script>
 </head>
-<body class="bg-[#0E0906] text-[#FAF7F2] w-screen min-w-full min-h-screen antialiased font-sans select-none relative m-0 p-0 overflow-y-auto lg:overflow-hidden lg:h-screen lg:max-h-screen"
+<body class="bg-[#0E0906] text-[#FAF7F2] w-screen h-screen min-w-full min-h-screen overflow-hidden antialiased font-sans select-none relative m-0 p-0"
       x-data="tvDisplayApp()"
       x-cloak>
 
@@ -1089,37 +1037,37 @@
     </div>
 
     <!-- CONTENT WRAPPER -->
-    <div class="tv-content-wrap w-full min-h-screen h-auto lg:h-full lg:max-h-screen flex flex-col justify-between p-3 sm:p-5 lg:p-6 xl:p-8 2xl:p-10 relative z-10 box-border overflow-y-auto lg:overflow-hidden">
+    <div class="w-full h-full min-h-screen max-h-screen flex flex-col justify-between p-3 sm:p-5 lg:p-6 xl:p-8 relative z-10 box-border overflow-hidden">
 
         <!-- 1. TOP BAR -->
-        <header class="w-full flex items-center justify-between border-b border-[#32261C] pb-3 sm:pb-3.5 2xl:pb-5 shrink-0 gap-2">
+        <header class="w-full flex items-center justify-between border-b border-[#32261C] pb-3.5 shrink-0">
             <!-- Brand & Status -->
-            <div class="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
-                <img src="{{ asset('images/logo-light.svg') }}" alt="{{ config('cafe.name') }}" class="h-8 sm:h-10 lg:h-12 2xl:h-16 w-auto shrink-0 drop-shadow-md">
-                <div class="border-l border-[#32261C] pl-2.5 sm:pl-3.5 min-w-0">
-                    <div class="font-mono text-[10px] sm:text-xs lg:text-sm 2xl:text-base uppercase tracking-[0.15em] sm:tracking-[0.22em] text-[#D9973E] flex items-center gap-1.5 sm:gap-2 font-bold truncate">
+            <div class="flex items-center gap-3.5">
+                <img src="{{ asset('images/logo-light.svg') }}" alt="{{ config('cafe.name') }}" class="h-10 sm:h-12 w-auto shrink-0 drop-shadow-md">
+                <div class="border-l border-[#32261C] pl-3.5">
+                    <div class="font-mono text-xs sm:text-sm uppercase tracking-[0.22em] text-[#D9973E] flex items-center gap-2 font-bold">
                         <span>{{ config('cafe.name') }} SOUNDSTATION</span>
-                        <span class="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#5F7F42] animate-pulse shrink-0"></span>
+                        <span class="w-2 h-2 rounded-full bg-[#5F7F42] animate-pulse"></span>
                     </div>
-                    <div class="text-[10px] sm:text-xs 2xl:text-sm text-[#A89A85] font-sans truncate hidden xs:block">{{ config('cafe.tagline') }}</div>
+                    <div class="text-xs text-[#A89A85] font-sans">{{ config('cafe.tagline') }}</div>
                 </div>
             </div>
 
             <!-- Ready Orders Quick Pill Banner -->
             <template x-if="readyOrders.length > 0">
                 <button type="button" @click="showAllReadyCards()"
-                        class="hidden md:flex items-center gap-2 px-3.5 py-1.5 2xl:px-5 2xl:py-2 bg-[#5F7F42]/15 border border-[#5F7F42]/40 rounded-full cursor-pointer transition hover:bg-[#5F7F42]/25 shadow-sm active:scale-95 shrink-0"
+                        class="hidden md:flex items-center gap-2 px-4 py-1.5 bg-[#5F7F42]/15 border border-[#5F7F42]/40 rounded-full cursor-pointer transition hover:bg-[#5F7F42]/25 shadow-sm active:scale-95"
                         title="Klik untuk memunculkan Card Fly pesanan siap">
-                    <span class="w-2 h-2 2xl:w-2.5 2xl:h-2.5 rounded-full bg-[#5F7F42] animate-ping"></span>
-                    <span class="font-mono text-xs 2xl:text-sm text-[#85BF5C] font-bold" x-text="readyOrders.length + ' Pesanan Siap Diambil ↗'"></span>
+                    <span class="w-2 h-2 rounded-full bg-[#5F7F42] animate-ping"></span>
+                    <span class="font-mono text-xs text-[#85BF5C] font-bold" x-text="readyOrders.length + ' Pesanan Siap Diambil ↗'"></span>
                 </button>
             </template>
 
             <!-- Mode Switcher, Sound Toggle, Fullscreen & Real-time Clock -->
-            <div class="flex items-center gap-2 sm:gap-3 2xl:gap-4 shrink-0">
+            <div class="flex items-center gap-2.5 sm:gap-3">
                 <!-- Toggle Mode: Visualizer vs Video -->
                 <button type="button" @click="toggleDisplayMode()"
-                        class="px-2.5 py-1 sm:px-3 sm:py-1.5 2xl:px-4 2xl:py-2 bg-[#261D16] hover:bg-[#32261C] border border-[#3A2D22] hover:border-[#D9973E] text-[#D9973E] font-mono text-[11px] sm:text-xs 2xl:text-sm uppercase tracking-wider transition rounded-xl flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer"
+                        class="px-3 py-1.5 bg-[#261D16] hover:bg-[#32261C] border border-[#3A2D22] hover:border-[#D9973E] text-[#D9973E] font-mono text-xs uppercase tracking-wider transition rounded-xl flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer"
                         :title="displayMode === 'visualizer' ? 'Beralih ke Tampilan Video YouTube' : 'Beralih ke Tampilan Vinyl Visualizer'">
                     <span x-show="displayMode === 'visualizer'" class="flex items-center gap-1.5">
                         <span>🎬</span>
@@ -1133,38 +1081,38 @@
 
                 <!-- Toggle Suara Notifikasi TV -->
                 <button type="button" @click="toggleTvSound()"
-                        class="w-8 h-8 sm:w-9 sm:h-9 2xl:w-11 2xl:h-11 flex items-center justify-center rounded-xl bg-[#261D16] hover:bg-[#32261C] border border-[#3A2D22] hover:border-[#D9973E] text-[#D9973E] transition shadow-sm active:scale-95 cursor-pointer"
+                        class="w-9 h-9 flex items-center justify-center rounded-xl bg-[#261D16] hover:bg-[#32261C] border border-[#3A2D22] hover:border-[#D9973E] text-[#D9973E] transition shadow-sm active:scale-95 cursor-pointer"
                         :title="tvSoundEnabled ? 'Suara Notifikasi TV: AKTIF (Klik untuk Heningkan)' : 'Suara Notifikasi TV: HENING (Klik untuk Aktifkan)'">
-                    <span class="text-xs sm:text-sm 2xl:text-base" x-text="tvSoundEnabled ? '🔔' : '🔕'"></span>
+                    <span class="text-sm" x-text="tvSoundEnabled ? '🔔' : '🔕'"></span>
                 </button>
 
                 <!-- Toggle Fullscreen -->
                 <button type="button" @click="toggleFullscreen()"
-                        class="w-8 h-8 sm:w-9 sm:h-9 2xl:w-11 2xl:h-11 flex items-center justify-center rounded-xl bg-[#261D16] hover:bg-[#32261C] border border-[#3A2D22] hover:border-[#D9973E] text-[#D9973E] transition shadow-sm active:scale-95 cursor-pointer"
+                        class="w-9 h-9 flex items-center justify-center rounded-xl bg-[#261D16] hover:bg-[#32261C] border border-[#3A2D22] hover:border-[#D9973E] text-[#D9973E] transition shadow-sm active:scale-95 cursor-pointer"
                         :title="isFullscreen ? 'Keluar Layar Penuh (Esc)' : 'Layar Penuh (F11)'">
-                    <svg x-show="!isFullscreen" class="w-3.5 h-3.5 sm:w-4 sm:h-4 2xl:w-5 2xl:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg x-show="!isFullscreen" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
                     </svg>
-                    <svg x-show="isFullscreen" class="w-3.5 h-3.5 sm:w-4 sm:h-4 2xl:w-5 2xl:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: none;">
+                    <svg x-show="isFullscreen" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="display: none;">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v4m0 0H5m4 0L4 2m11 1v4m0 0h4m-4 0l5-5M9 21v-4m0 0H5m4 0l-5 5m11-1v-4m0 0h4m-4 0l5 5" />
                     </svg>
                 </button>
 
                 <!-- Real-time Clock -->
-                <div class="font-mono text-xl sm:text-2xl lg:text-3xl 2xl:text-4xl 3xl:text-5xl font-bold text-[#FAF7F2] tracking-wider ml-1 shrink-0" x-text="currentTime"></div>
+                <div class="font-mono text-2xl sm:text-3xl font-bold text-[#FAF7F2] tracking-wider ml-1" x-text="currentTime"></div>
             </div>
         </header>
 
         <!-- 2. MAIN STAGE (2 COLS: LEFT = NOW PLAYING HERO / VIDEO, RIGHT = LIVE ORDERS & QUEUE) -->
-        <main class="w-full flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 lg:gap-8 2xl:gap-10 items-stretch my-auto py-2 sm:py-2.5 2xl:py-4 overflow-visible lg:overflow-hidden mobile-landscape-grid">
+        <main class="w-full flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 lg:gap-8 items-stretch my-auto py-1.5 sm:py-2.5 overflow-hidden">
 
             <!-- LEFT COL: NOW PLAYING HERO (7 COLS) -->
-            <div class="lg:col-span-7 xl:col-span-8 flex flex-col h-auto lg:h-full min-h-0 justify-center mobile-landscape-left">
+            <div class="lg:col-span-7 xl:col-span-8 flex flex-col h-full min-h-0 justify-center">
 
                 <!-- 1. MODE VISUALIZER: 3D VINYL TURNTABLE & SPECTRUM EQUALIZER -->
-                <div x-show="displayMode === 'visualizer'" class="flex flex-col sm:flex-row items-center gap-5 sm:gap-8 lg:gap-10 2xl:gap-12 h-full justify-center py-2 lg:py-0">
+                <div x-show="displayMode === 'visualizer'" class="flex flex-col sm:flex-row items-center gap-6 sm:gap-8 lg:gap-10 h-full justify-center">
                     <!-- VINYL RECORD TURNTABLE WITH TONEARM -->
-                    <div class="relative shrink-0 w-48 h-48 sm:w-64 sm:h-64 md:w-72 md:h-72 lg:w-80 lg:h-80 xl:w-96 xl:h-96 2xl:w-[420px] 2xl:h-[420px] 3xl:w-[480px] 3xl:h-[480px]">
+                    <div class="relative shrink-0 w-56 h-56 sm:w-64 sm:h-64 md:w-72 md:h-72 lg:w-80 lg:h-80 xl:w-96 xl:h-96">
                         <!-- Vinyl Turntable Base Shadow & Ring -->
                         <div class="w-full h-full rounded-full bg-gradient-to-tr from-[#120D09] via-[#221711] to-[#120D09] border-4 border-[#3A2D22] shadow-[0_20px_60px_rgba(0,0,0,0.85)] flex items-center justify-center p-3 relative overflow-hidden"
                              :class="isPlaying ? 'animate-spin-slow' : ''">
@@ -1209,37 +1157,37 @@
                     </div>
 
                     <!-- NOW PLAYING METADATA -->
-                    <div class="min-w-0 text-center sm:text-left flex-1 w-full max-w-xl xl:max-w-2xl 2xl:max-w-3xl">
-                        <div class="inline-flex items-center gap-2 px-3 py-1 2xl:px-4 2xl:py-1.5 bg-[#D9973E]/15 border border-[#D9973E]/40 text-[#D9973E] font-mono text-[11px] sm:text-xs 2xl:text-sm uppercase tracking-[0.2em] mb-2 sm:mb-2.5 rounded-full font-bold">
-                            <span class="w-1.5 h-1.5 2xl:w-2 2xl:h-2 rounded-full bg-[#D9973E] animate-ping"></span>
+                    <div class="min-w-0 text-center sm:text-left flex-1 w-full max-w-xl xl:max-w-2xl">
+                        <div class="inline-flex items-center gap-2 px-3 py-1 bg-[#D9973E]/15 border border-[#D9973E]/40 text-[#D9973E] font-mono text-xs uppercase tracking-[0.2em] mb-2.5 rounded-full font-bold">
+                            <span class="w-1.5 h-1.5 rounded-full bg-[#D9973E] animate-ping"></span>
                             <span x-text="isPlaying ? 'SEDANG MEMUTAR' : 'AUDIO TERJEDA'"></span>
                         </div>
 
-                        <h2 class="text-xl sm:text-3xl lg:text-4xl xl:text-5xl 2xl:text-6xl font-serif font-bold text-[#FAF7F2] leading-tight tracking-tight line-clamp-2 drop-shadow-md transition-all duration-500"
+                        <h2 class="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-serif font-bold text-[#FAF7F2] leading-tight tracking-tight line-clamp-2 drop-shadow-md transition-all duration-500"
                             :class="isTrackTransitioning ? 'opacity-30 scale-98 translate-y-1' : 'opacity-100 scale-100 translate-y-0'"
                             x-text="nowPlaying ? (nowPlaying.song_title || nowPlaying.title) : 'Playlist Kafe KopiKita'">
                         </h2>
 
-                        <p class="text-sm sm:text-lg lg:text-xl 2xl:text-2xl 3xl:text-3xl text-[#D9973E] mt-1 sm:mt-1.5 font-mono font-medium truncate transition-all duration-500"
+                        <p class="text-base sm:text-lg lg:text-xl text-[#D9973E] mt-1.5 font-mono font-medium truncate transition-all duration-500"
                            :class="isTrackTransitioning ? 'opacity-30' : 'opacity-100'"
                            x-text="nowPlaying ? (nowPlaying.artist || 'Artis Musik') : 'Chill Lo-Fi & Jazz Vibes'">
                         </p>
 
                         <!-- TIMELINE PROGRESS BAR -->
-                        <div class="mt-3.5 sm:mt-4 2xl:mt-6 w-full">
-                            <div class="w-full bg-[#261D16] h-2 sm:h-2.5 2xl:h-3.5 rounded-full overflow-hidden border border-[#3A2D22]">
+                        <div class="mt-4 w-full">
+                            <div class="w-full bg-[#261D16] h-2.5 rounded-full overflow-hidden border border-[#3A2D22]">
                                 <div class="bg-gradient-to-r from-[#D9973E] via-[#E5A955] to-[#5F7F42] h-full transition-all duration-300 rounded-full shadow-[0_0_12px_rgba(217,151,62,0.6)]"
                                      :style="'width: ' + playbackProgressPercent + '%'"></div>
                             </div>
-                            <div class="mt-1.5 flex items-center justify-between font-mono text-[11px] sm:text-xs 2xl:text-base text-[#A89A85]">
+                            <div class="mt-1.5 flex items-center justify-between font-mono text-xs text-[#A89A85]">
                                 <span class="text-[#D9973E] font-bold" x-text="playbackCurrentTimeFormatted">00:00</span>
-                                <span class="text-[10px] sm:text-[11px] 2xl:text-xs text-[#8A7B66] uppercase tracking-wider font-semibold">// Live Sync Player</span>
+                                <span class="text-[10px] text-[#8A7B66] uppercase tracking-wider font-semibold">// Live Sync Player</span>
                                 <span class="text-[#FAF7F2] font-semibold" x-text="playbackDurationFormatted">00:00</span>
                             </div>
                         </div>
 
                         <!-- 42-BAND LIVE SOUND SPECTRUM EQUALIZER WAVE -->
-                        <div class="mt-3 sm:mt-4 2xl:mt-6 w-full flex items-end gap-1 h-6 sm:h-8 2xl:h-12 pt-1 overflow-hidden">
+                        <div class="mt-4 w-full flex items-end gap-1 h-8 pt-1 overflow-hidden">
                             <template x-for="i in 42" :key="i">
                                 <div class="flex-1 min-w-[2px] rounded-t bg-gradient-to-t from-[#D9973E] to-[#5F7F42] transition-all duration-150"
                                      :class="isPlaying ? 'eq-bar' : 'h-1 opacity-40'"
@@ -1250,64 +1198,64 @@
 
                         <!-- REQUESTED BY BADGE -->
                         <template x-if="nowPlaying && nowPlaying.customer_name">
-                            <div class="mt-3 sm:mt-3.5 2xl:mt-5 inline-flex items-center gap-2 px-3 py-1 sm:px-3.5 sm:py-1.5 2xl:px-5 2xl:py-2 bg-[#261D16] border border-[#D9973E]/40 rounded-xl shadow-xs">
-                                <span class="font-mono text-[11px] sm:text-xs 2xl:text-sm text-[#A89A85] uppercase tracking-wider">Direquest oleh:</span>
-                                <span class="font-mono text-xs sm:text-sm 2xl:text-base font-bold text-[#D9973E]" x-text="'★ Kak ' + nowPlaying.customer_name"></span>
+                            <div class="mt-3.5 inline-flex items-center gap-2 px-3.5 py-1.5 bg-[#261D16] border border-[#D9973E]/40 rounded-xl shadow-xs">
+                                <span class="font-mono text-xs text-[#A89A85] uppercase tracking-wider">Direquest oleh:</span>
+                                <span class="font-mono text-sm font-bold text-[#D9973E]" x-text="'★ Kak ' + nowPlaying.customer_name"></span>
                             </div>
                         </template>
                     </div>
                 </div>
 
                 <!-- 2. MODE VIDEO: CINEMATIC YOUTUBE PLAYER SCREEN (STREAM-ONLY DI DALAM FRAME DENGAN 100% ZOOM) -->
-                <div x-show="displayMode === 'video'" class="w-full h-auto lg:h-full flex-1 min-h-0 flex flex-col justify-center select-none">
-                    <div class="w-full aspect-video lg:aspect-auto lg:h-full min-h-0 rounded-2xl overflow-hidden border-2 border-[#3A2D22] shadow-[0_20px_60px_rgba(0,0,0,0.9)] bg-black relative select-none cursor-default flex items-center justify-center">
+                <div x-show="displayMode === 'video'" class="w-full h-full flex-1 min-h-0 flex flex-col justify-center select-none">
+                    <div class="w-full h-full min-h-0 rounded-2xl overflow-hidden border-2 border-[#3A2D22] shadow-[0_20px_60px_rgba(0,0,0,0.9)] bg-black relative select-none cursor-default flex items-center justify-center">
                         <div class="w-full h-full relative select-none">
                             <div id="tv-player-wrap" class="w-full h-full pointer-events-none select-none" x-show="nowPlaying && nowPlaying.youtube_id">
                                 <div id="tv-yt-player" class="w-full h-full pointer-events-none select-none"></div>
                             </div>
 
                             <template x-if="!nowPlaying || !nowPlaying.youtube_id">
-                                <div class="w-full h-full flex flex-col items-center justify-center bg-[#140E0A] text-[#A89A85] select-none pointer-events-none p-4">
-                                    <span class="text-4xl sm:text-5xl 2xl:text-6xl mb-2 text-[#D9973E]">🎬</span>
-                                    <span class="font-mono text-xs 2xl:text-sm">Memuat tayangan video...</span>
+                                <div class="w-full h-full flex flex-col items-center justify-center bg-[#140E0A] text-[#A89A85] select-none pointer-events-none">
+                                    <span class="text-5xl mb-2 text-[#D9973E]">🎬</span>
+                                    <span class="font-mono text-xs">Memuat tayangan video...</span>
                                 </div>
                             </template>
 
                             <!-- OVERLAY TOP INSIDE VIDEO FRAME (NOW PLAYING TITLE & ARTIST) -->
-                            <div class="absolute top-0 inset-x-0 z-20 bg-gradient-to-b from-[#120D09]/90 via-[#120D09]/50 to-transparent backdrop-blur-xs px-3.5 py-2 sm:px-5 sm:py-3 2xl:px-7 2xl:py-4 flex items-center justify-between gap-3 pointer-events-none select-none">
-                                <div class="min-w-0 flex-1 flex items-center gap-2 sm:gap-2.5 2xl:gap-3.5">
-                                    <span class="w-2 h-2 2xl:w-3 2xl:h-3 rounded-full bg-[#D9973E] shrink-0" :class="isPlaying ? 'animate-ping' : 'opacity-40'"></span>
+                            <div class="absolute top-0 inset-x-0 z-20 bg-gradient-to-b from-[#120D09]/85 via-[#120D09]/45 to-transparent backdrop-blur-xs px-4 py-2.5 sm:px-5 sm:py-3 flex items-center justify-between gap-3 pointer-events-none select-none">
+                                <div class="min-w-0 flex-1 flex items-center gap-2.5">
+                                    <span class="w-2 h-2 rounded-full bg-[#D9973E] shrink-0" :class="isPlaying ? 'animate-ping' : 'opacity-40'"></span>
                                     <div class="min-w-0 flex-1">
-                                        <h2 class="text-xs sm:text-base 2xl:text-xl 3xl:text-2xl font-serif font-bold text-[#FAF7F2] truncate drop-shadow-md leading-tight transition-all duration-500"
+                                        <h2 class="text-sm sm:text-base font-serif font-bold text-[#FAF7F2] truncate drop-shadow-md leading-tight transition-all duration-500"
                                             :class="isTrackTransitioning ? 'opacity-30 translate-y-0.5' : 'opacity-100 translate-y-0'"
                                             x-text="nowPlaying ? (nowPlaying.song_title || nowPlaying.title) : 'Playlist Kafe KopiKita'"></h2>
-                                        <p class="text-[11px] sm:text-xs 2xl:text-base 3xl:text-lg text-[#D9973E] font-mono truncate mt-0.5 transition-all duration-500"
+                                        <p class="text-xs text-[#D9973E] font-mono truncate mt-0.5 transition-all duration-500"
                                            :class="isTrackTransitioning ? 'opacity-30' : 'opacity-100'"
                                            x-text="nowPlaying ? (nowPlaying.artist || 'Artis Musik') : 'Chill Lo-Fi & Jazz Vibes'"></p>
                                     </div>
                                 </div>
                                 <template x-if="nowPlaying && nowPlaying.customer_name">
-                                    <div class="inline-flex items-center gap-1 sm:gap-1.5 px-2 py-0.5 sm:px-2.5 sm:py-1 2xl:px-3.5 2xl:py-1.5 bg-[#D9973E]/20 border border-[#D9973E]/40 rounded-lg shrink-0 shadow-xs backdrop-blur-sm">
-                                        <span class="text-[9px] sm:text-[10px] 2xl:text-sm font-mono text-[#D9973E] font-semibold" x-text="'★ Kak ' + nowPlaying.customer_name"></span>
+                                    <div class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-[#D9973E]/20 border border-[#D9973E]/40 rounded-lg shrink-0 shadow-xs backdrop-blur-sm">
+                                        <span class="text-[10px] font-mono text-[#D9973E] font-semibold" x-text="'★ Kak ' + nowPlaying.customer_name"></span>
                                     </div>
                                 </template>
                             </div>
 
                             <!-- OVERLAY BOTTOM INSIDE VIDEO FRAME (COVER YOUTUBE NATIVE BOTTOM & LIVE SYNC TIMELINE) -->
-                            <div class="absolute bottom-0 inset-x-0 z-20 bg-gradient-to-t from-[#0E0906] via-[#120D09]/95 to-[#120D09]/80 backdrop-blur-md border-t border-white/10 px-3.5 py-2.5 sm:px-6 sm:py-3.5 2xl:px-8 2xl:py-5 flex flex-col justify-center gap-1 sm:gap-1.5 2xl:gap-2.5 pointer-events-none select-none min-h-[50px] sm:min-h-[64px] 2xl:min-h-[76px] 3xl:min-h-[88px]">
+                            <div class="absolute bottom-0 inset-x-0 z-20 bg-gradient-to-t from-[#0E0906] via-[#120D09]/95 to-[#120D09]/80 backdrop-blur-md border-t border-white/10 px-4 py-3 sm:px-6 sm:py-3.5 flex flex-col justify-center gap-1.5 pointer-events-none select-none min-h-[56px] sm:min-h-[64px]">
                                 <!-- Timeline Progress Bar in Overlay -->
-                                <div class="w-full flex items-center gap-2.5 sm:gap-3 2xl:gap-4">
-                                    <span class="font-mono text-[10px] sm:text-xs 2xl:text-base text-[#D9973E] font-bold shrink-0 drop-shadow" x-text="playbackCurrentTimeFormatted">00:00</span>
-                                    <div class="w-full bg-white/20 h-1.5 sm:h-2 2xl:h-3 rounded-full overflow-hidden backdrop-blur-xs shadow-inner">
+                                <div class="w-full flex items-center gap-3">
+                                    <span class="font-mono text-xs text-[#D9973E] font-bold shrink-0 drop-shadow" x-text="playbackCurrentTimeFormatted">00:00</span>
+                                    <div class="w-full bg-white/20 h-1.5 sm:h-2 rounded-full overflow-hidden backdrop-blur-xs shadow-inner">
                                         <div class="bg-gradient-to-r from-[#D9973E] via-[#E5A955] to-[#5F7F42] h-full transition-all duration-300 rounded-full shadow-[0_0_12px_rgba(217,151,62,0.8)]"
                                              :style="'width: ' + playbackProgressPercent + '%'"></div>
                                     </div>
-                                    <span class="font-mono text-[10px] sm:text-xs 2xl:text-base text-[#FAF7F2] font-semibold shrink-0 drop-shadow" x-text="playbackDurationFormatted">00:00</span>
+                                    <span class="font-mono text-xs text-[#FAF7F2] font-semibold shrink-0 drop-shadow" x-text="playbackDurationFormatted">00:00</span>
                                 </div>
                                 <!-- Subtle Indicator Bar Below Timeline -->
-                                <div class="flex items-center justify-between font-mono text-[8px] sm:text-[10px] 2xl:text-xs text-[#A89A85] px-0.5">
-                                    <span class="flex items-center gap-1 sm:gap-1.5 text-[#D9973E] font-medium">
-                                        <span class="w-1.5 h-1.5 2xl:w-2 2xl:h-2 rounded-full bg-[#D9973E]" :class="isPlaying ? 'animate-pulse' : 'opacity-40'"></span>
+                                <div class="flex items-center justify-between font-mono text-[9px] sm:text-[10px] text-[#A89A85] px-0.5">
+                                    <span class="flex items-center gap-1.5 text-[#D9973E] font-medium">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-[#D9973E]" :class="isPlaying ? 'animate-pulse' : 'opacity-40'"></span>
                                         <span>Live Sync Player</span>
                                     </span>
                                     <span class="text-[#7A6A58] uppercase tracking-wider font-semibold">{{ config('cafe.name') }} SoundStation</span>
@@ -1324,16 +1272,16 @@
                                  x-transition:leave-start="opacity-100 scale-100"
                                  x-transition:leave-end="opacity-0 scale-95"
                                  class="absolute inset-0 z-22 bg-black/60 backdrop-blur-xs flex flex-col items-center justify-center pointer-events-none select-none text-center p-4">
-                                <div class="px-4 py-3 sm:px-6 sm:py-4 2xl:px-8 2xl:py-5 bg-[#1C1611]/95 border-2 border-[#D9973E]/60 rounded-2xl text-[#FAF7F2] shadow-[0_12px_40px_rgba(0,0,0,0.85)] backdrop-blur-md flex items-center gap-3 sm:gap-4 2xl:gap-5 animate-pulse">
-                                    <div class="w-9 h-9 sm:w-11 sm:h-11 2xl:w-14 2xl:h-14 rounded-xl bg-[#D9973E]/20 border border-[#D9973E]/50 flex items-center justify-center text-[#D9973E] text-base sm:text-xl 2xl:text-2xl shrink-0 shadow-inner">
+                                <div class="px-5 py-3.5 bg-[#1C1611]/95 border-2 border-[#D9973E]/60 rounded-2xl text-[#FAF7F2] shadow-[0_12px_40px_rgba(0,0,0,0.85)] backdrop-blur-md flex items-center gap-3.5 animate-pulse">
+                                    <div class="w-10 h-10 rounded-xl bg-[#D9973E]/20 border border-[#D9973E]/50 flex items-center justify-center text-[#D9973E] text-lg shrink-0 shadow-inner">
                                         ⏸
                                     </div>
                                     <div class="text-left min-w-0">
-                                        <div class="font-mono text-xs sm:text-sm 2xl:text-base font-bold text-[#D9973E] uppercase tracking-wider flex items-center gap-1.5">
-                                            <span class="w-2 h-2 2xl:w-2.5 2xl:h-2.5 rounded-full bg-[#D9973E] animate-ping"></span>
+                                        <div class="font-mono text-xs font-bold text-[#D9973E] uppercase tracking-wider flex items-center gap-1.5">
+                                            <span class="w-2 h-2 rounded-full bg-[#D9973E] animate-ping"></span>
                                             <span>Audio & Video Terjeda</span>
                                         </div>
-                                        <div class="text-[10px] sm:text-xs 2xl:text-sm text-[#C4B6A3] font-mono mt-0.5 truncate">
+                                        <div class="text-[11px] text-[#C4B6A3] font-mono mt-0.5 truncate">
                                             Pemutaran dijeda sementara di stasiun kasir
                                         </div>
                                     </div>
@@ -1395,23 +1343,23 @@
             </div>
 
             <!-- RIGHT COL: LIVE READY ORDERS & UP NEXT QUEUE (5 COLS) -->
-            <div class="lg:col-span-5 xl:col-span-4 w-full bg-[#1C1611]/95 border border-[#32261C] rounded-2xl p-3.5 sm:p-5 2xl:p-6 shadow-2xl backdrop-blur-xl flex flex-col h-auto min-h-[340px] lg:h-full lg:min-h-0 lg:max-h-full justify-between overflow-hidden mobile-landscape-right">
+            <div class="lg:col-span-5 xl:col-span-4 w-full bg-[#1C1611]/95 border border-[#32261C] rounded-2xl p-4 sm:p-5 shadow-2xl backdrop-blur-xl flex flex-col h-full min-h-0 max-h-full justify-between overflow-hidden">
 
                 <!-- TOP SECTION: PESANAN SIAP (TAMPIL JIKA ADA PESANAN SIAP) -->
                 <template x-if="readyOrders.length > 0">
-                    <div class="mb-3 sm:mb-4 2xl:mb-5 bg-gradient-to-r from-[#1E2E17] to-[#142010] border-2 border-[#5F7F42] rounded-xl p-3 sm:p-3.5 2xl:p-4 shadow-md shrink-0">
-                        <div class="flex items-center justify-between mb-2 sm:mb-2.5 2xl:mb-3">
+                    <div class="mb-3 sm:mb-4 bg-gradient-to-r from-[#1E2E17] to-[#142010] border-2 border-[#5F7F42] rounded-xl p-3 sm:p-3.5 shadow-md shrink-0">
+                        <div class="flex items-center justify-between mb-2 sm:mb-2.5">
                             <div class="flex items-center gap-2">
-                                <span class="w-2.5 h-2.5 2xl:w-3 2xl:h-3 rounded-full bg-[#85BF5C] animate-ping"></span>
-                                <span class="font-mono text-xs sm:text-sm 2xl:text-base font-bold text-[#85BF5C] uppercase tracking-wider">🔔 Pesanan Siap Di Meja</span>
+                                <span class="w-2.5 h-2.5 rounded-full bg-[#85BF5C] animate-ping"></span>
+                                <span class="font-mono text-xs font-bold text-[#85BF5C] uppercase tracking-wider">🔔 Pesanan Siap Di Meja</span>
                             </div>
-                            <span class="font-mono text-[10px] sm:text-xs 2xl:text-sm font-bold text-[#FAF7F2] bg-[#5F7F42]/40 px-2.5 py-0.5 2xl:px-3 2xl:py-1 rounded-full" x-text="readyOrders.length + ' Pesanan'"></span>
+                            <span class="font-mono text-[10px] font-bold text-[#FAF7F2] bg-[#5F7F42]/40 px-2.5 py-0.5 rounded-full" x-text="readyOrders.length + ' Pesanan'"></span>
                         </div>
-                        <div class="flex flex-wrap gap-2 2xl:gap-2.5 max-h-24 sm:max-h-28 2xl:max-h-36 overflow-y-auto no-scrollbar">
+                        <div class="flex flex-wrap gap-2 max-h-20 sm:max-h-24 overflow-y-auto no-scrollbar">
                             <template x-for="ro in readyOrders" :key="ro.id">
-                                <div class="px-2.5 py-1.5 sm:px-3 sm:py-2 2xl:px-4 2xl:py-2.5 bg-[#25391C] border border-[#5F7F42]/80 rounded-lg text-xs 2xl:text-sm font-mono text-white flex items-center gap-2 shadow-sm">
-                                    <span class="font-bold text-[#D9973E] text-sm sm:text-base 2xl:text-xl font-mono tracking-wider" x-text="ro.code"></span>
-                                    <span class="text-white/90 font-medium truncate" x-text="ro.customer_name ? ('(' + ro.customer_name + ')') : ''"></span>
+                                <div class="px-3 py-1.5 bg-[#25391C] border border-[#5F7F42]/80 rounded-lg text-xs font-mono text-white flex items-center gap-2 shadow-sm">
+                                    <span class="font-bold text-[#D9973E] text-sm" x-text="ro.code"></span>
+                                    <span class="text-white/90 font-medium" x-text="ro.customer_name ? ('(' + ro.customer_name + ')') : ''"></span>
                                 </div>
                             </template>
                         </div>
@@ -1419,33 +1367,33 @@
                 </template>
 
                 <!-- QUEUE SECTION HEADER -->
-                <div class="flex items-center justify-between border-b border-[#32261C] pb-2.5 sm:pb-3 2xl:pb-4 mb-2.5 sm:mb-3 2xl:mb-4 shrink-0">
+                <div class="flex items-center justify-between border-b border-[#32261C] pb-2.5 sm:pb-3 mb-2.5 sm:mb-3 shrink-0">
                     <div class="flex items-center gap-2 min-w-0">
-                        <span class="w-2.5 h-2.5 2xl:w-3 2xl:h-3 rounded-full bg-[#D9973E] animate-pulse shrink-0"></span>
-                        <h3 class="font-mono text-xs sm:text-sm 2xl:text-base uppercase tracking-[0.15em] font-bold text-[#FAF7F2] truncate">Antrean Lagu Berikutnya</h3>
+                        <span class="w-2.5 h-2.5 rounded-full bg-[#D9973E] animate-pulse shrink-0"></span>
+                        <h3 class="font-mono text-xs sm:text-sm uppercase tracking-[0.15em] font-bold text-[#FAF7F2] truncate">Antrean Lagu Berikutnya</h3>
                     </div>
 
-                    <span class="px-2.5 py-0.5 2xl:px-3.5 2xl:py-1 rounded-full text-[10px] sm:text-xs 2xl:text-sm font-mono font-bold bg-[#D9973E]/15 border border-[#D9973E]/30 text-[#D9973E] shrink-0 ml-2"
+                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#D9973E]/15 border border-[#D9973E]/30 text-[#D9973E] shrink-0 ml-2"
                           x-text="queue.length + ' Lagu'"></span>
                 </div>
 
                 <!-- QUEUE LIST (EXPANDABLE SCROLLABLE AREA) -->
-                <div class="space-y-1.5 sm:space-y-2 2xl:space-y-2.5 overflow-y-auto pr-0 flex-1 min-h-[180px] lg:min-h-0 max-h-[380px] lg:max-h-none no-scrollbar">
+                <div class="space-y-1.5 sm:space-y-2 overflow-y-auto pr-0 flex-1 min-h-0 no-scrollbar">
                     <template x-if="queue.length === 0">
-                        <div class="h-full flex flex-col items-center justify-center text-center py-6 sm:py-8 text-[#A89A85] font-mono text-xs 2xl:text-sm">
-                            <span class="text-3xl 2xl:text-4xl mb-2 opacity-60">☕</span>
+                        <div class="h-full flex flex-col items-center justify-center text-center py-8 text-[#A89A85] font-mono text-xs">
+                            <span class="text-3xl mb-2 opacity-60">☕</span>
                             <span class="font-semibold text-[#FAF7F2]">Antrean request lagu sedang kosong.</span>
-                            <span class="text-[11px] 2xl:text-xs mt-1 text-[#8A7B66]">Scan QR di bawah untuk me-request lagu pertamamu!</span>
+                            <span class="text-[11px] mt-1 text-[#8A7B66]">Scan QR di bawah untuk me-request lagu pertamamu!</span>
                         </div>
                     </template>
 
                     <template x-for="(item, index) in queue" :key="item.id + '_' + (item.type || 'req')">
-                        <div class="flex items-center justify-between py-1.5 sm:py-2 2xl:py-2.5 px-2.5 sm:px-3 2xl:px-4 bg-[#261D16]/90 border border-[#3A2D22] rounded-xl hover:border-[#D9973E]/50 transition group">
-                            <div class="flex items-center gap-2.5 2xl:gap-3.5 min-w-0 flex-1">
-                                <span class="font-mono font-bold text-[#D9973E] text-xs sm:text-sm 2xl:text-base w-4 sm:w-5 text-center shrink-0" x-text="'#' + (index + 1)"></span>
+                        <div class="flex items-center justify-between py-1.5 sm:py-2 px-2.5 sm:px-3 bg-[#261D16]/90 border border-[#3A2D22] rounded-xl hover:border-[#D9973E]/50 transition group">
+                            <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                                <span class="font-mono font-bold text-[#D9973E] text-xs w-4 text-center shrink-0" x-text="'#' + (index + 1)"></span>
                                 <div class="min-w-0 flex-1">
-                                    <div class="text-xs sm:text-sm 2xl:text-base font-semibold text-[#FAF7F2] truncate leading-tight group-hover:text-[#D9973E] transition-colors" x-text="item.song_title || item.title"></div>
-                                    <div class="text-[10px] sm:text-xs 2xl:text-sm text-[#A89A85] truncate leading-tight mt-0.5 flex items-center gap-1.5 font-mono">
+                                    <div class="text-xs font-semibold text-[#FAF7F2] truncate leading-tight group-hover:text-[#D9973E] transition-colors" x-text="item.song_title || item.title"></div>
+                                    <div class="text-[10px] text-[#A89A85] truncate leading-tight mt-0.5 flex items-center gap-1.5 font-mono">
                                         <span x-text="item.artist || 'Artis YouTube'"></span>
                                         <template x-if="item.customer_name">
                                             <span class="flex items-center gap-1">
@@ -1464,17 +1412,17 @@
                             </div>
                             <!-- BADGE: REQUEST vs BAWAAN -->
                             <template x-if="item.type === 'request' || item.is_request">
-                                <span class="font-mono text-[9px] sm:text-[10px] 2xl:text-xs uppercase tracking-wider text-[#D9973E] bg-[#D9973E]/15 px-2 py-0.5 2xl:px-3 2xl:py-1 rounded-full border border-[#D9973E]/40 font-bold shrink-0 ml-2">Request</span>
+                                <span class="font-mono text-[9px] uppercase tracking-wider text-[#D9973E] bg-[#D9973E]/15 px-2 py-0.5 rounded-full border border-[#D9973E]/40 font-bold shrink-0 ml-2">Request</span>
                             </template>
                             <template x-if="item.type === 'default' || !item.is_request">
-                                <span class="font-mono text-[9px] sm:text-[10px] 2xl:text-xs uppercase tracking-wider text-[#85BF5C] bg-[#5F7F42]/20 px-2 py-0.5 2xl:px-3 2xl:py-1 rounded-full border border-[#5F7F42]/40 font-bold shrink-0 ml-2">Bawaan</span>
+                                <span class="font-mono text-[9px] uppercase tracking-wider text-[#85BF5C] bg-[#5F7F42]/20 px-2 py-0.5 rounded-full border border-[#5F7F42]/40 font-bold shrink-0 ml-2">Bawaan</span>
                             </template>
                         </div>
                     </template>
                 </div>
 
                 <!-- SUBTLE CARD FOOTNOTE -->
-                <div class="mt-2.5 sm:mt-3.5 2xl:mt-4 pt-2 sm:pt-2.5 2xl:pt-3 border-t border-[#32261C] flex items-center justify-between text-[11px] 2xl:text-xs font-mono text-[#8A7B66] shrink-0">
+                <div class="mt-2.5 sm:mt-3.5 pt-2 sm:pt-2.5 border-t border-[#32261C] flex items-center justify-between text-[11px] font-mono text-[#8A7B66] shrink-0">
                     <span>* Putar bergilir otomatis</span>
                     <span class="text-[#D9973E] font-semibold">Auto-skip jika diblokir</span>
                 </div>
@@ -1482,22 +1430,22 @@
         </main>
 
         <!-- 3. FOOTER -->
-        <footer class="w-full border-t border-[#32261C] pt-3 sm:pt-3.5 2xl:pt-5 mt-3 lg:mt-0 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-6 2xl:gap-8 shrink-0">
-            <div class="flex items-center gap-3 sm:gap-4 2xl:gap-5 w-full sm:w-auto">
-                <div class="p-1.5 sm:p-2 2xl:p-2.5 bg-white border border-[#E4DCCC] rounded-xl shrink-0 shadow-lg">
-                    <img src="{{ \App\Support\QrCode::dataUri(route('music.request'), 180) }}" class="w-14 h-14 sm:w-16 sm:h-16 2xl:w-24 2xl:h-24 3xl:w-28 3xl:h-28 object-contain" alt="QR Request Musik">
+        <footer class="w-full border-t border-[#32261C] pt-3.5 flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6 shrink-0">
+            <div class="flex items-center gap-4">
+                <div class="p-2 bg-white border border-[#E4DCCC] rounded-xl shrink-0 shadow-lg">
+                    <img src="{{ \App\Support\QrCode::dataUri(route('music.request'), 150) }}" width="68" height="68" alt="QR Request Musik">
                 </div>
-                <div class="min-w-0 flex-1">
-                    <div class="font-serif font-bold text-sm sm:text-base 2xl:text-xl 3xl:text-2xl text-[#FAF7F2]">Punya Struk Belanja?</div>
-                    <div class="text-[11px] sm:text-xs 2xl:text-sm text-[#A89A85] max-w-sm 2xl:max-w-xl mt-0.5 leading-snug">
+                <div>
+                    <div class="font-serif font-bold text-base sm:text-lg text-[#FAF7F2]">Punya Struk Belanja?</div>
+                    <div class="text-xs text-[#A89A85] max-w-sm mt-0.5">
                         Scan QR di samping untuk me-request lagu favoritmu langsung dari meja. Lagu akan diputar otomatis setelah lagu saat ini selesai!
                     </div>
                 </div>
             </div>
 
-            <div class="font-mono text-xs 2xl:text-sm text-[#A89A85] uppercase tracking-widest text-left sm:text-right w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-[#261D16]">
-                <div class="text-[#D9973E] font-bold text-[11px] sm:text-xs 2xl:text-sm">{{ config('cafe.name') }} AUDIO & ORDER STREAM</div>
-                <div class="text-[9px] sm:text-[10px] 2xl:text-xs text-[#8A7B66] mt-0.5">Precision Jukebox & Kitchen Announcer Engine</div>
+            <div class="font-mono text-xs text-[#A89A85] uppercase tracking-widest text-right">
+                <div class="text-[#D9973E] font-bold">{{ config('cafe.name') }} AUDIO & ORDER STREAM</div>
+                <div class="text-[10px] text-[#8A7B66] mt-0.5">Precision Jukebox & Kitchen Announcer Engine</div>
             </div>
         </footer>
 
