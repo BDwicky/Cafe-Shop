@@ -1445,22 +1445,28 @@ function navbarMusicWidget() {
 
         fadeAudio(fromVol, toVol, durationMs = 5000) {
             return new Promise((resolve) => {
+                if (this._fadeInterval) {
+                    clearInterval(this._fadeInterval);
+                    this._fadeInterval = null;
+                }
                 if (!this.player || !this.playerReady) {
                     resolve();
                     return;
                 }
 
+                const targetFrom = Math.max(0, Math.min(100, Math.round(Number(fromVol))));
+                const targetTo = Math.max(0, Math.min(100, Math.round(Number(toVol))));
                 const steps = 20;
-                const stepTime = Math.max(50, Math.floor(durationMs / steps));
-                const volDiff = toVol - fromVol;
+                const stepTime = Math.max(35, Math.floor(durationMs / steps));
+                const volDiff = targetTo - targetFrom;
                 let currentStep = 0;
 
                 this.isFadingAudio = true;
 
-                const interval = setInterval(() => {
+                this._fadeInterval = setInterval(() => {
                     currentStep++;
                     const progress = currentStep / steps;
-                    const newVol = Math.round(fromVol + (volDiff * progress));
+                    const newVol = Math.round(targetFrom + (volDiff * progress));
 
                     try {
                         if (this.player && typeof this.player.setVolume === 'function') {
@@ -1469,7 +1475,8 @@ function navbarMusicWidget() {
                     } catch (e) {}
 
                     if (currentStep >= steps) {
-                        clearInterval(interval);
+                        clearInterval(this._fadeInterval);
+                        this._fadeInterval = null;
                         this.isFadingAudio = false;
                         resolve();
                     }
@@ -1796,11 +1803,12 @@ function navbarMusicWidget() {
                 }
             })();
 
-            // 1. AUDIO DUCKING: Turunkan volume musik YouTube secara otomatis
+            // 1. AUDIO DUCKING (FADE-OUT HALUS): Turunkan volume musik YouTube secara bertahap saat pemanggilan dimulai
             const duckVol = parseInt(cfg.duck_volume || this.duckedVolume || 12);
-            if (this.player && this.playerReady) {
-                this.player.setVolume(duckVol);
-            }
+            const currentVol = (this.player && typeof this.player.getVolume === 'function')
+                ? this.player.getVolume()
+                : this.volume;
+            this.fadeAudio(currentVol, duckVol, 800);
 
             // 2. NADA CHIME
             const chimeStyle = cfg.chime_style || 'ding_dong';
@@ -1845,13 +1853,15 @@ function navbarMusicWidget() {
                 }
 
                 const finish = async () => {
-                    setTimeout(() => {
-                        if (this.player && this.playerReady) {
-                            this.player.setVolume(this.volume);
-                        }
+                    setTimeout(async () => {
+                        // 2. FADE-IN HALUS SAAT ANNOUNCER SELESAI: Kembalikan volume musik YouTube secara bertahap
+                        const nowVol = (this.player && typeof this.player.getVolume === 'function')
+                            ? this.player.getVolume()
+                            : duckVol;
+                        await this.fadeAudio(nowVol, this.volume, 2000);
                         this.isAnnouncing = false;
                         this.broadcastSync();
-                    }, 500);
+                    }, 400);
 
                     if (!isTest && order.id) {
                         try {

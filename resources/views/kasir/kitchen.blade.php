@@ -333,6 +333,16 @@
                     this.lastOrderCount = data.orders.length;
                     this.orders = data.orders;
                     this.counts = data.counts;
+
+                    // Update KDS badge di sidebar secara realtime
+                    const totalActiveKds = (this.counts && typeof this.counts.all !== 'undefined') ? Number(this.counts.all) : this.orders.length;
+                    window.dispatchEvent(new CustomEvent('kds:count', { detail: { count: totalActiveKds } }));
+                    if (typeof BroadcastChannel !== 'undefined') {
+                        try {
+                            const ch = new BroadcastChannel('cafe_soundstation_sync');
+                            ch.postMessage({ type: 'KDS_COUNT_UPDATE', count: totalActiveKds });
+                        } catch (e) {}
+                    }
                 } catch (e) {
                     console.error('[KDS] Fetch Error:', e);
                 }
@@ -371,6 +381,16 @@
                     this.orders = this.orders.map((o, idx) => idx === orderIndex ? { ...o, prep_status: newStatus } : o);
                 }
 
+                // SINKRONISASI INSTAN (0ms) KE SIDEBAR BADGE KASIR
+                const optCount = (this.counts && typeof this.counts.all !== 'undefined') ? Number(this.counts.all) : this.orders.length;
+                window.dispatchEvent(new CustomEvent('kds:count', { detail: { count: optCount } }));
+                if (typeof BroadcastChannel !== 'undefined') {
+                    try {
+                        const ch = new BroadcastChannel('cafe_soundstation_sync');
+                        ch.postMessage({ type: 'KDS_COUNT_UPDATE', count: optCount });
+                    } catch (e) {}
+                }
+
                 // Sinyal TV Display jika status ready
                 if (newStatus === 'ready' && typeof BroadcastChannel !== 'undefined') {
                     try {
@@ -394,6 +414,16 @@
                     });
 
                     if (res.ok) {
+                        const resData = await res.json().catch(() => ({}));
+                        if (typeof resData.kds_count !== 'undefined') {
+                            window.dispatchEvent(new CustomEvent('kds:count', { detail: { count: Number(resData.kds_count) } }));
+                            if (typeof BroadcastChannel !== 'undefined') {
+                                try {
+                                    const ch = new BroadcastChannel('cafe_soundstation_sync');
+                                    ch.postMessage({ type: 'KDS_COUNT_UPDATE', count: Number(resData.kds_count) });
+                                } catch (e) {}
+                            }
+                        }
                         this.fetchOrders(true);
                     } else {
                         const errData = await res.json().catch(() => ({}));
@@ -409,6 +439,8 @@
                     } else {
                         this.orders = this.orders.map((o, idx) => idx === orderIndex ? originalOrder : o);
                     }
+                    const rollbackCount = (this.counts && typeof this.counts.all !== 'undefined') ? Number(this.counts.all) : this.orders.length;
+                    window.dispatchEvent(new CustomEvent('kds:count', { detail: { count: rollbackCount } }));
                     if (window.customToast) {
                         window.customToast({ message: 'Gagal memperbarui status pesanan.', type: 'error' });
                     }

@@ -184,6 +184,7 @@ class KasirController extends Controller
             'paid_amount' => $order->paid_amount,
             'change_amount' => $order->change_amount,
             'receipt_url' => route('kasir.receipt', $order, false),
+            'kds_count' => Order::prepActive()->count(),
         ], 201);
     }
 

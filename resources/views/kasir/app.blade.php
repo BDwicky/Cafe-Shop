@@ -391,8 +391,13 @@
                         try {
                             const ch = new BroadcastChannel('cafe_soundstation_sync');
                             ch.addEventListener('message', (e) => {
-                                if (e.data && e.data.type === 'STATE_UPDATE' && e.data.state && typeof e.data.state.queueCount !== 'undefined') {
-                                    this.musicQueueCount = Number(e.data.state.queueCount);
+                                if (e.data) {
+                                    if (e.data.type === 'STATE_UPDATE' && e.data.state && typeof e.data.state.queueCount !== 'undefined') {
+                                        this.musicQueueCount = Number(e.data.state.queueCount);
+                                    }
+                                    if (e.data.type === 'KDS_COUNT_UPDATE' && typeof e.data.count !== 'undefined') {
+                                        this.kdsCount = Number(e.data.count);
+                                    }
                                 }
                             });
                         } catch(e) {}

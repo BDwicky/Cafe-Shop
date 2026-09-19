@@ -95,6 +95,7 @@ class KitchenController extends Controller
             return response()->json([
                 'message' => "Status pesanan {$order->code} berhasil diubah menjadi {$request->status}.",
                 'order' => $updated,
+                'kds_count' => Order::prepActive()->count(),
             ]);
         }
 

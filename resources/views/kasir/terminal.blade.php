@@ -1522,6 +1522,18 @@ function pos() {
                 if (data && data.receipt_url) {
                     this.completedOrder = data;
                     this.showSuccessModal = true;
+
+                    // Update badge KDS di sidebar secara realtime
+                    if (typeof data.kds_count !== 'undefined') {
+                        window.dispatchEvent(new CustomEvent('kds:count', { detail: { count: Number(data.kds_count) } }));
+                        if (typeof BroadcastChannel !== 'undefined') {
+                            try {
+                                const ch = new BroadcastChannel('cafe_soundstation_sync');
+                                ch.postMessage({ type: 'KDS_COUNT_UPDATE', count: Number(data.kds_count) });
+                            } catch (e) {}
+                        }
+                    }
+
                     // Cetak struk otomatis di background via hidden iframe tanpa reload / navigasi halaman
                     this.printReceiptSilently(data.receipt_url);
                     // Reset keranjang untuk transaksi berikutnya
