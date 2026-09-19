@@ -76,15 +76,18 @@
             position: relative !important;
             pointer-events: none !important;
             user-select: none !important;
+            background-color: #000 !important;
         }
         #tv-player-wrap iframe, #tv-yt-player {
-            width: 100% !important;
-            height: 100% !important;
+            position: absolute !important;
+            top: 50% !important;
+            left: 50% !important;
+            width: 125% !important;
+            height: 125% !important;
+            transform: translate(-50%, -50%) !important;
             border: none !important;
             pointer-events: none !important;
             user-select: none !important;
-            transform: scale(1.06);
-            transform-origin: center center;
         }
         .video-shield {
             position: absolute !important;
@@ -266,10 +269,10 @@
                         }
                     }, 100);
 
-                    // Sinkronisasi Video TV dengan status playback audio Kasir setiap 1 detik
+                    // Sinkronisasi Video TV dengan status playback audio Kasir setiap 3 detik
                     setInterval(() => {
                         this.syncTvPlayerState();
-                    }, 1000);
+                    }, 3000);
                 },
 
                 loadYouTubeApi() {
@@ -321,13 +324,8 @@
                             ? this.tvPlayer.getPlaybackQuality()
                             : null;
 
-                        // Jika resolusi melebihi 1080p (seperti 2K/4K/8K di TV UHD), batasi ke Full HD (1080p)
+                        // Hanya turunkan jika YouTube secara otomatis memilih resolusi di atas 1080p (2K/4K/8K)
                         if (currentQuality && highResQualities.includes(currentQuality)) {
-                            if (typeof this.tvPlayer.setPlaybackQuality === 'function') {
-                                this.tvPlayer.setPlaybackQuality('hd1080');
-                            }
-                        } else if (!currentQuality || currentQuality === 'default' || currentQuality === 'auto') {
-                            // Tetapkan target kualitas maksimal Full HD (1080p) secara adaptif
                             if (typeof this.tvPlayer.setPlaybackQuality === 'function') {
                                 this.tvPlayer.setPlaybackQuality('hd1080');
                             }
@@ -367,7 +365,6 @@
                                     this.tvPlayerReady = true;
                                     event.target.mute();
                                     this.disableCaptions();
-                                    this.setOptimalQuality();
 
                                     if (this.nowPlaying && this.nowPlaying.youtube_id) {
                                         const startSec = Math.max(0, Math.floor(this.playbackCurrentTime || 0));
@@ -383,36 +380,27 @@
                                         }
                                         setTimeout(() => {
                                             this.disableCaptions();
-                                            this.setOptimalQuality();
-                                        }, 600);
+                                        }, 800);
                                     }
                                 },
                                 onStateChange: (event) => {
-                                    // Matikan paksa closed caption & set resolusi maksimal 1080p saat video memutar
+                                    // Matikan paksa closed caption saat video memutar
                                     if (event.data === YT.PlayerState.PLAYING) {
                                         this.disableCaptions();
-                                        this.setOptimalQuality();
-                                        setTimeout(() => {
-                                            this.disableCaptions();
-                                            this.setOptimalQuality();
-                                        }, 500);
-                                        setTimeout(() => {
-                                            this.disableCaptions();
-                                            this.setOptimalQuality();
-                                        }, 1500);
                                     }
 
                                     if (event.data === YT.PlayerState.PAUSED && this.isPlaying && !this._isManualPausing) {
                                         setTimeout(() => {
                                             if (this.isPlaying && this.tvPlayer && typeof this.tvPlayer.playVideo === 'function') {
-                                                this.syncTvPlayerState();
+                                                this.tvPlayer.playVideo();
                                             }
-                                        }, 600);
+                                        }, 800);
                                     }
                                 },
                                 onPlaybackQualityChange: (event) => {
-                                    // Cegah resolusi di atas 1080p (seperti 1440p atau 4K/highres) agar hemat bandwidth
-                                    if (event.data === 'highres' || event.data === 'hd1440' || event.data === 'hd2160') {
+                                    // Batasi maksimal Full HD (1080p) agar tidak memboroskan bandwidth atau buffering 4K
+                                    const highResQualities = ['highres', 'hd1440', 'hd2160', 'hd2880', 'hd4320'];
+                                    if (highResQualities.includes(event.data)) {
                                         if (this.tvPlayer && typeof this.tvPlayer.setPlaybackQuality === 'function') {
                                             this.tvPlayer.setPlaybackQuality('hd1080');
                                         }
@@ -442,35 +430,32 @@
                                 suggestedQuality: 'hd1080'
                             });
                             this.disableCaptions();
-                            this.setOptimalQuality();
                             setTimeout(() => {
                                 this.disableCaptions();
-                                this.setOptimalQuality();
-                            }, 600);
-                            setTimeout(() => {
-                                this.disableCaptions();
-                                this.setOptimalQuality();
-                            }, 1800);
+                            }, 800);
                         }
 
                         const state = (typeof this.tvPlayer.getPlayerState === 'function') ? this.tvPlayer.getPlayerState() : -1;
                         if (this.isPlaying) {
                             if (state === YT.PlayerState.PAUSED || state === YT.PlayerState.CUED) {
                                 this.tvPlayer.playVideo();
-                                setTimeout(() => this.disableCaptions(), 500);
                             }
                         } else {
-                            if (state === YT.PlayerState.PLAYING || state === YT.PlayerState.BUFFERING) {
+                            if (state === YT.PlayerState.PLAYING) {
                                 this._isManualPausing = true;
                                 this.tvPlayer.pauseVideo();
-                                setTimeout(() => { this._isManualPausing = false; }, 400);
+                                setTimeout(() => { this._isManualPausing = false; }, 500);
                             }
                         }
 
+                        // Sinkronisasi posisi detik (HANYA jika selisih > 12 detik dan ada jeda minimal 10 detik antar seek)
+                        // agar tidak terjadi buffering berulang-ulang karena selisih latency normal
                         if (this.isPlaying && typeof this.tvPlayer.getCurrentTime === 'function' && this.playbackDuration > 0 && this.playbackCurrentTime < 86400) {
                             const tvCurTime = this.tvPlayer.getCurrentTime() || 0;
                             const drift = Math.abs(tvCurTime - this.playbackCurrentTime);
-                            if (drift > 2.5) {
+                            const now = Date.now();
+                            if (drift > 12 && (!this._lastSeekTime || (now - this._lastSeekTime > 10000))) {
+                                this._lastSeekTime = now;
                                 this.tvPlayer.seekTo(this.playbackCurrentTime, true);
                             }
                         }
@@ -1017,14 +1002,6 @@
                                 </div>
                             </template>
 
-                            <!-- OVERLAY INDIKATOR KETIKA KASIR MENJEDA MUSIK -->
-                            <div x-show="!isPlaying && nowPlaying"
-                                 class="absolute inset-0 z-30 bg-black/65 backdrop-blur-xs flex items-center justify-center pointer-events-none transition-opacity select-none">
-                                <div class="px-5 py-2.5 bg-[#1F1812]/95 border border-[#D9973E]/60 rounded-full text-[#D9973E] font-mono text-xs font-bold flex items-center gap-2 shadow-2xl animate-pulse select-none">
-                                    <span class="w-2 h-2 rounded-full bg-[#D9973E] animate-ping"></span>
-                                    <span>⏸️ AUDIO & VIDEO TERJEDA DI KASIR</span>
-                                </div>
-                            </div>
 
                             <!-- SHIELD PELINDUNG TRANSPARAN: Memblokir 100% interaksi mouse/touch/klik agar murni stream pasif dari kasir -->
                             <div class="video-shield absolute inset-0 z-20 cursor-default select-none"
