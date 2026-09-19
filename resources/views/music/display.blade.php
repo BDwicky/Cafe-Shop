@@ -972,7 +972,7 @@
     </div>
 
     <!-- CONTENT WRAPPER -->
-    <div class="w-full h-full min-h-screen max-h-screen flex flex-col justify-between p-4 sm:p-6 lg:p-7 xl:p-8 relative z-10 box-border overflow-hidden">
+    <div class="w-full h-full min-h-screen max-h-screen flex flex-col justify-between p-3 sm:p-5 lg:p-6 xl:p-8 relative z-10 box-border overflow-hidden">
 
         <!-- 1. TOP BAR -->
         <header class="w-full flex items-center justify-between border-b border-[#32261C] pb-3.5 shrink-0">
@@ -1039,13 +1039,13 @@
         </header>
 
         <!-- 2. MAIN STAGE (2 COLS: LEFT = NOW PLAYING HERO / VIDEO, RIGHT = LIVE ORDERS & QUEUE) -->
-        <main class="w-full flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center my-auto py-3">
+        <main class="w-full flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 lg:gap-8 items-stretch my-auto py-1.5 sm:py-2.5 overflow-hidden">
 
             <!-- LEFT COL: NOW PLAYING HERO (7 COLS) -->
-            <div class="lg:col-span-7 xl:col-span-8 flex flex-col justify-center">
+            <div class="lg:col-span-7 xl:col-span-8 flex flex-col h-full min-h-0 justify-center">
 
                 <!-- 1. MODE VISUALIZER: 3D VINYL TURNTABLE & SPECTRUM EQUALIZER -->
-                <div x-show="displayMode === 'visualizer'" class="flex flex-col sm:flex-row items-center gap-6 sm:gap-8 lg:gap-10">
+                <div x-show="displayMode === 'visualizer'" class="flex flex-col sm:flex-row items-center gap-6 sm:gap-8 lg:gap-10 h-full justify-center">
                     <!-- VINYL RECORD TURNTABLE WITH TONEARM -->
                     <div class="relative shrink-0 w-56 h-56 sm:w-64 sm:h-64 md:w-72 md:h-72 lg:w-80 lg:h-80 xl:w-96 xl:h-96">
                         <!-- Vinyl Turntable Base Shadow & Ring -->
@@ -1139,8 +1139,8 @@
                 </div>
 
                 <!-- 2. MODE VIDEO: CINEMATIC YOUTUBE PLAYER SCREEN (STREAM-ONLY DI DALAM FRAME DENGAN 100% ZOOM) -->
-                <div x-show="displayMode === 'video'" class="w-full select-none">
-                    <div class="w-full aspect-[16/10] min-h-[420px] sm:min-h-[460px] md:min-h-[500px] lg:min-h-[540px] xl:min-h-[580px] max-h-[76vh] rounded-2xl overflow-hidden border-2 border-[#3A2D22] shadow-[0_20px_60px_rgba(0,0,0,0.9)] bg-black relative select-none cursor-default flex items-center justify-center">
+                <div x-show="displayMode === 'video'" class="w-full h-full flex-1 min-h-0 flex flex-col justify-center select-none">
+                    <div class="w-full h-full min-h-0 rounded-2xl overflow-hidden border-2 border-[#3A2D22] shadow-[0_20px_60px_rgba(0,0,0,0.9)] bg-black relative select-none cursor-default flex items-center justify-center">
                         <div class="w-full h-full relative select-none">
                             <div id="tv-player-wrap" class="w-full h-full pointer-events-none select-none" x-show="nowPlaying && nowPlaying.youtube_id">
                                 <div id="tv-yt-player" class="w-full h-full pointer-events-none select-none"></div>
@@ -1259,19 +1259,19 @@
             </div>
 
             <!-- RIGHT COL: LIVE READY ORDERS & UP NEXT QUEUE (5 COLS) -->
-            <div class="lg:col-span-5 xl:col-span-4 w-full bg-[#1C1611]/95 border border-[#32261C] rounded-2xl p-5 shadow-2xl backdrop-blur-xl flex flex-col h-full min-h-[380px] justify-between">
+            <div class="lg:col-span-5 xl:col-span-4 w-full bg-[#1C1611]/95 border border-[#32261C] rounded-2xl p-4 sm:p-5 shadow-2xl backdrop-blur-xl flex flex-col h-full min-h-0 max-h-full justify-between overflow-hidden">
 
                 <!-- TOP SECTION: PESANAN SIAP (TAMPIL JIKA ADA PESANAN SIAP) -->
                 <template x-if="readyOrders.length > 0">
-                    <div class="mb-4 bg-gradient-to-r from-[#1E2E17] to-[#142010] border-2 border-[#5F7F42] rounded-xl p-3.5 shadow-md shrink-0">
-                        <div class="flex items-center justify-between mb-2.5">
+                    <div class="mb-3 sm:mb-4 bg-gradient-to-r from-[#1E2E17] to-[#142010] border-2 border-[#5F7F42] rounded-xl p-3 sm:p-3.5 shadow-md shrink-0">
+                        <div class="flex items-center justify-between mb-2 sm:mb-2.5">
                             <div class="flex items-center gap-2">
                                 <span class="w-2.5 h-2.5 rounded-full bg-[#85BF5C] animate-ping"></span>
                                 <span class="font-mono text-xs font-bold text-[#85BF5C] uppercase tracking-wider">🔔 Pesanan Siap Di Meja</span>
                             </div>
                             <span class="font-mono text-[10px] font-bold text-[#FAF7F2] bg-[#5F7F42]/40 px-2.5 py-0.5 rounded-full" x-text="readyOrders.length + ' Pesanan'"></span>
                         </div>
-                        <div class="flex flex-wrap gap-2 max-h-24 overflow-y-auto no-scrollbar">
+                        <div class="flex flex-wrap gap-2 max-h-20 sm:max-h-24 overflow-y-auto no-scrollbar">
                             <template x-for="ro in readyOrders" :key="ro.id">
                                 <div class="px-3 py-1.5 bg-[#25391C] border border-[#5F7F42]/80 rounded-lg text-xs font-mono text-white flex items-center gap-2 shadow-sm">
                                     <span class="font-bold text-[#D9973E] text-sm" x-text="ro.code"></span>
@@ -1283,7 +1283,7 @@
                 </template>
 
                 <!-- QUEUE SECTION HEADER -->
-                <div class="flex items-center justify-between border-b border-[#32261C] pb-3 mb-3 shrink-0">
+                <div class="flex items-center justify-between border-b border-[#32261C] pb-2.5 sm:pb-3 mb-2.5 sm:mb-3 shrink-0">
                     <div class="flex items-center gap-2 min-w-0">
                         <span class="w-2.5 h-2.5 rounded-full bg-[#D9973E] animate-pulse shrink-0"></span>
                         <h3 class="font-mono text-xs sm:text-sm uppercase tracking-[0.15em] font-bold text-[#FAF7F2] truncate">Antrean Lagu Berikutnya</h3>
@@ -1294,7 +1294,7 @@
                 </div>
 
                 <!-- QUEUE LIST (EXPANDABLE SCROLLABLE AREA) -->
-                <div class="space-y-2 overflow-y-auto pr-0 flex-1 min-h-[140px] no-scrollbar">
+                <div class="space-y-1.5 sm:space-y-2 overflow-y-auto pr-0 flex-1 min-h-0 no-scrollbar">
                     <template x-if="queue.length === 0">
                         <div class="h-full flex flex-col items-center justify-center text-center py-8 text-[#A89A85] font-mono text-xs">
                             <span class="text-3xl mb-2 opacity-60">☕</span>
@@ -1304,7 +1304,7 @@
                     </template>
 
                     <template x-for="(item, index) in queue" :key="item.id + '_' + (item.type || 'req')">
-                        <div class="flex items-center justify-between py-2 px-3 bg-[#261D16]/90 border border-[#3A2D22] rounded-xl hover:border-[#D9973E]/50 transition group">
+                        <div class="flex items-center justify-between py-1.5 sm:py-2 px-2.5 sm:px-3 bg-[#261D16]/90 border border-[#3A2D22] rounded-xl hover:border-[#D9973E]/50 transition group">
                             <div class="flex items-center gap-2.5 min-w-0 flex-1">
                                 <span class="font-mono font-bold text-[#D9973E] text-xs w-4 text-center shrink-0" x-text="'#' + (index + 1)"></span>
                                 <div class="min-w-0 flex-1">
@@ -1338,7 +1338,7 @@
                 </div>
 
                 <!-- SUBTLE CARD FOOTNOTE -->
-                <div class="mt-3.5 pt-2.5 border-t border-[#32261C] flex items-center justify-between text-[11px] font-mono text-[#8A7B66] shrink-0">
+                <div class="mt-2.5 sm:mt-3.5 pt-2 sm:pt-2.5 border-t border-[#32261C] flex items-center justify-between text-[11px] font-mono text-[#8A7B66] shrink-0">
                     <span>* Putar bergilir otomatis</span>
                     <span class="text-[#D9973E] font-semibold">Auto-skip jika diblokir</span>
                 </div>
