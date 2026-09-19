@@ -1038,286 +1038,282 @@
             </div>
         </header>
 
-        <!-- 2. MAIN STAGE -->
-        <main class="w-full flex-1 min-h-0 my-auto py-2 flex flex-col justify-center">
+        <!-- 2. MAIN STAGE (2 COLS: LEFT = NOW PLAYING HERO / VIDEO, RIGHT = LIVE ORDERS & QUEUE) -->
+        <main class="w-full flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center my-auto py-3">
 
-            <!-- A. MODE VISUALIZER (2 COLS: VINYL 7 COLS + QUEUE 5 COLS) -->
-            <div x-show="displayMode === 'visualizer'" class="w-full grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
+            <!-- LEFT COL: NOW PLAYING HERO (7 COLS) -->
+            <div class="lg:col-span-7 xl:col-span-8 flex flex-col justify-center">
 
-                <!-- LEFT COL: NOW PLAYING HERO (7 COLS) -->
-                <div class="lg:col-span-7 xl:col-span-8 flex flex-col justify-center">
-                    <div class="flex flex-col sm:flex-row items-center gap-6 sm:gap-8 lg:gap-10">
-                        <!-- VINYL RECORD TURNTABLE WITH TONEARM -->
-                        <div class="relative shrink-0 w-56 h-56 sm:w-64 sm:h-64 md:w-72 md:h-72 lg:w-80 lg:h-80 xl:w-96 xl:h-96">
-                            <!-- Vinyl Turntable Base Shadow & Ring -->
-                            <div class="w-full h-full rounded-full bg-gradient-to-tr from-[#120D09] via-[#221711] to-[#120D09] border-4 border-[#3A2D22] shadow-[0_20px_60px_rgba(0,0,0,0.85)] flex items-center justify-center p-3 relative overflow-hidden"
-                                 :class="isPlaying ? 'animate-spin-slow' : ''">
+                <!-- 1. MODE VISUALIZER: 3D VINYL TURNTABLE & SPECTRUM EQUALIZER -->
+                <div x-show="displayMode === 'visualizer'" class="flex flex-col sm:flex-row items-center gap-6 sm:gap-8 lg:gap-10">
+                    <!-- VINYL RECORD TURNTABLE WITH TONEARM -->
+                    <div class="relative shrink-0 w-56 h-56 sm:w-64 sm:h-64 md:w-72 md:h-72 lg:w-80 lg:h-80 xl:w-96 xl:h-96">
+                        <!-- Vinyl Turntable Base Shadow & Ring -->
+                        <div class="w-full h-full rounded-full bg-gradient-to-tr from-[#120D09] via-[#221711] to-[#120D09] border-4 border-[#3A2D22] shadow-[0_20px_60px_rgba(0,0,0,0.85)] flex items-center justify-center p-3 relative overflow-hidden"
+                             :class="isPlaying ? 'animate-spin-slow' : ''">
 
-                                <!-- VINYL GROOVES (CONCENTRIC CIRCLES) -->
-                                <div class="w-full h-full rounded-full border border-dashed border-[#443527]/80 flex items-center justify-center p-3.5 sm:p-4">
-                                    <div class="w-full h-full rounded-full border border-[#3A2D22] flex items-center justify-center p-3.5 sm:p-4">
-                                        <div class="w-full h-full rounded-full border border-dashed border-[#554637]/70 flex items-center justify-center p-4 sm:p-5">
-                                            <!-- CENTER ALBUM COVER LABEL -->
-                                            <div class="w-full h-full rounded-full border-2 border-[#D9973E]/60 overflow-hidden flex items-center justify-center bg-[#140E0A] shadow-inner relative">
-                                                <template x-if="nowPlaying && nowPlaying.thumbnail_url">
-                                                    <img :src="nowPlaying.thumbnail_url" alt="Cover" class="w-full h-full object-cover">
-                                                </template>
-                                                <template x-if="!nowPlaying || !nowPlaying.thumbnail_url">
-                                                    <div class="text-3xl font-serif text-[#D9973E]">☕</div>
-                                                </template>
-                                            </div>
+                            <!-- VINYL GROOVES (CONCENTRIC CIRCLES) -->
+                            <div class="w-full h-full rounded-full border border-dashed border-[#443527]/80 flex items-center justify-center p-3.5 sm:p-4">
+                                <div class="w-full h-full rounded-full border border-[#3A2D22] flex items-center justify-center p-3.5 sm:p-4">
+                                    <div class="w-full h-full rounded-full border border-dashed border-[#554637]/70 flex items-center justify-center p-4 sm:p-5">
+                                        <!-- CENTER ALBUM COVER LABEL -->
+                                        <div class="w-full h-full rounded-full border-2 border-[#D9973E]/60 overflow-hidden flex items-center justify-center bg-[#140E0A] shadow-inner relative">
+                                            <template x-if="nowPlaying && nowPlaying.thumbnail_url">
+                                                <img :src="nowPlaying.thumbnail_url" alt="Cover" class="w-full h-full object-cover">
+                                            </template>
+                                            <template x-if="!nowPlaying || !nowPlaying.thumbnail_url">
+                                                <div class="text-3xl font-serif text-[#D9973E]">☕</div>
+                                            </template>
                                         </div>
                                     </div>
                                 </div>
-
-                                <!-- SHINY LIGHT REFLECTION SWEEP -->
-                                <div class="absolute inset-0 shine-reflection rounded-full pointer-events-none"></div>
                             </div>
 
-                            <!-- CENTER METALLIC PIN -->
-                            <div class="absolute inset-0 m-auto w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-tr from-[#D9973E] via-white to-[#D9973E] border-2 border-[#140E0A] shadow-md pointer-events-none z-10"></div>
+                            <!-- SHINY LIGHT REFLECTION SWEEP -->
+                            <div class="absolute inset-0 shine-reflection rounded-full pointer-events-none"></div>
+                        </div>
 
-                            <!-- STYLISH TONEARM (METALLIC NEEDLE ARM RESTING ON RECORD) -->
-                            <div class="absolute top-2 right-2 sm:top-3 sm:right-3 w-20 sm:w-24 h-36 sm:h-44 pointer-events-none z-20 transition-transform duration-700 ease-out origin-top-right"
-                                 :class="isPlaying ? 'rotate-[22deg]' : 'rotate-[0deg]'">
-                                <!-- Pivot Base -->
-                                <div class="absolute top-0 right-0 w-6 h-6 rounded-full bg-gradient-to-tr from-[#3A2D22] via-[#8A7B66] to-[#E4DCCC] border border-[#140E0A] shadow-md"></div>
-                                <!-- Arm Bar -->
-                                <div class="absolute top-4 right-2.5 w-1 h-28 sm:h-32 bg-gradient-to-b from-[#8A7B66] via-[#D9973E] to-[#A89A85] rounded-full shadow-sm"></div>
-                                <!-- Cartridge Head & Stylus -->
-                                <div class="absolute bottom-2 sm:bottom-4 right-0 w-4 h-7 bg-[#1F1812] border border-[#D9973E] rounded-xs shadow-md rotate-[-15deg] flex items-center justify-center">
-                                    <span class="w-1 h-2 bg-[#D9973E] rounded-full"></span>
-                                </div>
+                        <!-- CENTER METALLIC PIN -->
+                        <div class="absolute inset-0 m-auto w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-tr from-[#D9973E] via-white to-[#D9973E] border-2 border-[#140E0A] shadow-md pointer-events-none z-10"></div>
+
+                        <!-- STYLISH TONEARM (METALLIC NEEDLE ARM RESTING ON RECORD) -->
+                        <div class="absolute top-2 right-2 sm:top-3 sm:right-3 w-20 sm:w-24 h-36 sm:h-44 pointer-events-none z-20 transition-transform duration-700 ease-out origin-top-right"
+                             :class="isPlaying ? 'rotate-[22deg]' : 'rotate-[0deg]'">
+                            <!-- Pivot Base -->
+                            <div class="absolute top-0 right-0 w-6 h-6 rounded-full bg-gradient-to-tr from-[#3A2D22] via-[#8A7B66] to-[#E4DCCC] border border-[#140E0A] shadow-md"></div>
+                            <!-- Arm Bar -->
+                            <div class="absolute top-4 right-2.5 w-1 h-28 sm:h-32 bg-gradient-to-b from-[#8A7B66] via-[#D9973E] to-[#A89A85] rounded-full shadow-sm"></div>
+                            <!-- Cartridge Head & Stylus -->
+                            <div class="absolute bottom-2 sm:bottom-4 right-0 w-4 h-7 bg-[#1F1812] border border-[#D9973E] rounded-xs shadow-md rotate-[-15deg] flex items-center justify-center">
+                                <span class="w-1 h-2 bg-[#D9973E] rounded-full"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- NOW PLAYING METADATA -->
+                    <div class="min-w-0 text-center sm:text-left flex-1 w-full max-w-xl xl:max-w-2xl">
+                        <div class="inline-flex items-center gap-2 px-3 py-1 bg-[#D9973E]/15 border border-[#D9973E]/40 text-[#D9973E] font-mono text-xs uppercase tracking-[0.2em] mb-2.5 rounded-full font-bold">
+                            <span class="w-1.5 h-1.5 rounded-full bg-[#D9973E] animate-ping"></span>
+                            <span x-text="isPlaying ? 'SEDANG MEMUTAR' : 'AUDIO TERJEDA'"></span>
+                        </div>
+
+                        <h2 class="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-serif font-bold text-[#FAF7F2] leading-tight tracking-tight line-clamp-2 drop-shadow-md"
+                            x-text="nowPlaying ? (nowPlaying.song_title || nowPlaying.title) : 'Playlist Kafe KopiKita'">
+                        </h2>
+
+                        <p class="text-base sm:text-lg lg:text-xl text-[#D9973E] mt-1.5 font-mono font-medium truncate"
+                           x-text="nowPlaying ? (nowPlaying.artist || 'Artis Musik') : 'Chill Lo-Fi & Jazz Vibes'">
+                        </p>
+
+                        <!-- TIMELINE PROGRESS BAR -->
+                        <div class="mt-4 w-full">
+                            <div class="w-full bg-[#261D16] h-2.5 rounded-full overflow-hidden border border-[#3A2D22]">
+                                <div class="bg-gradient-to-r from-[#D9973E] via-[#E5A955] to-[#5F7F42] h-full transition-all duration-300 rounded-full shadow-[0_0_12px_rgba(217,151,62,0.6)]"
+                                     :style="'width: ' + playbackProgressPercent + '%'"></div>
+                            </div>
+                            <div class="mt-1.5 flex items-center justify-between font-mono text-xs text-[#A89A85]">
+                                <span class="text-[#D9973E] font-bold" x-text="playbackCurrentTimeFormatted">00:00</span>
+                                <span class="text-[10px] text-[#8A7B66] uppercase tracking-wider font-semibold">// Live Sync Player</span>
+                                <span class="text-[#FAF7F2] font-semibold" x-text="playbackDurationFormatted">00:00</span>
                             </div>
                         </div>
 
-                        <!-- NOW PLAYING METADATA -->
-                        <div class="min-w-0 text-center sm:text-left flex-1 w-full max-w-xl xl:max-w-2xl">
-                            <div class="inline-flex items-center gap-2 px-3 py-1 bg-[#D9973E]/15 border border-[#D9973E]/40 text-[#D9973E] font-mono text-xs uppercase tracking-[0.2em] mb-2.5 rounded-full font-bold">
-                                <span class="w-1.5 h-1.5 rounded-full bg-[#D9973E] animate-ping"></span>
-                                <span x-text="isPlaying ? 'SEDANG MEMUTAR' : 'AUDIO TERJEDA'"></span>
-                            </div>
-
-                            <h2 class="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-serif font-bold text-[#FAF7F2] leading-tight tracking-tight line-clamp-2 drop-shadow-md"
-                                x-text="nowPlaying ? (nowPlaying.song_title || nowPlaying.title) : 'Playlist Kafe KopiKita'">
-                            </h2>
-
-                            <p class="text-base sm:text-lg lg:text-xl text-[#D9973E] mt-1.5 font-mono font-medium truncate"
-                               x-text="nowPlaying ? (nowPlaying.artist || 'Artis Musik') : 'Chill Lo-Fi & Jazz Vibes'">
-                            </p>
-
-                            <!-- TIMELINE PROGRESS BAR -->
-                            <div class="mt-4 w-full">
-                                <div class="w-full bg-[#261D16] h-2.5 rounded-full overflow-hidden border border-[#3A2D22]">
-                                    <div class="bg-gradient-to-r from-[#D9973E] via-[#E5A955] to-[#5F7F42] h-full transition-all duration-300 rounded-full shadow-[0_0_12px_rgba(217,151,62,0.6)]"
-                                         :style="'width: ' + playbackProgressPercent + '%'"></div>
-                                </div>
-                                <div class="mt-1.5 flex items-center justify-between font-mono text-xs text-[#A89A85]">
-                                    <span class="text-[#D9973E] font-bold" x-text="playbackCurrentTimeFormatted">00:00</span>
-                                    <span class="text-[10px] text-[#8A7B66] uppercase tracking-wider font-semibold">// Live Sync Player</span>
-                                    <span class="text-[#FAF7F2] font-semibold" x-text="playbackDurationFormatted">00:00</span>
-                                </div>
-                            </div>
-
-                            <!-- 42-BAND LIVE SOUND SPECTRUM EQUALIZER WAVE -->
-                            <div class="mt-4 w-full flex items-end gap-1 h-8 pt-1 overflow-hidden">
-                                <template x-for="i in 42" :key="i">
-                                    <div class="flex-1 min-w-[2px] rounded-t bg-gradient-to-t from-[#D9973E] to-[#5F7F42] transition-all duration-150"
-                                         :class="isPlaying ? 'eq-bar' : 'h-1 opacity-40'"
-                                         :style="isPlaying ? 'animation-delay: ' + ((i * 38) % 800) + 'ms; animation-duration: ' + (0.65 + ((i * 31) % 650) / 1000) + 's;' : ''">
-                                    </div>
-                                </template>
-                            </div>
-
-                            <!-- REQUESTED BY BADGE -->
-                            <template x-if="nowPlaying && nowPlaying.customer_name">
-                                <div class="mt-3.5 inline-flex items-center gap-2 px-3.5 py-1.5 bg-[#261D16] border border-[#D9973E]/40 rounded-xl shadow-xs">
-                                    <span class="font-mono text-xs text-[#A89A85] uppercase tracking-wider">Direquest oleh:</span>
-                                    <span class="font-mono text-sm font-bold text-[#D9973E]" x-text="'★ Kak ' + nowPlaying.customer_name"></span>
+                        <!-- 42-BAND LIVE SOUND SPECTRUM EQUALIZER WAVE -->
+                        <div class="mt-4 w-full flex items-end gap-1 h-8 pt-1 overflow-hidden">
+                            <template x-for="i in 42" :key="i">
+                                <div class="flex-1 min-w-[2px] rounded-t bg-gradient-to-t from-[#D9973E] to-[#5F7F42] transition-all duration-150"
+                                     :class="isPlaying ? 'eq-bar' : 'h-1 opacity-40'"
+                                     :style="isPlaying ? 'animation-delay: ' + ((i * 38) % 800) + 'ms; animation-duration: ' + (0.65 + ((i * 31) % 650) / 1000) + 's;' : ''">
                                 </div>
                             </template>
                         </div>
+
+                        <!-- REQUESTED BY BADGE -->
+                        <template x-if="nowPlaying && nowPlaying.customer_name">
+                            <div class="mt-3.5 inline-flex items-center gap-2 px-3.5 py-1.5 bg-[#261D16] border border-[#D9973E]/40 rounded-xl shadow-xs">
+                                <span class="font-mono text-xs text-[#A89A85] uppercase tracking-wider">Direquest oleh:</span>
+                                <span class="font-mono text-sm font-bold text-[#D9973E]" x-text="'★ Kak ' + nowPlaying.customer_name"></span>
+                            </div>
+                        </template>
                     </div>
                 </div>
 
-                <!-- RIGHT COL: LIVE READY ORDERS & UP NEXT QUEUE (5 COLS) -->
-                <div class="lg:col-span-5 xl:col-span-4 w-full bg-[#1C1611]/95 border border-[#32261C] rounded-2xl p-5 shadow-2xl backdrop-blur-xl flex flex-col h-full min-h-[380px] justify-between">
+                <!-- 2. MODE VIDEO: CINEMATIC YOUTUBE PLAYER SCREEN (STREAM-ONLY DI DALAM FRAME DENGAN 100% ZOOM) -->
+                <div x-show="displayMode === 'video'" class="space-y-3.5 w-full select-none">
+                    <div class="w-full aspect-video rounded-2xl overflow-hidden border-2 border-[#3A2D22] shadow-[0_20px_60px_rgba(0,0,0,0.9)] bg-black relative select-none cursor-default">
+                        <div class="w-full h-full relative select-none">
+                            <div id="tv-player-wrap" class="w-full h-full pointer-events-none select-none" x-show="nowPlaying && nowPlaying.youtube_id">
+                                <div id="tv-yt-player" class="w-full h-full pointer-events-none select-none"></div>
+                            </div>
 
-                    <!-- TOP SECTION: PESANAN SIAP (TAMPIL JIKA ADA PESANAN SIAP) -->
-                    <template x-if="readyOrders.length > 0">
-                        <div class="mb-4 bg-gradient-to-r from-[#1E2E17] to-[#142010] border-2 border-[#5F7F42] rounded-xl p-3.5 shadow-md shrink-0">
-                            <div class="flex items-center justify-between mb-2.5">
-                                <div class="flex items-center gap-2">
-                                    <span class="w-2.5 h-2.5 rounded-full bg-[#85BF5C] animate-ping"></span>
-                                    <span class="font-mono text-xs font-bold text-[#85BF5C] uppercase tracking-wider">🔔 Pesanan Siap Di Meja</span>
+                            <template x-if="!nowPlaying || !nowPlaying.youtube_id">
+                                <div class="w-full h-full flex flex-col items-center justify-center bg-[#140E0A] text-[#A89A85] select-none pointer-events-none">
+                                    <span class="text-5xl mb-2 text-[#D9973E]">🎬</span>
+                                    <span class="font-mono text-xs">Memuat tayangan video...</span>
                                 </div>
-                                <span class="font-mono text-[10px] font-bold text-[#FAF7F2] bg-[#5F7F42]/40 px-2.5 py-0.5 rounded-full" x-text="readyOrders.length + ' Pesanan'"></span>
-                            </div>
-                            <div class="flex flex-wrap gap-2 max-h-24 overflow-y-auto no-scrollbar">
-                                <template x-for="ro in readyOrders" :key="ro.id">
-                                    <div class="px-3 py-1.5 bg-[#25391C] border border-[#5F7F42]/80 rounded-lg text-xs font-mono text-white flex items-center gap-2 shadow-sm">
-                                        <span class="font-bold text-[#D9973E] text-sm" x-text="ro.code"></span>
-                                        <span class="text-white/90 font-medium" x-text="ro.customer_name ? ('(' + ro.customer_name + ')') : ''"></span>
+                            </template>
+
+                            <!-- END-SCREEN CURTAIN: Menutup 100% kartu/grid rekomendasi YouTube di detik-detik akhir -->
+                            <div x-show="isNearTrackEnd"
+                                 x-cloak
+                                 x-transition:enter="transition ease-out duration-700"
+                                 x-transition:enter-start="opacity-0 scale-98"
+                                 x-transition:enter-end="opacity-100 scale-100"
+                                 x-transition:leave="transition ease-in duration-500"
+                                 x-transition:leave-start="opacity-100"
+                                 x-transition:leave-end="opacity-0"
+                                 class="absolute inset-0 z-30 flex flex-col items-center justify-center bg-[#0E0906]/95 backdrop-blur-2xl text-center p-6 select-none pointer-events-none">
+                                <div class="w-24 h-24 rounded-full bg-[#D9973E]/15 blur-2xl absolute animate-pulse"></div>
+                                <div class="relative z-10 flex flex-col items-center max-w-md">
+                                    <div class="w-12 h-12 rounded-xl bg-[#1C1611] border border-[#D9973E]/40 flex items-center justify-center shadow-xl mb-2.5">
+                                        <span class="text-2xl animate-spin-slow">☕</span>
                                     </div>
-                                </template>
-                            </div>
-                        </div>
-                    </template>
-
-                    <!-- QUEUE SECTION HEADER -->
-                    <div class="flex items-center justify-between border-b border-[#32261C] pb-3 mb-3 shrink-0">
-                        <div class="flex items-center gap-2 min-w-0">
-                            <span class="w-2.5 h-2.5 rounded-full bg-[#D9973E] animate-pulse shrink-0"></span>
-                            <h3 class="font-mono text-xs sm:text-sm uppercase tracking-[0.15em] font-bold text-[#FAF7F2] truncate">Antrean Lagu Berikutnya</h3>
-                        </div>
-
-                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#D9973E]/15 border border-[#D9973E]/30 text-[#D9973E] shrink-0 ml-2"
-                              x-text="queue.length + ' Lagu'"></span>
-                    </div>
-
-                    <!-- QUEUE LIST (EXPANDABLE SCROLLABLE AREA) -->
-                    <div class="space-y-2 overflow-y-auto pr-0 flex-1 min-h-[140px] no-scrollbar">
-                        <template x-if="queue.length === 0">
-                            <div class="h-full flex flex-col items-center justify-center text-center py-8 text-[#A89A85] font-mono text-xs">
-                                <span class="text-3xl mb-2 opacity-60">☕</span>
-                                <span class="font-semibold text-[#FAF7F2]">Antrean request lagu sedang kosong.</span>
-                                <span class="text-[11px] mt-1 text-[#8A7B66]">Scan QR di bawah untuk me-request lagu pertamamu!</span>
-                            </div>
-                        </template>
-
-                        <template x-for="(item, index) in queue" :key="item.id + '_' + (item.type || 'req')">
-                            <div class="flex items-center justify-between py-2 px-3 bg-[#261D16]/90 border border-[#3A2D22] rounded-xl hover:border-[#D9973E]/50 transition group">
-                                <div class="flex items-center gap-2.5 min-w-0 flex-1">
-                                    <span class="font-mono font-bold text-[#D9973E] text-xs w-4 text-center shrink-0" x-text="'#' + (index + 1)"></span>
-                                    <div class="min-w-0 flex-1">
-                                        <div class="text-xs font-semibold text-[#FAF7F2] truncate leading-tight group-hover:text-[#D9973E] transition-colors" x-text="item.song_title || item.title"></div>
-                                        <div class="text-[10px] text-[#A89A85] truncate leading-tight mt-0.5 flex items-center gap-1.5 font-mono">
-                                            <span x-text="item.artist || 'Artis YouTube'"></span>
-                                            <template x-if="item.customer_name">
-                                                <span class="flex items-center gap-1">
-                                                    <span class="text-[#8A7B66]">&bull;</span>
-                                                    <span class="text-[#D9973E] font-semibold truncate" x-text="'Req: ' + item.customer_name"></span>
-                                                </span>
-                                            </template>
-                                            <template x-if="!item.customer_name && (item.type === 'default' || !item.is_request)">
-                                                <span class="flex items-center gap-1">
-                                                    <span class="text-[#8A7B66]">&bull;</span>
-                                                    <span class="text-[#85BF5C]">Playlist Kafe</span>
-                                                </span>
-                                            </template>
+                                    <div class="inline-flex items-center gap-1.5 px-3 py-0.5 bg-[#D9973E]/15 border border-[#D9973E]/40 rounded-full mb-2">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-[#D9973E] animate-ping"></span>
+                                        <span class="font-mono text-[10px] font-bold text-[#D9973E] uppercase tracking-widest">Menyiapkan Lagu Berikutnya</span>
+                                    </div>
+                                    <template x-if="queue && queue.length > 0">
+                                        <div class="mt-0.5">
+                                            <div class="font-serif text-lg font-bold text-[#FAF7F2] truncate max-w-sm drop-shadow-md" x-text="queue[0].song_title || queue[0].title"></div>
+                                            <div class="font-mono text-xs text-[#D9973E] mt-0.5" x-text="queue[0].artist || 'Artis Musik'"></div>
                                         </div>
-                                    </div>
+                                    </template>
+                                    <template x-if="!queue || queue.length === 0">
+                                        <div class="mt-0.5 font-serif text-sm text-[#A89A85]">
+                                            Playlist Santai Kafe KopiKita
+                                        </div>
+                                    </template>
                                 </div>
-                                <!-- BADGE: REQUEST vs BAWAAN -->
-                                <template x-if="item.type === 'request' || item.is_request">
-                                    <span class="font-mono text-[9px] uppercase tracking-wider text-[#D9973E] bg-[#D9973E]/15 px-2 py-0.5 rounded-full border border-[#D9973E]/40 font-bold shrink-0 ml-2">Request</span>
-                                </template>
-                                <template x-if="item.type === 'default' || !item.is_request">
-                                    <span class="font-mono text-[9px] uppercase tracking-wider text-[#85BF5C] bg-[#5F7F42]/20 px-2 py-0.5 rounded-full border border-[#5F7F42]/40 font-bold shrink-0 ml-2">Bawaan</span>
-                                </template>
                             </div>
-                        </template>
+
+                            <!-- SHIELD PELINDUNG TRANSPARAN: Memblokir 100% interaksi mouse/touch/klik agar murni stream pasif dari kasir -->
+                            <div class="video-shield absolute inset-0 z-20 cursor-default select-none"
+                                 @click.prevent.stop
+                                 @dblclick.prevent.stop
+                                 @mousedown.prevent.stop
+                                 @mouseup.prevent.stop
+                                 @contextmenu.prevent.stop
+                                 @touchstart.prevent.stop
+                                 @touchend.prevent.stop
+                                 title=""></div>
+                        </div>
                     </div>
 
-                    <!-- SUBTLE CARD FOOTNOTE -->
-                    <div class="mt-3.5 pt-2.5 border-t border-[#32261C] flex items-center justify-between text-[11px] font-mono text-[#8A7B66] shrink-0">
-                        <span>* Putar bergilir otomatis</span>
-                        <span class="text-[#D9973E] font-semibold">Auto-skip jika diblokir</span>
+                    <!-- VIDEO NOW PLAYING METADATA & PROGRESS BAR UNDER VIDEO -->
+                    <div class="flex items-center justify-between gap-4 px-1">
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="w-2 h-2 rounded-full bg-[#D9973E] animate-ping shrink-0"></span>
+                                <span class="font-mono text-[10px] uppercase tracking-widest text-[#D9973E] font-bold">Now Playing Video</span>
+                            </div>
+                            <h2 class="text-xl sm:text-2xl font-serif font-bold text-[#FAF7F2] truncate drop-shadow-sm"
+                                x-text="nowPlaying ? (nowPlaying.song_title || nowPlaying.title) : 'Playlist Kafe KopiKita'">
+                            </h2>
+                            <p class="text-xs sm:text-sm text-[#D9973E] font-mono truncate mt-0.5"
+                               x-text="nowPlaying ? (nowPlaying.artist || 'Artis Musik') : 'Chill Lo-Fi & Jazz Vibes'">
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Timeline Progress Bar for Video Mode -->
+                    <div class="w-full px-1">
+                        <div class="w-full bg-[#261D16] h-2 rounded-full overflow-hidden border border-[#3A2D22]">
+                            <div class="bg-gradient-to-r from-[#D9973E] via-[#E5A955] to-[#5F7F42] h-full transition-all duration-300 rounded-full shadow-[0_0_10px_rgba(217,151,62,0.6)]"
+                                 :style="'width: ' + playbackProgressPercent + '%'"></div>
+                        </div>
+                        <div class="mt-1 flex items-center justify-between font-mono text-[11px] text-[#A89A85]">
+                            <span class="text-[#D9973E] font-bold" x-text="playbackCurrentTimeFormatted">00:00</span>
+                            <span class="text-[9px] text-[#8A7B66] uppercase tracking-wider font-semibold">// Live Sync Video</span>
+                            <span class="text-[#FAF7F2] font-semibold" x-text="playbackDurationFormatted">00:00</span>
+                        </div>
                     </div>
                 </div>
 
             </div>
 
-            <!-- B. MODE VIDEO: 100% CINEMATIC FULL-WIDTH STAGE -->
-            <div x-show="displayMode === 'video'" class="w-full h-full flex flex-col items-center justify-center select-none relative my-auto">
-                <div class="w-full aspect-video max-h-[78vh] rounded-2xl sm:rounded-3xl overflow-hidden border-2 border-[#3A2D22] shadow-[0_25px_70px_rgba(0,0,0,0.95)] bg-black relative select-none cursor-default mx-auto flex items-center justify-center">
-                    <div class="w-full h-full relative select-none">
-                        <div id="tv-player-wrap" class="w-full h-full pointer-events-none select-none" x-show="nowPlaying && nowPlaying.youtube_id">
-                            <div id="tv-yt-player" class="w-full h-full pointer-events-none select-none"></div>
+            <!-- RIGHT COL: LIVE READY ORDERS & UP NEXT QUEUE (5 COLS) -->
+            <div class="lg:col-span-5 xl:col-span-4 w-full bg-[#1C1611]/95 border border-[#32261C] rounded-2xl p-5 shadow-2xl backdrop-blur-xl flex flex-col h-full min-h-[380px] justify-between">
+
+                <!-- TOP SECTION: PESANAN SIAP (TAMPIL JIKA ADA PESANAN SIAP) -->
+                <template x-if="readyOrders.length > 0">
+                    <div class="mb-4 bg-gradient-to-r from-[#1E2E17] to-[#142010] border-2 border-[#5F7F42] rounded-xl p-3.5 shadow-md shrink-0">
+                        <div class="flex items-center justify-between mb-2.5">
+                            <div class="flex items-center gap-2">
+                                <span class="w-2.5 h-2.5 rounded-full bg-[#85BF5C] animate-ping"></span>
+                                <span class="font-mono text-xs font-bold text-[#85BF5C] uppercase tracking-wider">🔔 Pesanan Siap Di Meja</span>
+                            </div>
+                            <span class="font-mono text-[10px] font-bold text-[#FAF7F2] bg-[#5F7F42]/40 px-2.5 py-0.5 rounded-full" x-text="readyOrders.length + ' Pesanan'"></span>
                         </div>
-
-                        <template x-if="!nowPlaying || !nowPlaying.youtube_id">
-                            <div class="w-full h-full flex flex-col items-center justify-center bg-[#140E0A] text-[#A89A85] select-none pointer-events-none">
-                                <span class="text-6xl mb-3 text-[#D9973E]">🎬</span>
-                                <span class="font-mono text-sm">Memuat tayangan video...</span>
-                            </div>
-                        </template>
-
-                        <!-- END-SCREEN CURTAIN: Menutup 100% kartu/grid rekomendasi YouTube di detik-detik akhir -->
-                        <div x-show="isNearTrackEnd"
-                             x-cloak
-                             x-transition:enter="transition ease-out duration-700"
-                             x-transition:enter-start="opacity-0 scale-98"
-                             x-transition:enter-end="opacity-100 scale-100"
-                             x-transition:leave="transition ease-in duration-500"
-                             x-transition:leave-start="opacity-100"
-                             x-transition:leave-end="opacity-0"
-                             class="absolute inset-0 z-30 flex flex-col items-center justify-center bg-[#0E0906]/95 backdrop-blur-2xl text-center p-6 select-none pointer-events-none">
-                            <div class="w-32 h-32 rounded-full bg-[#D9973E]/15 blur-3xl absolute animate-pulse"></div>
-                            <div class="relative z-10 flex flex-col items-center max-w-lg">
-                                <div class="w-16 h-16 rounded-2xl bg-[#1C1611] border border-[#D9973E]/40 flex items-center justify-center shadow-2xl mb-3.5">
-                                    <span class="text-3xl animate-spin-slow">☕</span>
+                        <div class="flex flex-wrap gap-2 max-h-24 overflow-y-auto no-scrollbar">
+                            <template x-for="ro in readyOrders" :key="ro.id">
+                                <div class="px-3 py-1.5 bg-[#25391C] border border-[#5F7F42]/80 rounded-lg text-xs font-mono text-white flex items-center gap-2 shadow-sm">
+                                    <span class="font-bold text-[#D9973E] text-sm" x-text="ro.code"></span>
+                                    <span class="text-white/90 font-medium" x-text="ro.customer_name ? ('(' + ro.customer_name + ')') : ''"></span>
                                 </div>
-                                <div class="inline-flex items-center gap-2 px-3.5 py-1 bg-[#D9973E]/15 border border-[#D9973E]/40 rounded-full mb-3">
-                                    <span class="w-2 h-2 rounded-full bg-[#D9973E] animate-ping"></span>
-                                    <span class="font-mono text-xs font-bold text-[#D9973E] uppercase tracking-widest">Menyiapkan Lagu Berikutnya</span>
-                                </div>
-                                <template x-if="queue && queue.length > 0">
-                                    <div class="mt-1">
-                                        <div class="font-serif text-xl sm:text-2xl font-bold text-[#FAF7F2] truncate max-w-md drop-shadow-md" x-text="queue[0].song_title || queue[0].title"></div>
-                                        <div class="font-mono text-sm text-[#D9973E] mt-1" x-text="queue[0].artist || 'Artis Musik'"></div>
-                                    </div>
-                                </template>
-                                <template x-if="!queue || queue.length === 0">
-                                    <div class="mt-1 font-serif text-lg text-[#A89A85]">
-                                        Playlist Santai Kafe KopiKita
-                                    </div>
-                                </template>
-                            </div>
+                            </template>
                         </div>
-
-                        <!-- FLOATING CINEMA BOTTOM OVERLAY (Now Playing & Up Next) -->
-                        <div class="absolute bottom-0 inset-x-0 z-25 bg-gradient-to-t from-black/90 via-black/55 to-transparent pt-12 pb-4 px-5 sm:px-8 flex flex-col gap-2 pointer-events-none transition-opacity duration-300">
-                            <div class="flex items-center justify-between gap-4">
-                                <div class="min-w-0 flex items-center gap-3">
-                                    <span class="w-2.5 h-2.5 rounded-full bg-[#D9973E] animate-ping shrink-0"></span>
-                                    <div class="min-w-0">
-                                        <h3 class="text-base sm:text-lg font-serif font-bold text-[#FAF7F2] truncate drop-shadow-md"
-                                            x-text="nowPlaying ? (nowPlaying.song_title || nowPlaying.title) : 'Playlist Kafe KopiKita'"></h3>
-                                        <p class="text-xs font-mono text-[#D9973E] truncate"
-                                           x-text="nowPlaying ? (nowPlaying.artist || 'Artis Musik') : 'Chill Lo-Fi & Jazz Vibes'"></p>
-                                    </div>
-                                </div>
-                                <template x-if="queue && queue.length > 0">
-                                    <div class="hidden sm:flex items-center gap-2 px-3 py-1 bg-[#1C1611]/80 border border-[#D9973E]/30 rounded-xl shrink-0 backdrop-blur-md">
-                                        <span class="font-mono text-[10px] text-[#A89A85] uppercase">Berikutnya:</span>
-                                        <span class="font-mono text-xs font-bold text-[#D9973E] max-w-[220px] truncate"
-                                              x-text="queue[0].song_title || queue[0].title"></span>
-                                    </div>
-                                </template>
-                            </div>
-                            <!-- Slim Timeline Bar -->
-                            <div class="w-full flex items-center gap-3">
-                                <span class="font-mono text-xs text-[#D9973E] font-bold shrink-0" x-text="playbackCurrentTimeFormatted">00:00</span>
-                                <div class="w-full bg-white/20 h-1.5 rounded-full overflow-hidden backdrop-blur-xs">
-                                    <div class="bg-gradient-to-r from-[#D9973E] to-[#5F7F42] h-full transition-all duration-300 rounded-full shadow-[0_0_10px_rgba(217,151,62,0.8)]"
-                                         :style="'width: ' + playbackProgressPercent + '%'"></div>
-                                </div>
-                                <span class="font-mono text-xs text-[#FAF7F2] shrink-0" x-text="playbackDurationFormatted">00:00</span>
-                            </div>
-                        </div>
-
-                        <!-- SHIELD PELINDUNG TRANSPARAN: Memblokir 100% interaksi mouse/touch/klik -->
-                        <div class="video-shield absolute inset-0 z-20 cursor-default select-none"
-                             @click.prevent.stop
-                             @dblclick.prevent.stop
-                             @mousedown.prevent.stop
-                             @mouseup.prevent.stop
-                             @contextmenu.prevent.stop
-                             @touchstart.prevent.stop
-                             @touchend.prevent.stop
-                             title=""></div>
                     </div>
+                </template>
+
+                <!-- QUEUE SECTION HEADER -->
+                <div class="flex items-center justify-between border-b border-[#32261C] pb-3 mb-3 shrink-0">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <span class="w-2.5 h-2.5 rounded-full bg-[#D9973E] animate-pulse shrink-0"></span>
+                        <h3 class="font-mono text-xs sm:text-sm uppercase tracking-[0.15em] font-bold text-[#FAF7F2] truncate">Antrean Lagu Berikutnya</h3>
+                    </div>
+
+                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#D9973E]/15 border border-[#D9973E]/30 text-[#D9973E] shrink-0 ml-2"
+                          x-text="queue.length + ' Lagu'"></span>
+                </div>
+
+                <!-- QUEUE LIST (EXPANDABLE SCROLLABLE AREA) -->
+                <div class="space-y-2 overflow-y-auto pr-0 flex-1 min-h-[140px] no-scrollbar">
+                    <template x-if="queue.length === 0">
+                        <div class="h-full flex flex-col items-center justify-center text-center py-8 text-[#A89A85] font-mono text-xs">
+                            <span class="text-3xl mb-2 opacity-60">☕</span>
+                            <span class="font-semibold text-[#FAF7F2]">Antrean request lagu sedang kosong.</span>
+                            <span class="text-[11px] mt-1 text-[#8A7B66]">Scan QR di bawah untuk me-request lagu pertamamu!</span>
+                        </div>
+                    </template>
+
+                    <template x-for="(item, index) in queue" :key="item.id + '_' + (item.type || 'req')">
+                        <div class="flex items-center justify-between py-2 px-3 bg-[#261D16]/90 border border-[#3A2D22] rounded-xl hover:border-[#D9973E]/50 transition group">
+                            <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                                <span class="font-mono font-bold text-[#D9973E] text-xs w-4 text-center shrink-0" x-text="'#' + (index + 1)"></span>
+                                <div class="min-w-0 flex-1">
+                                    <div class="text-xs font-semibold text-[#FAF7F2] truncate leading-tight group-hover:text-[#D9973E] transition-colors" x-text="item.song_title || item.title"></div>
+                                    <div class="text-[10px] text-[#A89A85] truncate leading-tight mt-0.5 flex items-center gap-1.5 font-mono">
+                                        <span x-text="item.artist || 'Artis YouTube'"></span>
+                                        <template x-if="item.customer_name">
+                                            <span class="flex items-center gap-1">
+                                                <span class="text-[#8A7B66]">&bull;</span>
+                                                <span class="text-[#D9973E] font-semibold truncate" x-text="'Req: ' + item.customer_name"></span>
+                                            </span>
+                                        </template>
+                                        <template x-if="!item.customer_name && (item.type === 'default' || !item.is_request)">
+                                            <span class="flex items-center gap-1">
+                                                <span class="text-[#8A7B66]">&bull;</span>
+                                                <span class="text-[#85BF5C]">Playlist Kafe</span>
+                                            </span>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- BADGE: REQUEST vs BAWAAN -->
+                            <template x-if="item.type === 'request' || item.is_request">
+                                <span class="font-mono text-[9px] uppercase tracking-wider text-[#D9973E] bg-[#D9973E]/15 px-2 py-0.5 rounded-full border border-[#D9973E]/40 font-bold shrink-0 ml-2">Request</span>
+                            </template>
+                            <template x-if="item.type === 'default' || !item.is_request">
+                                <span class="font-mono text-[9px] uppercase tracking-wider text-[#85BF5C] bg-[#5F7F42]/20 px-2 py-0.5 rounded-full border border-[#5F7F42]/40 font-bold shrink-0 ml-2">Bawaan</span>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- SUBTLE CARD FOOTNOTE -->
+                <div class="mt-3.5 pt-2.5 border-t border-[#32261C] flex items-center justify-between text-[11px] font-mono text-[#8A7B66] shrink-0">
+                    <span>* Putar bergilir otomatis</span>
+                    <span class="text-[#D9973E] font-semibold">Auto-skip jika diblokir</span>
                 </div>
             </div>
         </main>
