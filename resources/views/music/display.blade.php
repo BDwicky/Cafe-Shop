@@ -491,14 +491,14 @@
                                             }
                                         } catch (e) {}
 
-                                        // Kalibrasi awal saat video baru mulai memutar jika buffering awal memakan waktu > 2 detik
+                                        // Kalibrasi awal saat video baru mulai memutar jika buffering awal memakan waktu > 1.5 detik
                                         if (!this._initialSynced && this.playbackCurrentTime > 0) {
                                             this._initialSynced = true;
                                             const tvCurTime = (typeof this.tvPlayer.getCurrentTime === 'function') ? (this.tvPlayer.getCurrentTime() || 0) : 0;
-                                            const drift = this.playbackCurrentTime - tvCurTime;
-                                            if (drift > 2 && drift < 86400) {
+                                            const absDrift = Math.abs(this.playbackCurrentTime - tvCurTime);
+                                            if (absDrift > 1.5 && absDrift < 86400) {
                                                 this._lastSeekTime = Date.now();
-                                                this.tvPlayer.seekTo(this.playbackCurrentTime + 0.2, true);
+                                                this.tvPlayer.seekTo(this.playbackCurrentTime, true);
                                             }
                                         }
 
@@ -616,8 +616,8 @@
                                 const absDrift = Math.abs(diff);
                                 const now = Date.now();
 
-                                // Hanya seek jika selisih drastis (> 4 detik, misal kasir menggeser slider lagu)
-                                if (absDrift > 4 && (!this._lastSeekTime || (now - this._lastSeekTime > 5000))) {
+                                // Hanya seek jika selisih waktu > 2.5 detik (misal jeda buffering panjang atau kasir menggeser slider lagu)
+                                if (absDrift > 2.5 && (!this._lastSeekTime || (now - this._lastSeekTime > 4000))) {
                                     this._lastSeekTime = now;
                                     this.tvPlayer.seekTo(this.playbackCurrentTime, true);
                                 }
