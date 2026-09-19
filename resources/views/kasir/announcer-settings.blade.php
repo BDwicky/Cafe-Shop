@@ -678,6 +678,73 @@
                 </div>
             </div>
 
+            <!-- BAGIAN 6: JEDA OTOMATIS SAAT TUTUP TOKO (AUTO-PAUSE 00:00 WIB) -->
+            <div class="bg-white border border-[#E4DCCC] rounded-2xl p-5 sm:p-6 shadow-xs space-y-5">
+                <div class="border-b border-[#E4DCCC] pb-3.5 flex items-start justify-between gap-3">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xl">🌙</span>
+                            <h2 class="text-lg font-serif font-bold text-[#1F1812]">
+                                6. Jeda Otomatis Jam Tutup Toko
+                            </h2>
+                        </div>
+                        <p class="text-xs text-[#7A6A58] mt-1">
+                            Otomatis menjeda pemutar musik saat jam operasional toko berakhir agar lagu tidak terus berjalan semalaman jika kasir lupa mematikan musik.
+                        </p>
+                    </div>
+
+                    <!-- Switch Toggle -->
+                    <label class="relative inline-flex items-center cursor-pointer shrink-0 mt-0.5">
+                        <input type="checkbox" x-model="form.auto_pause_midnight" class="sr-only peer">
+                        <div class="w-11 h-6 bg-[#D8CFC4] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#D8CFC4] after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5F7F42]"></div>
+                    </label>
+                </div>
+
+                <div x-show="form.auto_pause_midnight" x-transition class="space-y-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <!-- Jam Tutup Kafe -->
+                        <div class="space-y-1.5">
+                            <label class="block text-xs font-mono font-bold text-[#5C4D3C] uppercase tracking-wider">
+                                Jam Tutup Toko (Auto-Pause):
+                            </label>
+                            <div class="flex items-center gap-2">
+                                <input type="time" x-model="form.closing_time"
+                                       class="w-full px-3.5 py-2.5 bg-[#FAF7F2] border border-[#E4DCCC] text-xs text-[#1F1812] font-mono rounded-xl focus:outline-none focus:border-[#D9973E] font-bold shadow-inner">
+                            </div>
+                            <p class="text-[10px] text-[#A89A85] font-mono">
+                                Default: <strong>00:00 WIB</strong> (tengah malam).
+                            </p>
+                        </div>
+
+                        <!-- Jam Buka Kembali Kafe -->
+                        <div class="space-y-1.5">
+                            <label class="block text-xs font-mono font-bold text-[#5C4D3C] uppercase tracking-wider">
+                                Jam Buka Kembali:
+                            </label>
+                            <div class="flex items-center gap-2">
+                                <input type="time" x-model="form.reopen_time"
+                                       class="w-full px-3.5 py-2.5 bg-[#FAF7F2] border border-[#E4DCCC] text-xs text-[#1F1812] font-mono rounded-xl focus:outline-none focus:border-[#D9973E] font-bold shadow-inner">
+                            </div>
+                            <p class="text-[10px] text-[#A89A85] font-mono">
+                                Default: <strong>06:00 WIB</strong> (pagi hari).
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="p-3.5 bg-[#FAF7F2] border border-[#E4DCCC] rounded-xl text-xs space-y-1.5 text-[#7A6A58]">
+                        <div class="flex items-center gap-2 text-[#1F1812] font-mono font-bold text-[11px]">
+                            <span class="text-sm">🛡️</span>
+                            <span>Pengamanan Otomatis Aktif:</span>
+                        </div>
+                        <ul class="list-disc list-inside space-y-1 text-[11px] text-[#5C4D3C]">
+                            <li>Tepat pada jam tutup, pemutar audio akan otomatis di-<strong>Pause</strong> dan status jeda dikirim ke Display TV.</li>
+                            <li>Lagu antrean yang berakhir pada rentang jam tutup <strong>tidak akan memutar lagu berikutnya secara otomatis</strong>.</li>
+                            <li>Jika kasir menutup tab browser, status server langsung disetel ke <strong>Pause</strong> untuk keamanan.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
             <!-- TOMBOL SIMPAN AKSI -->
             <div class="pt-2">
                 <button type="button"
@@ -710,6 +777,9 @@ function announcerSettingsManager(initialSettings) {
             adzan_mode_enabled: initialSettings.adzan_mode_enabled !== undefined ? !!initialSettings.adzan_mode_enabled : true,
             adzan_target_volume: parseInt(initialSettings.adzan_target_volume ?? 10),
             adzan_duration_minutes: parseInt(initialSettings.adzan_duration_minutes ?? 5),
+            auto_pause_midnight: initialSettings.auto_pause_midnight !== undefined ? !!initialSettings.auto_pause_midnight : true,
+            closing_time: initialSettings.closing_time || '00:00',
+            reopen_time: initialSettings.reopen_time || '06:00',
         },
         sampleName: 'Budi',
         sampleCode: '42',

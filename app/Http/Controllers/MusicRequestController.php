@@ -203,11 +203,25 @@ class MusicRequestController extends Controller
     {
         $state = $this->musicService->getPlayerState();
         $readyOrders = Order::prepReady()->select('id', 'code', 'customer_name', 'order_type', 'prep_status')->get();
+
+        $master = Cache::get('soundstation_master_host');
+        $isMasterAlive = false;
+        if ($master && ! empty($master['updated_at'])) {
+            $isMasterAlive = (now()->timestamp - $master['updated_at']) < 25;
+        }
+
         $playback = Cache::get('soundstation_playback_state');
 
-        if ($playback && (! isset($playback['duration']) || (float) $playback['duration'] <= 0)) {
-            if (! empty($state['now_playing']['duration_seconds'])) {
-                $playback['duration'] = (float) $state['now_playing']['duration_seconds'];
+        // Jika Master Host mati / tidak ada heartbeat selama lebih dari 25 detik,
+        // paksa is_playing = false agar display TV tidak menampilkan status bermain saat kasir tutup/mati
+        if ($playback && is_array($playback)) {
+            if (! $isMasterAlive && ! empty($playback['is_playing'])) {
+                $playback['is_playing'] = false;
+            }
+            if (! isset($playback['duration']) || (float) $playback['duration'] <= 0) {
+                if (! empty($state['now_playing']['duration_seconds'])) {
+                    $playback['duration'] = (float) $state['now_playing']['duration_seconds'];
+                }
             }
         }
 
@@ -223,6 +237,22 @@ class MusicRequestController extends Controller
                 'duration_minutes' => (int) ($manualAdzan['duration_minutes'] ?? $adzanDuration),
                 'is_manual' => true,
             ];
+        }
+
+        $autoPauseClosing = ! empty($voiceSettings['auto_pause_midnight'] ?? true);
+        $closingTimeStr = $voiceSettings['closing_time'] ?? '00:00';
+        $reopenTimeStr = $voiceSettings['reopen_time'] ?? '06:00';
+
+        // Tentukan apakah waktu saat ini (WIB Asia/Jakarta) berada di rentang toko tutup
+        $nowWib = now()->setTimezone('Asia/Jakarta');
+        $currentWibTime = $nowWib->format('H:i');
+        $isStoreClosed = false;
+        if ($autoPauseClosing) {
+            if ($closingTimeStr < $reopenTimeStr) {
+                $isStoreClosed = ($currentWibTime >= $closingTimeStr && $currentWibTime < $reopenTimeStr);
+            } else {
+                $isStoreClosed = ($currentWibTime >= $closingTimeStr || $currentWibTime < $reopenTimeStr);
+            }
         }
 
         return response()->json([
@@ -242,6 +272,12 @@ class MusicRequestController extends Controller
                 'enabled' => ! empty($voiceSettings['adzan_mode_enabled'] ?? true),
                 'target_volume' => (int) ($voiceSettings['adzan_target_volume'] ?? 10),
                 'duration_minutes' => $adzanDuration,
+            ],
+            'closing_settings' => [
+                'auto_pause_enabled' => $autoPauseClosing,
+                'closing_time' => $closingTimeStr,
+                'reopen_time' => $reopenTimeStr,
+                'is_store_closed' => $isStoreClosed,
             ],
         ]);
     }

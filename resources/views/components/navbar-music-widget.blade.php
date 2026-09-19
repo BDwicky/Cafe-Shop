@@ -475,6 +475,30 @@ function navbarMusicWidget() {
             return {{ \App\Http\Controllers\KasirMusicController::getActiveAnnouncerSettings()['adzan_mode_enabled'] ? 'true' : 'false' }};
         })(),
 
+        // AUTO-PAUSE JAM TUTUP TOKO (00:00 WIB)
+        autoPauseClosingEnabled: (() => {
+            try {
+                const saved = JSON.parse(localStorage.getItem('pos_soundstation_announcer_settings') || 'null');
+                if (saved && typeof saved.auto_pause_midnight !== 'undefined') return !!saved.auto_pause_midnight;
+            } catch (e) {}
+            return {{ \App\Http\Controllers\KasirMusicController::getActiveAnnouncerSettings()['auto_pause_midnight'] ? 'true' : 'false' }};
+        })(),
+        closingTime: (() => {
+            try {
+                const saved = JSON.parse(localStorage.getItem('pos_soundstation_announcer_settings') || 'null');
+                if (saved && saved.closing_time) return saved.closing_time;
+            } catch (e) {}
+            return '{{ \App\Http\Controllers\KasirMusicController::getActiveAnnouncerSettings()['closing_time'] ?? '00:00' }}';
+        })(),
+        reopenTime: (() => {
+            try {
+                const saved = JSON.parse(localStorage.getItem('pos_soundstation_announcer_settings') || 'null');
+                if (saved && saved.reopen_time) return saved.reopen_time;
+            } catch (e) {}
+            return '{{ \App\Http\Controllers\KasirMusicController::getActiveAnnouncerSettings()['reopen_time'] ?? '06:00' }}';
+        })(),
+        _hasAutoPausedTonight: false,
+
         voiceAnnouncerEnabled: true,
         isAnnouncing: false,
         duckedVolume: (() => {
@@ -1023,6 +1047,7 @@ function navbarMusicWidget() {
             this.fetchPrayerSchedule();
             setInterval(() => this.fetchPrayerSchedule(), 1800000);
             setInterval(() => this.checkPrayerTimeAdzan(), 10000);
+            setInterval(() => this.checkClosingTimeAutoPause(), 10000);
 
             // Progress ticker setiap 300ms (High-frequency timeline ticker)
             setInterval(() => this.tickPlayback(), 300);
@@ -1043,7 +1068,7 @@ function navbarMusicWidget() {
                 if (this.isMasterHost) {
                     try {
                         localStorage.setItem('pos_soundstation_state', JSON.stringify({
-                            isPlaying: this.isPlaying,
+                            isPlaying: false, // Jeda otomatis saat tab kasir ditutup
                             currentTrack: this.currentTrack,
                             currentTime: this.currentTime,
                             duration: this.duration,
@@ -1060,11 +1085,11 @@ function navbarMusicWidget() {
                                 tabId: this.myTabId,
                                 lastTrack: this.currentTrack,
                                 lastTime: this.currentTime,
-                                wasPlaying: this.isPlaying
+                                wasPlaying: false
                             });
                         }
 
-                        // Beritahu server untuk melepaskan master lock secara asynchronous tanpa menunda navigasi
+                        // Beritahu server untuk melepaskan master lock & jeda playback secara asynchronous tanpa menunda navigasi
                         fetch('{{ route('kasir.music.master.release') }}', {
                             method: 'POST',
                             keepalive: true,
@@ -1184,6 +1209,40 @@ function navbarMusicWidget() {
                         } else if (event.data === 0) {
                             this.clearPlaybackWatchdog();
                             this.isPlaying = false;
+                            if (this.isStoreClosedNow()) {
+                                console.warn('[SoundStation] Lagu berakhir saat jam tutup kafe (' + (this.closingTime || '00:00') + ' WIB). Pemutar musik otomatis berhenti/jeda.');
+                                if (this.currentRequestId) {
+                                    fetch('{{ route('kasir.music.next') }}', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                        },
+                                        body: JSON.stringify({
+                                            finish_request_id: this.currentRequestId,
+                                            last_default_track_id: this.lastDefaultTrackId
+                                        })
+                                    }).catch(() => {});
+                                    this.currentRequestId = null;
+                                }
+                                this.broadcastSync();
+                                this.broadcastTimeSync(true);
+                                fetch('{{ route('kasir.music.playback.sync') }}', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                                    },
+                                    body: JSON.stringify({
+                                        client_id: this.myTabId,
+                                        current_time: this.duration,
+                                        duration: this.duration,
+                                        is_playing: false,
+                                        current_track: this.currentTrack
+                                    })
+                                }).catch(() => {});
+                                return;
+                            }
                             if (!this.isTransitioningTrack) {
                                 this.playNextTrack(this.currentRequestId);
                             }
@@ -1868,11 +1927,30 @@ function navbarMusicWidget() {
                 this.isPlaying = false;
                 this.player.pauseVideo();
             } else {
+                if (this.isStoreClosedNow()) {
+                    this._hasAutoPausedTonight = true;
+                }
                 this.isPlaying = true;
                 this.player.playVideo();
             }
             this.broadcastSync();
             this.broadcastTimeSync(true);
+
+            // Sinkronkan state play/pause langsung ke server untuk Display TV
+            fetch('{{ route('kasir.music.playback.sync') }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    client_id: this.myTabId,
+                    current_time: (typeof this.player.getCurrentTime === 'function') ? this.player.getCurrentTime() : this.currentTime,
+                    duration: this.duration,
+                    is_playing: this.isPlaying,
+                    current_track: this.currentTrack
+                })
+            }).catch(() => {});
         },
 
         async skipTrackConfirm() {
@@ -2251,10 +2329,91 @@ function navbarMusicWidget() {
                         this.adzanModeEnabled = !!data.settings.enabled;
                         this.adzanTargetVolume = Number(data.settings.target_volume ?? 10);
                         this.adzanDurationMinutes = Number(data.settings.duration_minutes ?? 5);
+                        if (typeof data.settings.auto_pause_midnight !== 'undefined') {
+                            this.autoPauseClosingEnabled = !!data.settings.auto_pause_midnight;
+                        }
+                        if (data.settings.closing_time) {
+                            this.closingTime = data.settings.closing_time;
+                        }
+                        if (data.settings.reopen_time) {
+                            this.reopenTime = data.settings.reopen_time;
+                        }
                     }
                     this.checkPrayerTimeAdzan();
+                    this.checkClosingTimeAutoPause();
                 }
             } catch (e) {}
+        },
+
+        isStoreClosedNow() {
+            if (!this.autoPauseClosingEnabled) return false;
+            const now = new Date();
+            const wibStr = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Jakarta', hour12: false });
+            const [ch, cm] = wibStr.split(':').map(Number);
+            const currentTotalMin = ch * 60 + cm;
+
+            const [closeH, closeM] = (this.closingTime || '00:00').split(':').map(Number);
+            const [reopenH, reopenM] = (this.reopenTime || '06:00').split(':').map(Number);
+            const closeMin = closeH * 60 + closeM;
+            const reopenMin = reopenH * 60 + reopenM;
+
+            if (closeMin < reopenMin) {
+                return currentTotalMin >= closeMin && currentTotalMin < reopenMin;
+            } else {
+                return currentTotalMin >= closeMin || currentTotalMin < reopenMin;
+            }
+        },
+
+        checkClosingTimeAutoPause() {
+            if (!this.autoPauseClosingEnabled) return;
+
+            const isClosed = this.isStoreClosedNow();
+
+            // Reset flag _hasAutoPausedTonight jika toko sudah memasuki jam buka kembali
+            if (!isClosed) {
+                this._hasAutoPausedTonight = false;
+                return;
+            }
+
+            // Jika toko tutup, pemutar sedang aktif di Master Host, dan belum di-auto-pause malam ini:
+            if (this.isMasterHost && this.isPlaying && !this._hasAutoPausedTonight) {
+                this._hasAutoPausedTonight = true;
+                this.isPlaying = false;
+                if (this.player && typeof this.player.pauseVideo === 'function') {
+                    try {
+                        this.player.pauseVideo();
+                    } catch (e) {}
+                }
+
+                console.warn('[SoundStation Auto-Pause] Jam operasional kafe selesai (' + (this.closingTime || '00:00') + ' WIB). Pemutar musik otomatis dijeda.');
+
+                if (window.customToast) {
+                    window.customToast({
+                        message: '🌙 Jam Operasional Selesai (' + (this.closingTime || '00:00') + ' WIB). Pemutar musik otomatis dijeda untuk penutupan toko.',
+                        type: 'info',
+                        duration: 8000
+                    });
+                }
+
+                this.broadcastSync();
+                this.broadcastTimeSync(true);
+
+                // Sinkronkan state pause ke server dan display TV
+                fetch('{{ route('kasir.music.playback.sync') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        client_id: this.myTabId,
+                        current_time: this.currentTime,
+                        duration: this.duration,
+                        is_playing: false,
+                        current_track: this.currentTrack
+                    })
+                }).catch(() => {});
+            }
         },
 
         checkPrayerTimeAdzan() {
@@ -2530,6 +2689,15 @@ function navbarMusicWidget() {
             }
             if (typeof settings.adzan_mode_enabled !== 'undefined') {
                 this.adzanModeEnabled = !!settings.adzan_mode_enabled;
+            }
+            if (typeof settings.auto_pause_midnight !== 'undefined') {
+                this.autoPauseClosingEnabled = !!settings.auto_pause_midnight;
+            }
+            if (typeof settings.closing_time !== 'undefined' && settings.closing_time) {
+                this.closingTime = settings.closing_time;
+            }
+            if (typeof settings.reopen_time !== 'undefined' && settings.reopen_time) {
+                this.reopenTime = settings.reopen_time;
             }
             try {
                 localStorage.setItem('pos_soundstation_announcer_settings', JSON.stringify(this.announcerSettings));

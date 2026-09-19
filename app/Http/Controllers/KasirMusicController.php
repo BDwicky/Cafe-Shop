@@ -779,6 +779,15 @@ class KasirMusicController extends Controller
             Cache::forget('soundstation_master_host');
         }
 
+        // Pastikan status playback di cache juga langsung disetel is_playing = false
+        // agar display TV dan remote langsung beralih ke mode jeda/standby
+        $playback = Cache::get('soundstation_playback_state');
+        if (is_array($playback)) {
+            $playback['is_playing'] = false;
+            $playback['updated_at'] = (int) round(microtime(true) * 1000);
+            Cache::put('soundstation_playback_state', $playback, now()->addMinutes(2));
+        }
+
         return response()->json(['status' => 'released']);
     }
 
@@ -850,6 +859,9 @@ class KasirMusicController extends Controller
             'adzan_mode_enabled' => true,
             'adzan_target_volume' => 10,
             'adzan_duration_minutes' => 5, // Cukup selama adzan berlangsung (~5 menit)
+            'auto_pause_midnight' => true, // Jeda otomatis saat jam tutup kafe
+            'closing_time' => '00:00', // Waktu tutup kafe (default 00:00 WIB)
+            'reopen_time' => '06:00', // Waktu buka kembali kafe (default 06:00 WIB)
         ];
     }
 
@@ -895,12 +907,18 @@ class KasirMusicController extends Controller
             'adzan_mode_enabled' => ['nullable', 'boolean'],
             'adzan_target_volume' => ['nullable', 'integer', 'min:0', 'max:50'],
             'adzan_duration_minutes' => ['nullable', 'integer', 'min:2', 'max:15'],
+            'auto_pause_midnight' => ['nullable', 'boolean'],
+            'closing_time' => ['nullable', 'string', 'regex:/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/'],
+            'reopen_time' => ['nullable', 'string', 'regex:/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/'],
         ]);
 
         $settings = array_merge(self::getDefaultAnnouncerSettings(), $validated);
-        // Pastikan boolean adzan_mode_enabled tersimpan dengan benar jika tidak tercentang pada form biasa
+        // Pastikan boolean adzan_mode_enabled & auto_pause_midnight tersimpan dengan benar jika tidak tercentang pada form biasa
         if (! $request->has('adzan_mode_enabled') && ! $request->expectsJson()) {
             $settings['adzan_mode_enabled'] = false;
+        }
+        if (! $request->has('auto_pause_midnight') && ! $request->expectsJson()) {
+            $settings['auto_pause_midnight'] = false;
         }
 
         Cache::forever('soundstation_voice_settings', $settings);
@@ -955,6 +973,9 @@ class KasirMusicController extends Controller
                 'enabled' => ! empty($voiceSettings['adzan_mode_enabled']),
                 'target_volume' => (int) ($voiceSettings['adzan_target_volume'] ?? 10),
                 'duration_minutes' => $duration,
+                'auto_pause_midnight' => ! empty($voiceSettings['auto_pause_midnight'] ?? true),
+                'closing_time' => $voiceSettings['closing_time'] ?? '00:00',
+                'reopen_time' => $voiceSettings['reopen_time'] ?? '06:00',
             ],
         ]);
     }

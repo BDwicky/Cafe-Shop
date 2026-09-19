@@ -676,7 +676,10 @@
                         }
 
                         if (data.playback) {
-                            const newIsPlaying = typeof data.playback.is_playing !== 'undefined' ? !!data.playback.is_playing : true;
+                            let newIsPlaying = typeof data.playback.is_playing !== 'undefined' ? !!data.playback.is_playing : true;
+                            if (data.closing_settings && data.closing_settings.is_store_closed && !data.playback.is_playing) {
+                                newIsPlaying = false;
+                            }
                             const playStateChanged = this.isPlaying !== newIsPlaying;
                             this.isPlaying = newIsPlaying;
 

@@ -1116,4 +1116,63 @@ class MusicRequestTest extends TestCase
         $this->assertEquals('Bawaan', $secondItem['badge']);
         $this->assertFalse($secondItem['is_request']);
     }
+
+    public function test_release_master_host_sets_playback_to_paused(): void
+    {
+        $user = User::factory()->create();
+
+        Cache::put('soundstation_master_host', [
+            'client_id' => 'tab_cashier_closing',
+            'device_name' => 'PC Kasir',
+            'updated_at' => now()->timestamp,
+        ], 30);
+
+        Cache::put('soundstation_playback_state', [
+            'current_time' => 120.0,
+            'duration' => 240,
+            'is_playing' => true,
+            'client_id' => 'tab_cashier_closing',
+        ]);
+
+        $response = $this->actingAs($user)->postJson(route('kasir.music.master.release'), [
+            'client_id' => 'tab_cashier_closing',
+        ]);
+
+        $response->assertOk()
+            ->assertJsonPath('status', 'released');
+
+        $this->assertNull(Cache::get('soundstation_master_host'));
+        $playback = Cache::get('soundstation_playback_state');
+        $this->assertNotNull($playback);
+        $this->assertFalse($playback['is_playing']);
+    }
+
+    public function test_status_endpoint_returns_closing_settings_and_safeguards_stale_master(): void
+    {
+        // 1. Simulasikan master host mati (> 25 detik yang lalu)
+        Cache::put('soundstation_master_host', [
+            'client_id' => 'tab_stale_cashier',
+            'updated_at' => now()->subSeconds(30)->timestamp,
+        ], 30);
+
+        Cache::put('soundstation_playback_state', [
+            'current_time' => 50.0,
+            'duration' => 200,
+            'is_playing' => true,
+        ]);
+
+        Cache::put('soundstation_voice_settings', [
+            'auto_pause_midnight' => true,
+            'closing_time' => '00:00',
+            'reopen_time' => '06:00',
+        ]);
+
+        $response = $this->getJson(route('music.status'));
+
+        $response->assertOk()
+            ->assertJsonPath('playback.is_playing', false)
+            ->assertJsonPath('closing_settings.auto_pause_enabled', true)
+            ->assertJsonPath('closing_settings.closing_time', '00:00')
+            ->assertJsonPath('closing_settings.reopen_time', '06:00');
+    }
 }
