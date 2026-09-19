@@ -538,24 +538,27 @@
                             Durasi Mode Adzan:
                         </label>
                         <div class="grid grid-cols-3 gap-2">
-                            <label class="p-2.5 border-2 rounded-xl text-center cursor-pointer transition text-xs font-mono"
-                                   :class="form.adzan_duration_minutes == 3 ? 'border-[#5F7F42] bg-[#5F7F42]/10 font-bold text-[#1F1812]' : 'border-[#E4DCCC] hover:border-[#5F7F42]/50 text-[#7A6A58]'">
-                                <input type="radio" value="3" x-model="form.adzan_duration_minutes" class="sr-only">
+                            <button type="button"
+                                    @click="form.adzan_duration_minutes = 3"
+                                    class="p-2.5 border-2 rounded-xl text-center cursor-pointer transition text-xs font-mono select-none active:scale-98"
+                                    :class="form.adzan_duration_minutes == 3 ? 'border-[#5F7F42] bg-[#5F7F42]/10 font-bold text-[#1F1812]' : 'border-[#E4DCCC] hover:border-[#5F7F42]/50 text-[#7A6A58]'">
                                 <div>3 Menit</div>
                                 <div class="text-[9px] text-[#A89A85]">Singkat</div>
-                            </label>
-                            <label class="p-2.5 border-2 rounded-xl text-center cursor-pointer transition text-xs font-mono"
-                                   :class="form.adzan_duration_minutes == 5 ? 'border-[#5F7F42] bg-[#5F7F42]/10 font-bold text-[#1F1812]' : 'border-[#E4DCCC] hover:border-[#5F7F42]/50 text-[#7A6A58]'">
-                                <input type="radio" value="5" x-model="form.adzan_duration_minutes" class="sr-only">
+                            </button>
+                            <button type="button"
+                                    @click="form.adzan_duration_minutes = 5"
+                                    class="p-2.5 border-2 rounded-xl text-center cursor-pointer transition text-xs font-mono select-none active:scale-98"
+                                    :class="form.adzan_duration_minutes == 5 ? 'border-[#5F7F42] bg-[#5F7F42]/10 font-bold text-[#1F1812]' : 'border-[#E4DCCC] hover:border-[#5F7F42]/50 text-[#7A6A58]'">
                                 <div>5 Menit</div>
                                 <div class="text-[9px] text-[#5F7F42] font-bold">Cukup Adzan Saja</div>
-                            </label>
-                            <label class="p-2.5 border-2 rounded-xl text-center cursor-pointer transition text-xs font-mono"
-                                   :class="form.adzan_duration_minutes == 7 ? 'border-[#5F7F42] bg-[#5F7F42]/10 font-bold text-[#1F1812]' : 'border-[#E4DCCC] hover:border-[#5F7F42]/50 text-[#7A6A58]'">
-                                <input type="radio" value="7" x-model="form.adzan_duration_minutes" class="sr-only">
+                            </button>
+                            <button type="button"
+                                    @click="form.adzan_duration_minutes = 7"
+                                    class="p-2.5 border-2 rounded-xl text-center cursor-pointer transition text-xs font-mono select-none active:scale-98"
+                                    :class="form.adzan_duration_minutes == 7 ? 'border-[#5F7F42] bg-[#5F7F42]/10 font-bold text-[#1F1812]' : 'border-[#E4DCCC] hover:border-[#5F7F42]/50 text-[#7A6A58]'">
                                 <div>7 Menit</div>
                                 <div class="text-[9px] text-[#A89A85]">Adzan + Doa</div>
-                            </label>
+                            </button>
                         </div>
                     </div>
 

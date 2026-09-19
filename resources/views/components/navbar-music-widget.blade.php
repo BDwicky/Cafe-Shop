@@ -448,6 +448,7 @@ function navbarMusicWidget() {
         prayerSchedule: null,
         isAdzanMode: false,
         isManualAdzan: false,
+        _isTestAdzan: false,
         manualAdzanTimer: null,
         activePrayerName: '',
         preAdzanVolume: null,
@@ -1084,7 +1085,8 @@ function navbarMusicWidget() {
                 events: {
                     'onReady': () => {
                         this.playerReady = true;
-                        this.player.setVolume(this.volume);
+                        const initialVol = this.isAdzanMode ? Math.max(0, Math.min(100, this.adzanTargetVolume ?? 10)) : this.volume;
+                        this.player.setVolume(initialVol);
                         if (this.isMuted) this.player.mute();
 
                         if (this.currentTrack && this.currentTrack.youtube_id) {
@@ -1590,9 +1592,10 @@ function navbarMusicWidget() {
             this.isTransitioningTrack = false;
             await this.playNextTrack();
 
-            // 5. Fade-in audio ke volume normal dalam 1.5 detik
+            // 5. Fade-in audio ke volume target dalam 1.5 detik (menghormati mode adzan jika aktif)
             if (this.player && this.playerReady) {
-                await this.fadeAudio(0, this.volume, 1500);
+                const returnVol = this.isAdzanMode ? Math.max(0, Math.min(100, this.adzanTargetVolume ?? 10)) : this.volume;
+                await this.fadeAudio(0, returnVol, 1500);
             }
         },
 
@@ -1652,6 +1655,12 @@ function navbarMusicWidget() {
                         }
                         this.isPlaying = true;
                         document.title = '♫ ' + track.title + ' — POS';
+
+                        // Kunci volume jika sedang dalam mode adzan
+                        if (this.isAdzanMode) {
+                            const targetVol = Math.max(0, Math.min(100, this.adzanTargetVolume ?? 10));
+                            this.player.setVolume(targetVol);
+                        }
 
                         // Watchdog: jika dalam 7 detik player tidak masuk ke state PLAYING (1), video mungkin diblokir diam-diam
                         this.playbackWatchdog = setTimeout(() => {
@@ -1919,7 +1928,8 @@ function navbarMusicWidget() {
                         const nowVol = (this.player && typeof this.player.getVolume === 'function')
                             ? this.player.getVolume()
                             : duckVol;
-                        await this.fadeAudio(nowVol, this.volume, 2000);
+                        const returnVol = this.isAdzanMode ? Math.max(0, Math.min(100, this.adzanTargetVolume ?? 10)) : this.volume;
+                        await this.fadeAudio(nowVol, returnVol, 2000);
                         this.isAnnouncing = false;
                         this.broadcastSync();
                     }, 400);
@@ -2154,7 +2164,9 @@ function navbarMusicWidget() {
                 if (!this.isAdzanMode) {
                     this.isAdzanMode = true;
                     this.activePrayerName = activePrayer.name;
-                    this.preAdzanVolume = (this.volume && this.volume > 0) ? this.volume : 75;
+                    if (this.preAdzanVolume === null || this.preAdzanVolume <= (this.adzanTargetVolume ?? 10)) {
+                        this.preAdzanVolume = (this.volume && this.volume > 15) ? this.volume : (parseInt(localStorage.getItem('pos_music_volume') || '75'));
+                    }
 
                     const targetVol = Math.max(0, Math.min(100, this.adzanTargetVolume ?? 10));
 
@@ -2183,11 +2195,11 @@ function navbarMusicWidget() {
                     }
                 }
             } else {
-                if (this.isAdzanMode && !this.isManualAdzan) {
+                if (this.isAdzanMode && !this.isManualAdzan && !this._isTestAdzan) {
                     const finishedPrayer = this.activePrayerName || 'Adzan';
                     this.isAdzanMode = false;
                     this.activePrayerName = '';
-                    const restoreVol = (this.preAdzanVolume !== null && this.preAdzanVolume > 0) ? this.preAdzanVolume : 75;
+                    const restoreVol = (this.preAdzanVolume !== null && this.preAdzanVolume > 15) ? this.preAdzanVolume : 75;
 
                     // Tampilkan Toast Notifikasi Selesai
                     if (window.customToast) {
@@ -2218,6 +2230,15 @@ function navbarMusicWidget() {
         },
 
         toggleManualAdzanMode(forceAction = null) {
+            // Idempotency: jika sudah aktif dan disuruh start lagi, abaikan
+            if (forceAction === 'start' && this.isAdzanMode && this.isManualAdzan) {
+                return;
+            }
+            // Idempotency: jika sudah mati dan disuruh stop lagi, abaikan
+            if (forceAction === 'stop' && !this.isAdzanMode) {
+                return;
+            }
+
             const shouldStart = (forceAction === 'start') || (forceAction === null && !this.isAdzanMode);
 
             if (shouldStart) {
@@ -2255,7 +2276,9 @@ function navbarMusicWidget() {
                 this.isAdzanMode = true;
                 this.isManualAdzan = true;
                 this.activePrayerName = prayerName;
-                this.preAdzanVolume = (this.volume && this.volume > 0) ? this.volume : (parseInt(localStorage.getItem('pos_music_volume') || '75'));
+                if (this.preAdzanVolume === null || this.preAdzanVolume <= (this.adzanTargetVolume ?? 10)) {
+                    this.preAdzanVolume = (this.volume && this.volume > 15) ? this.volume : (parseInt(localStorage.getItem('pos_music_volume') || '75'));
+                }
                 const targetVol = Math.max(0, Math.min(100, this.adzanTargetVolume ?? 10));
 
                 if (window.customToast) {
@@ -2282,7 +2305,7 @@ function navbarMusicWidget() {
                     });
                 }
 
-                // Sync ke server cache agar TV Display dan semua client langsung otomatis mendeteksi
+                // Sync ke server cache agar TV Display dan semua client langsung otomatis mendeteksi (sertakan client_id agar master tidak merefleksikan perintahnya sendiri)
                 try {
                     fetch('{{ route('kasir.music.master.command') }}', {
                         method: 'POST',
@@ -2291,6 +2314,7 @@ function navbarMusicWidget() {
                             'X-CSRF-TOKEN': '{{ csrf_token() }}'
                         },
                         body: JSON.stringify({
+                            client_id: this.myTabId,
                             command: 'TOGGLE_MANUAL_ADZAN',
                             data: {
                                 action: 'start',
@@ -2318,7 +2342,7 @@ function navbarMusicWidget() {
                 this.isAdzanMode = false;
                 this.isManualAdzan = false;
                 this.activePrayerName = '';
-                const restoreVol = (this.preAdzanVolume !== null && this.preAdzanVolume > 0) ? this.preAdzanVolume : 75;
+                const restoreVol = (this.preAdzanVolume !== null && this.preAdzanVolume > 15) ? this.preAdzanVolume : 75;
 
                 if (window.customToast) {
                     window.customToast({
@@ -2351,6 +2375,7 @@ function navbarMusicWidget() {
                             'X-CSRF-TOKEN': '{{ csrf_token() }}'
                         },
                         body: JSON.stringify({
+                            client_id: this.myTabId,
                             command: 'TOGGLE_MANUAL_ADZAN',
                             data: {
                                 action: 'stop'
@@ -2366,8 +2391,11 @@ function navbarMusicWidget() {
         triggerTestAdzanMode() {
             const samplePrayer = 'Maghrib';
             this.isAdzanMode = true;
+            this._isTestAdzan = true;
             this.activePrayerName = samplePrayer;
-            this.preAdzanVolume = (this.volume && this.volume > 0) ? this.volume : 75;
+            if (this.preAdzanVolume === null || this.preAdzanVolume <= (this.adzanTargetVolume ?? 10)) {
+                this.preAdzanVolume = (this.volume && this.volume > 15) ? this.volume : (parseInt(localStorage.getItem('pos_music_volume') || '75'));
+            }
             const targetVol = Math.max(0, Math.min(100, this.adzanTargetVolume ?? 10));
 
             if (window.customToast) {
@@ -2394,7 +2422,8 @@ function navbarMusicWidget() {
 
             setTimeout(() => {
                 this.isAdzanMode = false;
-                const restoreVol = this.preAdzanVolume || 75;
+                this._isTestAdzan = false;
+                const restoreVol = (this.preAdzanVolume !== null && this.preAdzanVolume > 15) ? this.preAdzanVolume : 75;
                 if (window.customToast) {
                     window.customToast({
                         message: '✓ [UJI COBA] Waktu adzan selesai. Volume musik dikembalikan ke ' + restoreVol + '%.',

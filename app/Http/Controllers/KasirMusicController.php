@@ -732,21 +732,30 @@ class KasirMusicController extends Controller
             }
         }
 
-        $commands = Cache::get('soundstation_pending_commands', []);
-        if (! is_array($commands)) {
-            $commands = [];
+        // Cek apakah perintah dikirim oleh Master Host itu sendiri
+        $senderClientId = $request->input('client_id');
+        $master = Cache::get('soundstation_master_host');
+        $isFromMaster = $master && ! empty($master['client_id']) && $senderClientId && ($master['client_id'] === $senderClientId);
+
+        // Jika perintah dikirim oleh Master Host untuk sinkronisasi cache status (misal TOGGLE_MANUAL_ADZAN),
+        // jangan masukkan ke pending commands agar Master Host tidak menarik dan mengeksekusi ulang perintahnya sendiri pada heartbeat
+        if (! $isFromMaster) {
+            $commands = Cache::get('soundstation_pending_commands', []);
+            if (! is_array($commands)) {
+                $commands = [];
+            }
+
+            $commands[] = [
+                'id' => uniqid('cmd_', true),
+                'command' => $validated['command'],
+                'data' => $validated['data'] ?? [],
+                'created_at' => now()->timestamp,
+            ];
+
+            // Batasi maksimal 20 perintah antrean dan simpan selama 30 detik
+            $commands = array_slice($commands, -20);
+            Cache::put('soundstation_pending_commands', $commands, now()->addSeconds(30));
         }
-
-        $commands[] = [
-            'id' => uniqid('cmd_', true),
-            'command' => $validated['command'],
-            'data' => $validated['data'] ?? [],
-            'created_at' => now()->timestamp,
-        ];
-
-        // Batasi maksimal 20 perintah antrean dan simpan selama 30 detik
-        $commands = array_slice($commands, -20);
-        Cache::put('soundstation_pending_commands', $commands, now()->addSeconds(30));
 
         return response()->json([
             'status' => 'queued',
@@ -919,10 +928,21 @@ class KasirMusicController extends Controller
             Cache::get('soundstation_voice_settings', [])
         );
         $duration = (int) ($voiceSettings['adzan_duration_minutes'] ?? 5);
+        $scheduleData = PrayerTimeService::getSchedule(null, $duration);
+        $manualAdzan = Cache::get('soundstation_manual_adzan');
+
+        if ($manualAdzan && ! empty($manualAdzan['active'])) {
+            $scheduleData['active_prayer'] = [
+                'name' => $manualAdzan['prayer'] ?? 'Waktu Adzan',
+                'time' => date('H:i', $manualAdzan['started_at'] ?? time()),
+                'duration_minutes' => (int) ($manualAdzan['duration_minutes'] ?? $duration),
+                'is_manual' => true,
+            ];
+        }
 
         return response()->json([
             'success' => true,
-            'data' => PrayerTimeService::getSchedule(null, $duration),
+            'data' => $scheduleData,
             'settings' => [
                 'enabled' => ! empty($voiceSettings['adzan_mode_enabled']),
                 'target_volume' => (int) ($voiceSettings['adzan_target_volume'] ?? 10),
