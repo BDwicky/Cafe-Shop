@@ -108,12 +108,13 @@
 
                 <!-- Navigasi Menu Kasir (Auto-close overlay saat link diklik) -->
                 <nav class="p-3 space-y-1" @click="if ($event.target.closest('a')) { terminalSidebarOpen = false; mobileNavOpen = false; }">
+                    <!-- 1. OPERASIONAL -->
                     <div class="px-2 pt-2 pb-1.5 flex items-center gap-2">
-                        <span class="font-mono text-[9px] uppercase tracking-[0.25em] text-[#8A7B66] font-semibold">Navigasi Utama</span>
+                        <span class="font-mono text-[9px] uppercase tracking-[0.25em] text-[#8A7B66] font-semibold">Operasional</span>
                         <span class="flex-1 h-px bg-[#32261C]"></span>
                     </div>
 
-                    <!-- 1. Terminal Kasir -->
+                    <!-- Terminal Kasir (POS) -->
                     <a href="{{ route('kasir.terminal') }}"
                        class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.terminal') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
                         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -122,43 +123,7 @@
                         <span>Terminal (POS)</span>
                     </a>
 
-                    <!-- 2. Riwayat Transaksi -->
-                    <a href="{{ route('kasir.orders.index') }}"
-                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.orders.*') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
-                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
-                        </svg>
-                        <span>Riwayat Pesanan</span>
-                    </a>
-
-                    <!-- 3. Kelola Menu -->
-                    <a href="{{ route('kasir.menu.index') }}"
-                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.menu.*') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
-                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
-                        </svg>
-                        <span>Kelola Menu</span>
-                    </a>
-
-                    <!-- 3b. Kupon Diskon -->
-                    <a href="{{ route('kasir.promos.index') }}"
-                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.promos.*') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
-                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
-                        </svg>
-                        <span>Kupon Diskon</span>
-                    </a>
-
-                    <!-- 4. Laporan Penjualan -->
-                    <a href="{{ route('kasir.laporan') }}"
-                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.laporan') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
-                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                        </svg>
-                        <span>Laporan Kasir</span>
-                    </a>
-
-                    <!-- 5. Kitchen Display System (KDS) -->
+                    <!-- Layar Dapur (KDS) -->
                     <a href="{{ route('kasir.kitchen.index') }}"
                        class="flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.kitchen.*') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
                         <div class="flex items-center gap-3">
@@ -173,7 +138,103 @@
                         </template>
                     </a>
 
-                    <!-- 6. Sound Station (Musik Kafe) -->
+                    <!-- Riwayat Pesanan -->
+                    <a href="{{ route('kasir.orders.index') }}"
+                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.orders.*') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+                        </svg>
+                        <span>Riwayat Pesanan</span>
+                    </a>
+
+                    <!-- 2. KATALOG & PROMOSI -->
+                    <div class="px-2 pt-3 pb-1.5 flex items-center gap-2">
+                        <span class="font-mono text-[9px] uppercase tracking-[0.25em] text-[#8A7B66] font-semibold">Katalog & Promo</span>
+                        <span class="flex-1 h-px bg-[#32261C]"></span>
+                    </div>
+
+                    <!-- Kelola Menu -->
+                    <a href="{{ route('kasir.menu.index') }}"
+                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.menu.*') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                        </svg>
+                        <span>Kelola Menu</span>
+                    </a>
+
+                    <!-- Kupon Diskon -->
+                    <a href="{{ route('kasir.promos.index') }}"
+                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.promos.*') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                        </svg>
+                        <span>Kupon Diskon</span>
+                    </a>
+
+                    <!-- 3. INVENTARIS & BAHAN BAKU -->
+                    <div class="px-2 pt-3 pb-1.5 flex items-center gap-2">
+                        <span class="font-mono text-[9px] uppercase tracking-[0.25em] text-[#8A7B66] font-semibold">Inventaris & Resep</span>
+                        <span class="flex-1 h-px bg-[#32261C]"></span>
+                    </div>
+
+                    <!-- Stok Bahan Baku -->
+                    <a href="{{ route('kasir.inventory.index') }}"
+                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.inventory.index') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                        </svg>
+                        <span>Stok Bahan Baku</span>
+                    </a>
+
+                    <!-- Resep Menu (BOM) -->
+                    <a href="{{ route('kasir.inventory.recipes') }}"
+                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.inventory.recipes') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        <span>Resep BOM Menu</span>
+                    </a>
+
+                    <!-- Mutasi Stok / Ledger -->
+                    <a href="{{ route('kasir.inventory.history') }}"
+                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.inventory.history') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <span>Kartu Stok Mutasi</span>
+                    </a>
+
+                    <!-- 4. KEUANGAN & LAPORAN -->
+                    <div class="px-2 pt-3 pb-1.5 flex items-center gap-2">
+                        <span class="font-mono text-[9px] uppercase tracking-[0.25em] text-[#8A7B66] font-semibold">Keuangan & Laporan</span>
+                        <span class="flex-1 h-px bg-[#32261C]"></span>
+                    </div>
+
+                    <!-- Laporan Penjualan -->
+                    <a href="{{ route('kasir.laporan') }}"
+                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.laporan') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                        </svg>
+                        <span>Laporan Kasir</span>
+                    </a>
+
+                    <!-- Pengeluaran Toko -->
+                    <a href="{{ route('kasir.expenses.index') }}"
+                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.expenses.*') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
+                        </svg>
+                        <span>Pengeluaran Toko</span>
+                    </a>
+
+                    <!-- 5. SUASANA & AUDIO -->
+                    <div class="px-2 pt-3 pb-1.5 flex items-center gap-2">
+                        <span class="font-mono text-[9px] uppercase tracking-[0.25em] text-[#8A7B66] font-semibold">Suasana & Audio</span>
+                        <span class="flex-1 h-px bg-[#32261C]"></span>
+                    </div>
+
+                    <!-- Sound Station (Musik Kafe) -->
                     <div class="rounded-xl overflow-hidden border border-transparent hover:border-[#3A2D22] transition-colors {{ request()->routeIs('kasir.music.index') ? 'bg-[#261D16] border-[#3A2D22]' : '' }}">
                         <div class="flex items-center justify-between">
                             <a href="{{ route('kasir.music.index') }}"
@@ -200,7 +261,7 @@
                         </div>
                     </div>
 
-                    <!-- 7. Pengaturan Suara Announcer -->
+                    <!-- Pengaturan Suara Announcer -->
                     <a href="{{ route('kasir.announcer.settings') }}"
                        class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.announcer.*') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
                         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -209,50 +270,8 @@
                         <span>Suara Announcer</span>
                     </a>
 
-                    <!-- INVENTARIS & KEUANGAN TOKO -->
-                    <div class="px-2 pt-3 pb-1.5 flex items-center gap-2">
-                        <span class="font-mono text-[9px] uppercase tracking-[0.25em] text-[#8A7B66] font-semibold">Inventaris & Biaya</span>
-                        <span class="flex-1 h-px bg-[#32261C]"></span>
-                    </div>
-
-                    <!-- 8. Stok Bahan Baku -->
-                    <a href="{{ route('kasir.inventory.index') }}"
-                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.inventory.index') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
-                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
-                        </svg>
-                        <span>Stok Bahan Baku</span>
-                    </a>
-
-                    <!-- 9. Resep Menu (BOM) -->
-                    <a href="{{ route('kasir.inventory.recipes') }}"
-                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.inventory.recipes') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
-                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                        </svg>
-                        <span>Resep BOM Menu</span>
-                    </a>
-
-                    <!-- 10. Mutasi Stok / Ledger -->
-                    <a href="{{ route('kasir.inventory.history') }}"
-                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.inventory.history') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
-                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                        <span>Kartu Stok Mutasi</span>
-                    </a>
-
-                    <!-- 11. Pengeluaran Toko -->
-                    <a href="{{ route('kasir.expenses.index') }}"
-                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.expenses.*') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
-                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
-                        </svg>
-                        <span>Pengeluaran Toko</span>
-                    </a>
-
-                    <!-- External Public Link (Redesain: Jelas, Terang, Elegan) -->
-                    <div class="pt-2">
+                    <!-- 6. TAUTAN PUBLIK -->
+                    <div class="pt-3">
                         <a href="{{ route('landing') }}" target="_blank"
                            class="flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase bg-[#261D16]/80 hover:bg-[#32261C] border border-[#3A2D22] hover:border-[#D9973E]/60 text-[#FAF7F2] hover:text-[#D9973E] transition-all shadow-2xs group">
                             <span class="flex items-center gap-2.5 font-bold">
