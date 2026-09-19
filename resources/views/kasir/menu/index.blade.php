@@ -349,7 +349,10 @@
                                                 price: {{ $m->price }},
                                                 is_available: {{ $m->is_available ? 'true' : 'false' }},
                                                 image_url: @js($m->image ? asset('storage/' . $m->image) : ''),
-                                                description: @js($m->description ?? '')
+                                                description: @js($m->description ?? ''),
+                                                ingredients: @js(!empty($m->ingredients) ? (is_array($m->ingredients) ? implode("\n", $m->ingredients) : $m->ingredients) : implode("\n", $m->detailed_ingredients)),
+                                                flavor_notes: @js($m->flavor_notes ?: $m->detailed_flavor_notes),
+                                                nutrition: @js($m->nutrition ?: $m->detailed_nutrition)
                                             })"
                                             class="px-3 py-1.5 bg-[#FAF7F2] hover:bg-[#1F1812] text-[#1F1812] hover:text-[#F7F3EC] border border-[#E4DCCC] hover:border-[#1F1812] font-mono text-xs uppercase tracking-wider font-bold transition rounded-xl shadow-2xs cursor-pointer active:scale-95">
                                         Edit ›
@@ -454,10 +457,10 @@
         </div>
     </div>
 
-    <!-- 6. MODAL POPUP EDIT MENU INTERAKTIF -->
+      <!-- 5. MODAL EDIT MENU (MODERN POP-UP DENGAN RINCIAN GIZI LENGKAP) -->
     <div x-show="showEditModal"
          x-cloak
-         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto"
+         class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs overflow-y-auto"
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0"
          x-transition:enter-end="opacity-100"
@@ -466,7 +469,7 @@
          x-transition:leave-end="opacity-0"
          @keydown.escape.window="closeEditModal()">
         
-        <div class="bg-white border border-[#E4DCCC] rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden p-6 sm:p-7 space-y-6 my-8"
+        <div class="bg-white border border-[#E4DCCC] rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden p-5 sm:p-6 space-y-5 my-6 max-h-[92vh] flex flex-col"
              @click.outside="closeEditModal()">
             
             <!-- Header Modal -->
@@ -488,136 +491,224 @@
             </div>
 
             <!-- Form Edit Menu -->
-            <form method="POST" :action="editForm.actionUrl" enctype="multipart/form-data" class="space-y-5">
+            <form method="POST" :action="editForm.actionUrl" enctype="multipart/form-data" class="flex-1 min-h-0 flex flex-col space-y-4">
                 @csrf
                 <input type="hidden" name="_method" value="PUT">
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <!-- Kolom Kiri: Nama, Kategori, Harga, Status -->
-                    <div class="space-y-4">
-                        <!-- Nama Menu -->
-                        <div>
-                            <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold mb-1.5">
-                                Nama Menu <span class="text-red-500">*</span>
-                            </label>
-                            <input type="text" name="name" x-model="editForm.name" required maxlength="100"
-                                   placeholder="Nama hidangan atau minuman..."
-                                   class="w-full bg-[#FAF7F2] border border-[#E4DCCC] focus:border-[#D9973E] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-3.5 py-2.5 rounded-xl text-sm text-[#1F1812] transition shadow-2xs font-medium">
-                        </div>
-
-                        <!-- Kategori -->
-                        <div>
-                            <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold mb-1.5">
-                                Kategori <span class="text-red-500">*</span>
-                            </label>
-                            <select name="category_id" x-model="editForm.category_id" required
-                                    class="w-full bg-[#FAF7F2] border border-[#E4DCCC] focus:border-[#D9973E] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-3.5 py-2.5 rounded-xl text-sm text-[#1F1812] transition shadow-2xs cursor-pointer font-medium">
-                                <option value="" disabled>Pilih Kategori...</option>
-                                @foreach ($categories as $cat)
-                                    <option value="{{ $cat->id }}">{{ $cat->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <!-- Harga Jual -->
-                        <div>
-                            <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold mb-1.5">
-                                Harga Jual (Rp) <span class="text-red-500">*</span>
-                            </label>
-                            <div class="relative">
-                                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#8A7B66] font-mono text-sm font-bold">
-                                    Rp
-                                </span>
-                                <input type="number" name="price" x-model="editForm.price" required min="0" step="500"
-                                       placeholder="Contoh: 25000"
-                                       class="w-full pl-11 pr-3.5 py-2.5 bg-[#FAF7F2] border border-[#E4DCCC] focus:border-[#D9973E] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 rounded-xl text-sm font-mono font-bold text-[#1F1812] transition shadow-2xs text-right">
+                <div class="flex-1 overflow-y-auto pr-1 sm:pr-2 space-y-5">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <!-- Kolom Kiri: Nama, Kategori, Harga, Status -->
+                        <div class="space-y-4">
+                            <!-- Nama Menu -->
+                            <div>
+                                <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold mb-1.5">
+                                    Nama Menu <span class="text-red-500">*</span>
+                                </label>
+                                <input type="text" name="name" x-model="editForm.name" required maxlength="100"
+                                       placeholder="Nama hidangan atau minuman..."
+                                       class="w-full bg-[#FAF7F2] border border-[#E4DCCC] focus:border-[#D9973E] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-3.5 py-2.5 rounded-xl text-sm text-[#1F1812] transition shadow-2xs font-medium">
                             </div>
-                            <template x-if="editForm.price && !isNaN(editForm.price)">
-                                <div class="mt-1 text-right font-mono text-[11px] text-[#5F7F42] font-semibold"
-                                     x-text="'Format POS: Rp ' + Number(editForm.price).toLocaleString('id-ID')"></div>
-                            </template>
-                        </div>
 
-                        <!-- Status Ketersediaan -->
-                        <div class="pt-2 border-t border-[#F2EDE4]">
-                            <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold mb-1.5">
-                                Status Ketersediaan:
-                            </label>
-                            <div class="flex items-center gap-3">
-                                <input type="hidden" name="is_available" :value="editForm.is_available ? '1' : '0'">
-                                <button type="button"
-                                        @click="editForm.is_available = !editForm.is_available"
-                                        class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
-                                        :class="editForm.is_available ? 'bg-[#5F7F42]' : 'bg-[#D5CCC0]'">
-                                    <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out"
-                                          :class="editForm.is_available ? 'translate-x-5' : 'translate-x-0'"></span>
-                                </button>
-                                <span class="font-mono text-xs font-bold"
-                                      :class="editForm.is_available ? 'text-[#5F7F42]' : 'text-[#8A7B66]'"
-                                      x-text="editForm.is_available ? 'Tersedia Dijual (Aktif)' : 'Stok Kosong (Nonaktif)'">
-                                </span>
+                            <!-- Kategori -->
+                            <div>
+                                <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold mb-1.5">
+                                    Kategori <span class="text-red-500">*</span>
+                                </label>
+                                <select name="category_id" x-model="editForm.category_id" required
+                                        class="w-full bg-[#FAF7F2] border border-[#E4DCCC] focus:border-[#D9973E] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-3.5 py-2.5 rounded-xl text-sm text-[#1F1812] transition shadow-2xs cursor-pointer font-medium">
+                                    <option value="" disabled>Pilih Kategori...</option>
+                                    @foreach ($categories as $cat)
+                                        <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                                    @endforeach
+                                </select>
                             </div>
-                        </div>
-                    </div>
 
-                    <!-- Kolom Kanan: Foto & Deskripsi -->
-                    <div class="space-y-4">
-                        <!-- Foto Menu -->
-                        <div>
-                            <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold mb-1.5">
-                                Foto Produk (Opsional):
-                            </label>
-
-                            <div class="border-2 border-dashed border-[#E4DCCC] rounded-2xl p-4 text-center bg-[#FAF7F2] relative hover:border-[#D9973E] transition">
-                                <!-- Preview Image -->
-                                <template x-if="editForm.previewUrl">
-                                    <div class="space-y-2.5">
-                                        <div class="w-32 h-32 mx-auto rounded-xl overflow-hidden border border-[#E4DCCC] shadow-xs bg-black">
-                                            <img :src="editForm.previewUrl" alt="Foto Menu" class="w-full h-full object-cover">
-                                        </div>
-                                        <div>
-                                            <button type="button" @click="removeEditImage()"
-                                                    class="px-2.5 py-0.5 text-[#C4553D] hover:bg-red-50 border border-red-200 text-xs font-mono font-bold rounded-lg transition cursor-pointer">
-                                                ✕ Hapus Foto
-                                            </button>
-                                        </div>
-                                    </div>
+                            <!-- Harga Jual -->
+                            <div>
+                                <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold mb-1.5">
+                                    Harga Jual (Rp) <span class="text-red-500">*</span>
+                                </label>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#8A7B66] font-mono text-sm font-bold">
+                                        Rp
+                                    </span>
+                                    <input type="number" name="price" x-model="editForm.price" required min="0" step="500"
+                                           placeholder="Contoh: 25000"
+                                           class="w-full pl-11 pr-3.5 py-2.5 bg-[#FAF7F2] border border-[#E4DCCC] focus:border-[#D9973E] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 rounded-xl text-sm font-mono font-bold text-[#1F1812] transition shadow-2xs text-right">
+                                </div>
+                                <template x-if="editForm.price && !isNaN(editForm.price)">
+                                    <div class="mt-1 text-right font-mono text-[11px] text-[#5F7F42] font-semibold"
+                                         x-text="'Format POS: Rp ' + Number(editForm.price).toLocaleString('id-ID')"></div>
                                 </template>
+                            </div>
 
-                                <!-- No Preview Prompt -->
-                                <template x-if="!editForm.previewUrl">
-                                    <div class="py-4 space-y-1.5">
-                                        <div class="text-3xl text-[#8A7B66] opacity-60">📷</div>
-                                        <div class="text-xs font-bold text-[#1F1812]">
-                                            Pilih foto produk baru
-                                        </div>
-                                        <div class="text-[10px] text-[#8A7B66] font-mono">
-                                            Format: JPG, PNG, WEBP (Max 2MB)
-                                        </div>
-                                    </div>
-                                </template>
-
-                                <div class="mt-2.5">
-                                    <input type="file" name="image" x-ref="editFileInput" @change="handleEditImageChange($event)" accept="image/*"
-                                           class="w-full text-xs text-[#7A6A58] file:mr-2.5 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-mono file:uppercase file:font-bold file:bg-[#1F1812] file:text-[#F7F3EC] hover:file:bg-[#D9973E] hover:file:text-[#1F1812] cursor-pointer">
+                            <!-- Status Ketersediaan -->
+                            <div class="pt-2 border-t border-[#F2EDE4]">
+                                <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold mb-1.5">
+                                    Status Ketersediaan:
+                                </label>
+                                <div class="flex items-center gap-3">
+                                    <input type="hidden" name="is_available" :value="editForm.is_available ? '1' : '0'">
+                                    <button type="button"
+                                            @click="editForm.is_available = !editForm.is_available"
+                                            class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+                                            :class="editForm.is_available ? 'bg-[#5F7F42]' : 'bg-[#D5CCC0]'">
+                                        <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out"
+                                              :class="editForm.is_available ? 'translate-x-5' : 'translate-x-0'"></span>
+                                    </button>
+                                    <span class="font-mono text-xs font-bold"
+                                          :class="editForm.is_available ? 'text-[#5F7F42]' : 'text-[#8A7B66]'"
+                                          x-text="editForm.is_available ? 'Tersedia Dijual (Aktif)' : 'Stok Kosong (Nonaktif)'">
+                                    </span>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Deskripsi -->
-                        <div>
-                            <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold mb-1.5">
-                                Deskripsi Singkat (Opsional):
-                            </label>
-                            <textarea name="description" x-model="editForm.description" rows="3" maxlength="500"
-                                      placeholder="Penjelasan rasa, resep, atau catatan penyajian..."
-                                      class="w-full bg-[#FAF7F2] border border-[#E4DCCC] focus:border-[#D9973E] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-3.5 py-2 rounded-xl text-xs text-[#1F1812] transition shadow-2xs"></textarea>
+                        <!-- Kolom Kanan: Foto & Deskripsi -->
+                        <div class="space-y-4">
+                            <!-- Foto Menu -->
+                            <div>
+                                <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold mb-1.5">
+                                    Foto Produk (Opsional):
+                                </label>
+
+                                <div class="border-2 border-dashed border-[#E4DCCC] rounded-2xl p-4 text-center bg-[#FAF7F2] relative hover:border-[#D9973E] transition">
+                                    <!-- Preview Image -->
+                                    <template x-if="editForm.previewUrl">
+                                        <div class="space-y-2.5">
+                                            <div class="w-32 h-32 mx-auto rounded-xl overflow-hidden border border-[#E4DCCC] shadow-xs bg-black">
+                                                <img :src="editForm.previewUrl" alt="Foto Menu" class="w-full h-full object-cover">
+                                            </div>
+                                            <div>
+                                                <button type="button" @click="removeEditImage()"
+                                                        class="px-2.5 py-0.5 text-[#C4553D] hover:bg-red-50 border border-red-200 text-xs font-mono font-bold rounded-lg transition cursor-pointer">
+                                                    ✕ Hapus Foto
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </template>
+
+                                    <!-- No Preview Prompt -->
+                                    <template x-if="!editForm.previewUrl">
+                                        <div class="py-4 space-y-1.5">
+                                            <div class="text-3xl text-[#8A7B66] opacity-60">📷</div>
+                                            <div class="text-xs font-bold text-[#1F1812]">
+                                                Pilih foto produk baru
+                                            </div>
+                                            <div class="text-[10px] text-[#8A7B66] font-mono">
+                                                Format: JPG, PNG, WEBP (Max 2MB)
+                                            </div>
+                                        </div>
+                                    </template>
+
+                                    <div class="mt-2.5">
+                                        <input type="file" name="image" x-ref="editFileInput" @change="handleEditImageChange($event)" accept="image/*"
+                                               class="w-full text-xs text-[#7A6A58] file:mr-2.5 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-[11px] file:font-mono file:uppercase file:font-bold file:bg-[#1F1812] file:text-[#F7F3EC] hover:file:bg-[#D9973E] hover:file:text-[#1F1812] cursor-pointer">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Deskripsi Singkat -->
+                            <div>
+                                <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold mb-1.5">
+                                    Deskripsi Singkat (Opsional):
+                                </label>
+                                <textarea name="description" x-model="editForm.description" rows="3" maxlength="500"
+                                          placeholder="Penjelasan rasa, resep, atau catatan penyajian..."
+                                          class="w-full bg-[#FAF7F2] border border-[#E4DCCC] focus:border-[#D9973E] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-3.5 py-2 rounded-xl text-xs text-[#1F1812] transition shadow-2xs"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- SEKSI KHUSUS: RINCIAN KOMPOSISI & NILAI GIZI (DITAMPILKAN DI KARTU PUBLIK) -->
+                    <div class="bg-[#FAF7F2] border border-[#E4DCCC] rounded-2xl p-4 sm:p-5 space-y-4">
+                        <div class="flex items-center justify-between border-b border-[#E4DCCC]/80 pb-2.5">
+                            <div class="flex items-center gap-2">
+                                <span class="text-base">🌿</span>
+                                <div>
+                                    <h4 class="font-serif font-bold text-sm text-[#1F1812]">Rincian Komposisi & Nilai Gizi Publik</h4>
+                                    <p class="text-[11px] text-[#8A7B66]">Data ini tampil pada kartu pop-up rincian menu di halaman pengunjung (<span class="font-mono text-[#D9973E]">/menu</span>).</p>
+                                </div>
+                            </div>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-white text-[#8A7B66] border border-[#E4DCCC]">
+                                Publik & Transparan
+                            </span>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <!-- Komposisi & Bahan Baku Utama -->
+                            <div class="space-y-1.5">
+                                <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold">
+                                    Komposisi Bahan Baku (1 per baris):
+                                </label>
+                                <textarea name="ingredients" x-model="editForm.ingredients" rows="4"
+                                          placeholder="Contoh:&#10;Biji Kopi Arabika Gayo Single-Origin&#10;Fresh Milk Pasteurisasi 150ml&#10;Sirup Gula Aren Organik 20ml"
+                                          class="w-full bg-white border border-[#E4DCCC] focus:border-[#D9973E] focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-3 py-2 rounded-xl text-xs font-sans text-[#1F1812] transition shadow-2xs leading-relaxed"></textarea>
+                                
+                                <!-- Catatan Rasa -->
+                                <div class="pt-1.5">
+                                    <label class="block font-mono text-[10px] uppercase tracking-wider text-[#5C4D3C] font-bold mb-1">
+                                        Catatan Karakter Rasa (Flavor Notes):
+                                    </label>
+                                    <input type="text" name="flavor_notes" x-model="editForm.flavor_notes"
+                                           placeholder="Misal: Caramel, Dark Chocolate, Crema Tebal"
+                                           class="w-full bg-white border border-[#E4DCCC] focus:border-[#D9973E] focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-3 py-2 rounded-xl text-xs text-[#1F1812] transition shadow-2xs">
+                                </div>
+                            </div>
+
+                            <!-- Nilai Gizi & Karakteristik -->
+                            <div class="space-y-2">
+                                <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold">
+                                    Estimasi Nilai Gizi & Karakteristik:
+                                </label>
+                                
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-[10px] font-mono text-[#8A7B66] uppercase tracking-wider mb-0.5">Kalori</label>
+                                        <input type="text" name="nutrition[calories]" x-model="editForm.nutrition.calories"
+                                               placeholder="Misal: 5 kkal"
+                                               class="w-full bg-white border border-[#E4DCCC] focus:border-[#D9973E] focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold text-[#1F1812] transition">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] font-mono text-[#8A7B66] uppercase tracking-wider mb-0.5">Kafein</label>
+                                        <input type="text" name="nutrition[caffeine]" x-model="editForm.nutrition.caffeine"
+                                               placeholder="Misal: 120 mg"
+                                               class="w-full bg-white border border-[#E4DCCC] focus:border-[#D9973E] focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold text-[#1F1812] transition">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] font-mono text-[#8A7B66] uppercase tracking-wider mb-0.5">Kadar Gula</label>
+                                        <input type="text" name="nutrition[sugar]" x-model="editForm.nutrition.sugar"
+                                               placeholder="Misal: 0 g"
+                                               class="w-full bg-white border border-[#E4DCCC] focus:border-[#D9973E] focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-2.5 py-1.5 rounded-lg text-xs font-mono text-[#1F1812] transition">
+                                    </div>
+                                    <div>
+                                        <label class="block text-[10px] font-mono text-[#8A7B66] uppercase tracking-wider mb-0.5">Kandungan Lemak</label>
+                                        <input type="text" name="nutrition[fat]" x-model="editForm.nutrition.fat"
+                                               placeholder="Misal: 0 g"
+                                               class="w-full bg-white border border-[#E4DCCC] focus:border-[#D9973E] focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-2.5 py-1.5 rounded-lg text-xs font-mono text-[#1F1812] transition">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-[10px] font-mono text-[#8A7B66] uppercase tracking-wider mb-0.5">Sajian (Format Temperatur)</label>
+                                    <input type="text" name="nutrition[serving]" x-model="editForm.nutrition.serving"
+                                           placeholder="Misal: Hot (30ml Single / 60ml Double)"
+                                           class="w-full bg-white border border-[#E4DCCC] focus:border-[#D9973E] focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-2.5 py-1.5 rounded-lg text-xs text-[#1F1812] transition">
+                                </div>
+
+                                <div>
+                                    <label class="block text-[10px] font-mono text-[#8A7B66] uppercase tracking-wider mb-0.5">Informasi Alergen & Diet</label>
+                                    <input type="text" name="nutrition[allergens]" x-model="editForm.nutrition.allergens"
+                                           placeholder="Misal: Bebas Alergen (Dairy-Free & Vegan)"
+                                           class="w-full bg-white border border-[#E4DCCC] focus:border-[#D9973E] focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-2.5 py-1.5 rounded-lg text-xs text-[#1F1812] transition">
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Footer Modal -->
-                <div class="pt-4 border-t border-[#F2EDE4] flex items-center justify-end gap-2.5">
+                <div class="pt-3 border-t border-[#F2EDE4] flex items-center justify-end gap-2.5 shrink-0">
                     <button type="button"
                             @click="closeEditModal()"
                             class="px-4 py-2 border border-[#E4DCCC] hover:bg-[#FAF7F2] text-[#8A7B66] hover:text-[#1F1812] font-mono text-xs font-bold rounded-xl transition">
@@ -647,7 +738,17 @@
                 is_available: true,
                 previewUrl: '',
                 description: '',
-                actionUrl: ''
+                actionUrl: '',
+                ingredients: '',
+                flavor_notes: '',
+                nutrition: {
+                    calories: '',
+                    caffeine: '',
+                    sugar: '',
+                    fat: '',
+                    allergens: '',
+                    serving: ''
+                }
             },
             openEditModal(menu) {
                 this.editForm.id = menu.id;
@@ -658,6 +759,16 @@
                 this.editForm.previewUrl = menu.image_url || '';
                 this.editForm.description = menu.description || '';
                 this.editForm.actionUrl = '{{ url('/kasir/menu') }}/' + menu.id;
+                this.editForm.ingredients = menu.ingredients || '';
+                this.editForm.flavor_notes = menu.flavor_notes || '';
+                this.editForm.nutrition = Object.assign({
+                    calories: '',
+                    caffeine: '',
+                    sugar: '',
+                    fat: '',
+                    allergens: '',
+                    serving: ''
+                }, menu.nutrition || {});
                 this.showEditModal = true;
             },
             closeEditModal() {

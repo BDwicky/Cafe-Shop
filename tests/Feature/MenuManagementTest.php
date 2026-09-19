@@ -49,6 +49,36 @@ class MenuManagementTest extends TestCase
         $this->assertSame(30000, $menu->fresh()->price);
     }
 
+    public function test_kasir_can_update_menu_nutrition_and_ingredients(): void
+    {
+        $menu = Menu::factory()->create();
+
+        $this->actingAs(User::factory()->create())
+            ->put("/kasir/menu/{$menu->id}", [
+                'category_id' => $menu->category_id,
+                'name' => $menu->name,
+                'price' => 28000,
+                'ingredients' => "Arabica Beans 18g\nSteamed Milk 120ml",
+                'flavor_notes' => 'Hazelnut, Cocoa',
+                'nutrition' => [
+                    'calories' => '120 kkal',
+                    'caffeine' => '85 mg',
+                    'sugar' => '6 g',
+                    'fat' => '4 g',
+                    'serving' => 'Hot (180ml)',
+                    'allergens' => 'Susu Sapi (Laktosa)',
+                ],
+            ])
+            ->assertRedirect('/kasir/menu');
+
+        $updated = $menu->fresh();
+        $this->assertSame(28000, $updated->price);
+        $this->assertSame(['Arabica Beans 18g', 'Steamed Milk 120ml'], $updated->ingredients);
+        $this->assertSame('Hazelnut, Cocoa', $updated->flavor_notes);
+        $this->assertSame('120 kkal', $updated->nutrition['calories'] ?? null);
+        $this->assertSame('85 mg', $updated->nutrition['caffeine'] ?? null);
+    }
+
     public function test_kasir_can_toggle_availability(): void
     {
         $menu = Menu::factory()->create(['is_available' => true]);
