@@ -64,6 +64,7 @@ class MenuController extends Controller
             $data['image'] = $request->file('image')->store('menus', 'public');
         }
 
+        $data['ingredients'] = $this->formatIngredients($request->input('ingredients'));
         $data['slug'] = $this->uniqueSlug($data['name']);
         $data['is_available'] = $request->boolean('is_available');
 
@@ -87,6 +88,7 @@ class MenuController extends Controller
             $data['image'] = $request->file('image')->store('menus', 'public');
         }
 
+        $data['ingredients'] = $this->formatIngredients($request->input('ingredients'));
         if ($data['name'] !== $menu->name) {
             $data['slug'] = $this->uniqueSlug($data['name'], $menu->id);
         }
@@ -124,6 +126,24 @@ class MenuController extends Controller
         return redirect('/kasir/menu')->with('status', 'Menu dihapus.');
     }
 
+    protected function formatIngredients(mixed $raw): ?array
+    {
+        if (is_array($raw)) {
+            $filtered = array_values(array_filter(array_map('trim', $raw)));
+
+            return ! empty($filtered) ? $filtered : null;
+        }
+
+        if (is_string($raw)) {
+            $lines = preg_split('/\r\n|\r|\n/', $raw);
+            $filtered = array_values(array_filter(array_map('trim', $lines ?: [])));
+
+            return ! empty($filtered) ? $filtered : null;
+        }
+
+        return null;
+    }
+
     private function validated(Request $request): array
     {
         return $request->validate([
@@ -133,6 +153,15 @@ class MenuController extends Controller
             'description' => ['nullable', 'string', 'max:500'],
             'image' => ['nullable', 'image', 'max:2048'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
+            'ingredients' => ['nullable'],
+            'flavor_notes' => ['nullable', 'string', 'max:255'],
+            'nutrition' => ['nullable', 'array'],
+            'nutrition.calories' => ['nullable', 'string', 'max:50'],
+            'nutrition.caffeine' => ['nullable', 'string', 'max:50'],
+            'nutrition.sugar' => ['nullable', 'string', 'max:50'],
+            'nutrition.fat' => ['nullable', 'string', 'max:50'],
+            'nutrition.allergens' => ['nullable', 'string', 'max:100'],
+            'nutrition.serving' => ['nullable', 'string', 'max:50'],
         ]);
     }
 

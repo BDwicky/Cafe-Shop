@@ -3,7 +3,7 @@
 @section('title', 'Catat Pengeluaran Toko & Operasional')
 
 @section('content')
-<div class="max-w-7xl mx-auto space-y-6" x-data="{
+<div class="w-full p-4 sm:p-6 space-y-6" x-data="{
     showAddExpenseModal: false,
     form: {
         title: '',

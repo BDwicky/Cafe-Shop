@@ -3,7 +3,7 @@
 @section('title', 'Resep Menu & Bill of Materials (BOM)')
 
 @section('content')
-<div class="max-w-7xl mx-auto space-y-6" x-data="{
+<div class="w-full p-4 sm:p-6 space-y-6" x-data="{
     showRecipeModal: false,
     selectedMenu: null,
     menuRecipes: [],

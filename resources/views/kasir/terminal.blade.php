@@ -1008,9 +1008,15 @@
 
                     <!-- Daftar Rekomendasi Promo Kafe -->
                     <div>
-                        <label class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#8A7B66] font-bold mb-2 block">
-                            Daftar Promo Tersedia
-                        </label>
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#8A7B66] font-bold block">
+                                Daftar Promo Tersedia
+                            </label>
+                            <a href="{{ route('kasir.promos.index') }}" target="_blank" class="font-mono text-[10px] text-[#D9973E] hover:underline flex items-center gap-1 transition">
+                                <span>Kelola Kupon</span>
+                                <span>↗</span>
+                            </a>
+                        </div>
                         <div class="space-y-2">
                             <template x-for="p in activePromos" :key="p.id">
                                 <div class="bg-[#140E0A] border rounded-xl p-3 transition-all cursor-pointer hover:border-[#D9973E]"

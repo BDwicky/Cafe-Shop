@@ -182,24 +182,144 @@
                     @enderror
                 </div>
 
-                <!-- Deskripsi Menu -->
-                <div>
-                    <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold mb-1.5">
-                        Deskripsi Singkat (Opsional):
-                    </label>
-                    <textarea name="description" rows="3" maxlength="500"
-                              placeholder="Penjelasan rasa hidangan, komposisi bahan, atau catatan penyajian kasir..."
-                              class="w-full bg-[#FAF7F2] border border-[#E4DCCC] focus:border-[#D9973E] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-4 py-2.5 rounded-xl text-sm text-[#1F1812] transition shadow-2xs">{{ old('description', $menu->description) }}</textarea>
-                    <div class="text-[10px] text-[#8A7B66] font-mono mt-1">
-                        Maksimal 500 karakter.
+                    <!-- Deskripsi Menu -->
+                    <div>
+                        <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold mb-1.5">
+                            Deskripsi Singkat (Opsional):
+                        </label>
+                        <textarea name="description" rows="2" maxlength="500"
+                                  placeholder="Penjelasan rasa hidangan, komposisi bahan, atau catatan penyajian kasir..."
+                                  class="w-full bg-[#FAF7F2] border border-[#E4DCCC] focus:border-[#D9973E] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-4 py-2.5 rounded-xl text-sm text-[#1F1812] transition shadow-2xs">{{ old('description', $menu->description) }}</textarea>
+                        <div class="text-[10px] text-[#8A7B66] font-mono mt-1">
+                            Maksimal 500 karakter.
+                        </div>
+                        @error('description')
+                            <p class="mt-1 text-xs text-[#C4553D] font-mono">{{ $message }}</p>
+                        @enderror
                     </div>
-                    @error('description')
-                        <p class="mt-1 text-xs text-[#C4553D] font-mono">{{ $message }}</p>
-                    @enderror
                 </div>
+
             </div>
 
-        </div>
+            <!-- SEKSI KHUSUS: RINCIAN KOMPOSISI, BAHAN BAKU & NILAI GIZI (DITAMPILKAN DI HALAMAN PUBLIK /MENU) -->
+            <div class="bg-white border border-[#E4DCCC] rounded-2xl p-5 sm:p-6 shadow-xs space-y-5">
+                <div class="flex items-center justify-between border-b border-[#E4DCCC] pb-3.5">
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-8 h-8 rounded-xl bg-[#5F7F42]/10 border border-[#5F7F42]/30 flex items-center justify-center text-[#5F7F42] text-base shrink-0">
+                            🌿
+                        </span>
+                        <div>
+                            <h3 class="font-serif font-bold text-base text-[#1F1812]">Rincian Komposisi & Nilai Gizi Publik</h3>
+                            <p class="text-xs text-[#8A7B66]">Informasi ini ditampilkan di modal pop-up detail menu pada Halaman Publik (<span class="font-mono text-[#D9973E]">/menu</span>).</p>
+                        </div>
+                    </div>
+                    <span class="px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold uppercase tracking-wider bg-[#FAF7F2] text-[#8A7B66] border border-[#E4DCCC]">
+                        Publik & Transparan
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Kolom Kiri: Komposisi Bahan Utama (Per Baris) -->
+                    <div class="space-y-2">
+                        <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold">
+                            Komposisi & Bahan Baku Utama:
+                        </label>
+                        <p class="text-[11px] text-[#8A7B66] leading-relaxed">
+                            Ketik 1 bahan per baris (tekan <strong>Enter</strong> untuk baris baru). Akan tampil dengan ikon centang hijau (✓) di kartu detail publik.
+                        </p>
+                        @php
+                            $ingredientsValue = old('ingredients');
+                            if ($ingredientsValue === null) {
+                                if (!empty($menu->ingredients) && is_array($menu->ingredients)) {
+                                    $ingredientsValue = implode("\n", $menu->ingredients);
+                                } elseif ($menu->exists) {
+                                    $ingredientsValue = implode("\n", $menu->detailed_ingredients);
+                                } else {
+                                    $ingredientsValue = '';
+                                }
+                            }
+                        @endphp
+                        <textarea name="ingredients" rows="5"
+                                  placeholder="Contoh:&#10;100% Biji Kopi Arabika Single-Origin Gayo (Double Shot 18g)&#10;Fresh Milk Pasteurisasi Dingin (150ml)&#10;Sirup Gula Aren Organik Asli (20ml)"
+                                  class="w-full bg-[#FAF7F2] border border-[#E4DCCC] focus:border-[#D9973E] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-4 py-2.5 rounded-xl text-sm font-sans text-[#1F1812] transition shadow-2xs leading-relaxed">{{ $ingredientsValue }}</textarea>
+                        @error('ingredients')
+                            <p class="mt-1 text-xs text-[#C4553D] font-mono">{{ $message }}</p>
+                        @enderror
+
+                        <!-- Catatan Rasa (Flavor Notes) -->
+                        <div class="pt-2">
+                            <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold mb-1">
+                                Catatan Karakter Rasa (Flavor Notes):
+                            </label>
+                            @php
+                                $flavorNotesValue = old('flavor_notes', $menu->flavor_notes ?? ($menu->exists ? $menu->detailed_flavor_notes : ''));
+                            @endphp
+                            <input type="text" name="flavor_notes" value="{{ $flavorNotesValue }}"
+                                   placeholder="Contoh: Dark Chocolate, Toasted Almond, Crema Tebal, Clean Finish"
+                                   class="w-full bg-[#FAF7F2] border border-[#E4DCCC] focus:border-[#D9973E] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-4 py-2.5 rounded-xl text-sm text-[#1F1812] transition shadow-2xs">
+                            @error('flavor_notes')
+                                <p class="mt-1 text-xs text-[#C4553D] font-mono">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    </div>
+
+                    <!-- Kolom Kanan: Informasi Nilai Gizi & Alergen -->
+                    <div class="space-y-3.5">
+                        <label class="block font-mono text-[11px] uppercase tracking-wider text-[#5C4D3C] font-bold">
+                            Estimasi Nilai Gizi & Karakteristik:
+                        </label>
+                        @php
+                            $nut = old('nutrition', $menu->nutrition ?? ($menu->exists ? $menu->detailed_nutrition : []));
+                        @endphp
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <!-- Kalori -->
+                            <div>
+                                <label class="block text-[10px] font-mono text-[#8A7B66] uppercase tracking-wider mb-1">Kalori</label>
+                                <input type="text" name="nutrition[calories]" value="{{ $nut['calories'] ?? '' }}"
+                                       placeholder="Misal: 110 kkal"
+                                       class="w-full bg-[#FAF7F2] border border-[#E4DCCC] focus:border-[#D9973E] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-3 py-2 rounded-xl text-xs font-mono font-bold text-[#1F1812] transition">
+                            </div>
+                            <!-- Kafein -->
+                            <div>
+                                <label class="block text-[10px] font-mono text-[#8A7B66] uppercase tracking-wider mb-1">Kafein</label>
+                                <input type="text" name="nutrition[caffeine]" value="{{ $nut['caffeine'] ?? '' }}"
+                                       placeholder="Misal: 85 mg"
+                                       class="w-full bg-[#FAF7F2] border border-[#E4DCCC] focus:border-[#D9973E] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-3 py-2 rounded-xl text-xs font-mono font-bold text-[#1F1812] transition">
+                            </div>
+                            <!-- Gula -->
+                            <div>
+                                <label class="block text-[10px] font-mono text-[#8A7B66] uppercase tracking-wider mb-1">Kandungan Gula</label>
+                                <input type="text" name="nutrition[sugar]" value="{{ $nut['sugar'] ?? '' }}"
+                                       placeholder="Misal: 6 g"
+                                       class="w-full bg-[#FAF7F2] border border-[#E4DCCC] focus:border-[#D9973E] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-3 py-2 rounded-xl text-xs font-mono text-[#1F1812] transition">
+                            </div>
+                            <!-- Lemak -->
+                            <div>
+                                <label class="block text-[10px] font-mono text-[#8A7B66] uppercase tracking-wider mb-1">Kandungan Lemak</label>
+                                <input type="text" name="nutrition[fat]" value="{{ $nut['fat'] ?? '' }}"
+                                       placeholder="Misal: 3 g"
+                                       class="w-full bg-[#FAF7F2] border border-[#E4DCCC] focus:border-[#D9973E] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-3 py-2 rounded-xl text-xs font-mono text-[#1F1812] transition">
+                            </div>
+                        </div>
+
+                        <!-- Alergen & Peringatan Konsumsi -->
+                        <div>
+                            <label class="block text-[10px] font-mono text-[#8A7B66] uppercase tracking-wider mb-1">Informasi Alergen</label>
+                            <input type="text" name="nutrition[allergens]" value="{{ $nut['allergens'] ?? '' }}"
+                                   placeholder="Misal: Dapat mengandung produk susu (dairy) atau Bebas Alergen"
+                                   class="w-full bg-[#FAF7F2] border border-[#E4DCCC] focus:border-[#D9973E] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-3 py-2 rounded-xl text-xs text-[#1F1812] transition">
+                        </div>
+
+                        <!-- Opsi Penyajian -->
+                        <div>
+                            <label class="block text-[10px] font-mono text-[#8A7B66] uppercase tracking-wider mb-1">Format Penyajian</label>
+                            <input type="text" name="nutrition[serving]" value="{{ $nut['serving'] ?? '' }}"
+                                   placeholder="Misal: Hot (200ml) / Iced (350ml)"
+                                   class="w-full bg-[#FAF7F2] border border-[#E4DCCC] focus:border-[#D9973E] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#D9973E]/20 px-3 py-2 rounded-xl text-xs text-[#1F1812] transition">
+                        </div>
+                    </div>
+                </div>
 
         <!-- 3. TOMBOL SUBMIT & BATAL -->
         <div class="pt-6 border-t border-[#F2EDE4] flex items-center justify-end gap-3">

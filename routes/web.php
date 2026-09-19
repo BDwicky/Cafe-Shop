@@ -9,6 +9,7 @@ use App\Http\Controllers\KasirMusicController;
 use App\Http\Controllers\KitchenController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\MusicRequestController;
+use App\Http\Controllers\PromoController;
 use App\Http\Controllers\PublicMenuController;
 use App\Http\Controllers\ReportController;
 use App\Models\Menu;
@@ -97,6 +98,10 @@ Route::middleware('auth')->prefix('kasir')->name('kasir.')->group(function () {
     Route::patch('/menu/{menu}/toggle', [MenuController::class, 'toggle'])->name('menu.toggle');
     Route::post('/categories', [CategoryController::class, 'store'])->name('categories.store');
     Route::delete('/categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
+
+    // Kelola Kupon & Promo Diskon
+    Route::resource('promos', PromoController::class)->only(['index', 'store', 'destroy']);
+    Route::patch('/promos/{promo}/toggle', [PromoController::class, 'toggle'])->name('promos.toggle');
 
     // Manajemen Inventaris & Bahan Baku (Stok & Resep BOM)
     Route::prefix('inventory')->name('inventory.')->group(function () {

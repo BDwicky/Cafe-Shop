@@ -100,7 +100,7 @@
                     <div class="mt-3.5 bg-[#261D16]/90 border border-[#3A2D22] rounded-xl px-3 py-2 flex items-center justify-between shadow-xs">
                         <div class="flex items-center gap-1.5">
                             <span class="h-2 w-2 rounded-full bg-[#5F7F42] animate-pulse"></span>
-                            <span class="font-mono text-[10px] uppercase tracking-wider text-[#A89A85]">{{ now()->translatedFormat('d M Y') }}</span>
+                            <span class="font-mono text-[10px] uppercase tracking-wider text-[#A89A85]" x-text="currentDate">{{ now()->setTimezone('Asia/Jakarta')->translatedFormat('d M Y') }}</span>
                         </div>
                         <span class="font-mono text-xs text-[#FAF7F2] font-bold tracking-wider" x-text="currentTime"></span>
                     </div>
@@ -138,6 +138,15 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
                         </svg>
                         <span>Kelola Menu</span>
+                    </a>
+
+                    <!-- 3b. Kupon Diskon -->
+                    <a href="{{ route('kasir.promos.index') }}"
+                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.promos.*') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                        </svg>
+                        <span>Kupon Diskon</span>
                     </a>
 
                     <!-- 4. Laporan Penjualan -->
@@ -337,13 +346,19 @@
                 terminalSidebarOpen: false,
                 isTerminalPage: checkIsTerminal(),
                 currentTime: '',
+                currentDate: '',
                 kdsCount: {{ \App\Models\Order::prepActive()->count() }},
                 musicQueueCount: {{ \App\Models\MusicRequest::queued()->count() }},
 
                 initShell() {
                     const updateClock = () => {
                         const now = new Date();
-                        this.currentTime = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                        this.currentTime = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/:/g, '.');
+                        const day = String(now.getDate()).padStart(2, '0');
+                        const months = ['JAN', 'FEB', 'MAR', 'APR', 'MEI', 'JUN', 'JUL', 'AGU', 'SEP', 'OKT', 'NOV', 'DES'];
+                        const month = months[now.getMonth()];
+                        const year = now.getFullYear();
+                        this.currentDate = `${day} ${month} ${year}`;
                     };
                     updateClock();
                     setInterval(updateClock, 1000);
