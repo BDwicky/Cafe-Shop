@@ -623,6 +623,16 @@ function navbarMusicWidget() {
                 if (res.ok) {
                     const data = await res.json();
                     if (data.has_master && data.master && data.master.client_id !== this.myTabId) {
+                        // JIKA master host di server berasal dari perangkat lokal yang sama (device_id sama),
+                        // dan tidak ada tab lokal lain yang aktif (isLocalHostActive false):
+                        // Berarti master di server adalah bekas tab lama yang baru saja di-refresh!
+                        // Tab ini harus KLAIM ULANG sebagai Master Host, BUKAN turun ke Remote!
+                        const isSameDevice = data.master.device_id && data.master.device_id === this.deviceId;
+                        if (isSameDevice) {
+                            this.claimMasterHost(true);
+                            return;
+                        }
+
                         // Perangkat lain sudah menjadi Master Host! Tab ini mulai sebagai REMOTE.
                         this.isMasterHost = false;
                         this.hasActiveHost = true;
@@ -914,24 +924,26 @@ function navbarMusicWidget() {
         initWidget() {
             window.SoundStation = this;
 
-            // Deteksi apakah tab kasir baru saja di-refresh saat musik sedang berputar
+            // Deteksi apakah tab kasir baru saja di-refresh (reload intent)
             let isReloadRecovery = false;
             try {
                 const reloadIntentRaw = sessionStorage.getItem('pos_soundstation_reload_intent');
                 if (reloadIntentRaw) {
                     sessionStorage.removeItem('pos_soundstation_reload_intent');
                     const reloadIntent = JSON.parse(reloadIntentRaw);
-                    // Jika reload terjadi dalam waktu wajar (< 25 detik) dan sebelumnya sedang berputar (playing)
-                    if (reloadIntent && reloadIntent.wasPlaying && (Date.now() - (reloadIntent.timestamp || 0) < 25000)) {
+                    // Jika reload terjadi dalam waktu wajar (< 35 detik)
+                    if (reloadIntent && (Date.now() - (reloadIntent.timestamp || 0) < 35000)) {
                         isReloadRecovery = true;
                         this._isRecoveringFromReload = true;
-                        this.isPlaying = true;
                         if (reloadIntent.currentTrack) this.currentTrack = reloadIntent.currentTrack;
                         if (typeof reloadIntent.currentTime !== 'undefined') {
                             this.currentTime = Number(reloadIntent.currentTime);
                             this._reloadedCurrentTime = this.currentTime;
                         }
                         if (typeof reloadIntent.duration !== 'undefined') this.duration = Number(reloadIntent.duration);
+                        if (reloadIntent.wasPlaying) {
+                            this.isPlaying = true;
+                        }
                     }
                 }
             } catch (e) {}
@@ -1161,71 +1173,102 @@ function navbarMusicWidget() {
         },
 
         loadYouTubeApi() {
-            if (!window.YT) {
+            if (window.YT && window.YT.Player && typeof window.YT.Player === 'function') {
+                this.initPlayer();
+                return;
+            }
+
+            if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
                 const tag = document.createElement('script');
                 tag.src = 'https://www.youtube.com/iframe_api';
                 const firstScriptTag = document.getElementsByTagName('script')[0];
-                firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+                if (firstScriptTag && firstScriptTag.parentNode) {
+                    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+                } else {
+                    document.head.appendChild(tag);
+                }
             }
 
+            const prevHandler = window.onYouTubeIframeAPIReady;
             window.onYouTubeIframeAPIReady = () => {
+                if (typeof prevHandler === 'function') {
+                    try { prevHandler(); } catch (e) {}
+                }
                 this.initPlayer();
             };
 
-            if (window.YT && window.YT.Player) {
-                this.initPlayer();
+            // Polling interval jika onYouTubeIframeAPIReady terlewat oleh browser saat reload
+            if (!this._ytApiCheckInterval) {
+                this._ytApiCheckInterval = setInterval(() => {
+                    if (window.YT && window.YT.Player && typeof window.YT.Player === 'function') {
+                        clearInterval(this._ytApiCheckInterval);
+                        this._ytApiCheckInterval = null;
+                        this.initPlayer();
+                    }
+                }, 150);
             }
         },
 
         initPlayer() {
-            if (this.player) {
+            if (this.player && this.playerReady) {
                 if (this.isPlaying && typeof this.player.playVideo === 'function') {
                     this.player.playVideo();
                 }
                 return;
             }
+            if (this._isInitializingPlayer) return;
+            this._isInitializingPlayer = true;
 
-            this.player = new YT.Player('navbar-yt-player', {
-                height: '90',
-                width: '140',
-                playerVars: {
-                    'playsinline': 1,
-                    'controls': 0,
-                    'rel': 0,
-                    'origin': window.location.origin
-                },
-                events: {
-                    'onReady': () => {
-                        this.playerReady = true;
-                        const initialVol = this.isAdzanMode ? Math.max(0, Math.min(100, this.adzanTargetVolume ?? 10)) : this.volume;
-                        this.player.setVolume(initialVol);
-                        if (this.isMuted) this.player.mute();
+            try {
+                this.player = new YT.Player('navbar-yt-player', {
+                    height: '90',
+                    width: '140',
+                    playerVars: {
+                        'playsinline': 1,
+                        'controls': 0,
+                        'rel': 0,
+                        'origin': window.location.origin
+                    },
+                    events: {
+                        'onReady': () => {
+                            this._isInitializingPlayer = false;
+                            this.playerReady = true;
+                            const initialVol = this.isAdzanMode ? Math.max(0, Math.min(100, this.adzanTargetVolume ?? 10)) : (this.volume || 75);
+                            this.player.setVolume(initialVol);
+                            if (this.isMuted) this.player.mute();
 
-                        if (this.currentTrack && this.currentTrack.youtube_id) {
-                            const startSec = Math.max(0, Math.floor(this.currentTime || 0));
-                            if (startSec > 0 && startSec < 86400) {
-                                this.player.loadVideoById({
-                                    videoId: this.currentTrack.youtube_id,
-                                    startSeconds: startSec
-                                });
+                            if (this.currentTrack && this.currentTrack.youtube_id) {
+                                const startSec = Math.max(0, Math.floor(this.currentTime || 0));
+                                if (this.isPlaying || this._pendingPlayAction === 'play') {
+                                    this.isPlaying = true;
+                                    this._pendingPlayAction = null;
+                                    if (startSec > 0 && startSec < 86400) {
+                                        this.player.loadVideoById({
+                                            videoId: this.currentTrack.youtube_id,
+                                            startSeconds: startSec
+                                        });
+                                    } else {
+                                        this.player.loadVideoById(this.currentTrack.youtube_id);
+                                    }
+                                    this.player.playVideo();
+                                } else {
+                                    this.player.cueVideoById({
+                                        videoId: this.currentTrack.youtube_id,
+                                        startSeconds: (startSec > 0 && startSec < 86400) ? startSec : 0
+                                    });
+                                }
                             } else {
-                                this.player.loadVideoById(this.currentTrack.youtube_id);
+                                this.playNextTrack();
                             }
-                            if (this.isPlaying) {
-                                this.player.playVideo();
-                            } else {
-                                this.player.pauseVideo();
-                            }
-                        } else {
-                            this.playNextTrack();
-                        }
 
-                        // Jaminan audio menyala jika browser membatasi autoplay saat reload
-                        if (this.isPlaying) {
+                            // Jaminan audio menyala jika browser membatasi autoplay saat reload
                             const resumeOnInteraction = () => {
                                 if (this.player && this.playerReady && this.isPlaying) {
                                     try {
                                         if (typeof this.player.getPlayerState === 'function' && this.player.getPlayerState() !== 1) {
+                                            if (typeof this.player.unMute === 'function' && !this.isMuted) {
+                                                this.player.unMute();
+                                            }
                                             this.player.playVideo();
                                         }
                                     } catch (e) {}
@@ -1234,12 +1277,12 @@ function navbarMusicWidget() {
                             window.addEventListener('click', resumeOnInteraction, { once: true });
                             window.addEventListener('keydown', resumeOnInteraction, { once: true });
                             window.addEventListener('touchstart', resumeOnInteraction, { once: true });
-                        }
-                    },
-                    'onError': (event) => {
-                        if (!this.isMasterHost) return;
-                        this.handlePlayerError(event.data);
-                    },
+                        },
+                        'onError': (event) => {
+                            this._isInitializingPlayer = false;
+                            if (!this.isMasterHost) return;
+                            this.handlePlayerError(event.data);
+                        },
                     'onStateChange': (event) => {
                         if (!this.isMasterHost) return;
 
@@ -1977,16 +2020,25 @@ function navbarMusicWidget() {
             }
         },
 
-        togglePlayPause() {
+        async togglePlayPause() {
             if (!this.isMasterHost) {
-                if (window.SoundStationHub) {
-                    window.SoundStationHub.sendCommand('TOGGLE_PLAY_PAUSE');
-                }
-                return;
+                // Jika tab ini berada di perangkat kasir lokal (bukan remote device fisik lain),
+                // segera ambil alih hak Master Host agar responsif!
+                try {
+                    await this.claimMasterHost(true);
+                } catch (e) {}
             }
 
             if (!this.player || !this.playerReady) {
+                this._pendingPlayAction = 'play';
                 this.loadYouTubeApi();
+                if (window.customToast) {
+                    window.customToast({
+                        message: '⏳ Menyiapkan pemutar audio kasir...',
+                        type: 'info',
+                        duration: 2000
+                    });
+                }
                 return;
             }
 
@@ -1997,32 +2049,69 @@ function navbarMusicWidget() {
 
             if (this.isPlaying) {
                 this.isPlaying = false;
-                this.player.pauseVideo();
+                if (typeof this.player.pauseVideo === 'function') {
+                    this.player.pauseVideo();
+                }
             } else {
                 if (this.isStoreClosedNow()) {
                     this._hasAutoPausedTonight = true;
                 }
                 this.isPlaying = true;
-                this.player.playVideo();
+
+                // Pastikan volume dan status unmute disiapkan saat user gesture
+                try {
+                    if (typeof this.player.unMute === 'function' && !this.isMuted) {
+                        this.player.unMute();
+                    }
+                    const targetVol = this.isAdzanMode ? Math.max(0, Math.min(100, this.adzanTargetVolume ?? 10)) : (this.volume || 75);
+                    if (typeof this.player.setVolume === 'function') {
+                        this.player.setVolume(targetVol);
+                    }
+                } catch (e) {}
+
+                // Muat dan putar video secara andal
+                try {
+                    const currentLoadedId = (typeof this.player.getVideoData === 'function') ? this.player.getVideoData()?.video_id : null;
+                    const curState = (typeof this.player.getPlayerState === 'function') ? this.player.getPlayerState() : -1;
+
+                    // Jika video belum dimuat atau berbeda dengan track sekarang
+                    if (!currentLoadedId || currentLoadedId !== this.currentTrack.youtube_id || curState === -1 || curState === 5) {
+                        const startSec = Math.max(0, Math.floor(this.currentTime || 0));
+                        this.player.loadVideoById({
+                            videoId: this.currentTrack.youtube_id,
+                            startSeconds: (startSec > 0 && startSec < 86400) ? startSec : 0
+                        });
+                    } else {
+                        this.player.playVideo();
+                    }
+                } catch (e) {
+                    console.warn('[SoundStation] playVideo error, retrying loadVideoById:', e);
+                    try {
+                        this.player.loadVideoById(this.currentTrack.youtube_id);
+                        this.player.playVideo();
+                    } catch (err) {}
+                }
             }
             this.broadcastSync();
             this.broadcastTimeSync(true);
 
             // Sinkronkan state play/pause langsung ke server untuk Display TV
-            fetch('{{ route('kasir.music.playback.sync') }}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                },
-                body: JSON.stringify({
-                    client_id: this.myTabId,
-                    current_time: (typeof this.player.getCurrentTime === 'function') ? this.player.getCurrentTime() : this.currentTime,
-                    duration: this.duration,
-                    is_playing: this.isPlaying,
-                    current_track: this.currentTrack
-                })
-            }).catch(() => {});
+            try {
+                fetch('{{ route('kasir.music.playback.sync') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({
+                        client_id: this.myTabId,
+                        current_time: (typeof this.player.getCurrentTime === 'function') ? (this.player.getCurrentTime() || this.currentTime) : this.currentTime,
+                        duration: this.duration,
+                        is_playing: this.isPlaying,
+                        current_track: this.currentTrack
+                    })
+                }).catch(() => {});
+            } catch (e) {}
         },
 
         async skipTrackConfirm() {

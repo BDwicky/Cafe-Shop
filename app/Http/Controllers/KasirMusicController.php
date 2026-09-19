@@ -552,20 +552,25 @@ class KasirMusicController extends Controller
             $isFresh = ($now - ($existingMaster['updated_at'] ?? 0)) < 20;
 
             if ($isFresh && ! $force) {
-                $existingPriority = $existingMaster['priority'] ?? 10;
-                if ($existingPriority >= $priority) {
-                    $playerState = $this->musicService->getPlayerState();
-                    $playbackState = Cache::get('soundstation_playback_state');
+                // Jangan tolak jika klaim berasal dari perangkat yang sama (misal refresh/reload halaman kasir di peramban yang sama)
+                $isSameDevice = ! empty($existingMaster['device_id']) && ! empty($deviceId) && $existingMaster['device_id'] === $deviceId;
 
-                    return response()->json([
-                        'status' => 'rejected',
-                        'message' => 'Master host sedang dipegang oleh perangkat lain.',
-                        'current_master' => $existingMaster,
-                        'playback_state' => $playbackState,
-                        'now_playing' => $playerState['now_playing'],
-                        'queue_count' => $playerState['queue_count'],
-                        'queue' => $playerState['queue'],
-                    ]);
+                if (! $isSameDevice) {
+                    $existingPriority = $existingMaster['priority'] ?? 10;
+                    if ($existingPriority >= $priority) {
+                        $playerState = $this->musicService->getPlayerState();
+                        $playbackState = Cache::get('soundstation_playback_state');
+
+                        return response()->json([
+                            'status' => 'rejected',
+                            'message' => 'Master host sedang dipegang oleh perangkat lain.',
+                            'current_master' => $existingMaster,
+                            'playback_state' => $playbackState,
+                            'now_playing' => $playerState['now_playing'],
+                            'queue_count' => $playerState['queue_count'],
+                            'queue' => $playerState['queue'],
+                        ]);
+                    }
                 }
             }
         }
