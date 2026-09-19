@@ -149,7 +149,9 @@
 
                 displayMode: localStorage.getItem('tv_display_mode') || 'visualizer', // 'visualizer' atau 'video'
                 isFullscreen: false,
-                tvSoundEnabled: localStorage.getItem('tv_sound_enabled') === 'true', // Default false (hening untuk mencegah dobel announcer)
+                tvSoundEnabled: localStorage.getItem('tv_sound_enabled') === 'true', // Mengontrol suara video TV & notifikasi chime secara terpadu
+                tvVolume: Number(localStorage.getItem('tv_volume') || 100),
+                adzanTargetVolume: 10,
 
                 playbackCurrentTime: 0,
                 playbackDuration: 0,
@@ -278,11 +280,17 @@
                                 this.adzanPrayerName = data.prayer || 'Adzan';
                                 this._isTestAdzan = !!data.isTest;
                                 this._isManualAdzan = !!data.isManual;
+                                if (this.tvPlayer && this.tvSoundEnabled && typeof this.tvPlayer.setVolume === 'function') {
+                                    this.tvPlayer.setVolume(this.adzanTargetVolume ?? 10);
+                                }
                             } else if (data.type === 'ADZAN_MODE_ENDED') {
                                 this.isAdzanMode = false;
                                 this.adzanPrayerName = '';
                                 this._isTestAdzan = false;
                                 this._isManualAdzan = false;
+                                if (this.tvPlayer && this.tvSoundEnabled && typeof this.tvPlayer.setVolume === 'function') {
+                                    this.tvPlayer.setVolume(this.tvVolume ?? 100);
+                                }
                             }
                         };
                     }
@@ -332,7 +340,12 @@
                     const unlockTvAutoplay = () => {
                         if (this.tvPlayer && typeof this.tvPlayer.playVideo === 'function') {
                             try {
-                                if (typeof this.tvPlayer.mute === 'function') this.tvPlayer.mute();
+                                if (this.tvSoundEnabled && typeof this.tvPlayer.unMute === 'function') {
+                                    this.tvPlayer.unMute();
+                                    this.tvPlayer.setVolume(this.isAdzanMode ? (this.adzanTargetVolume ?? 10) : (this.tvVolume ?? 100));
+                                } else if (!this.tvSoundEnabled && typeof this.tvPlayer.mute === 'function') {
+                                    this.tvPlayer.mute();
+                                }
                             } catch (e) {}
                             if (this.isPlaying) {
                                 this.tvPlayer.playVideo();
@@ -429,7 +442,7 @@
                                 modestbranding: 1,
                                 rel: 0,
                                 playsinline: 1,
-                                mute: 1, // TV selalu hening secara default agar audio utama tetap diputar oleh tab Kasir
+                                mute: this.tvSoundEnabled ? 0 : 1, // TV bersuara jika toggle suara aktif
                                 origin: window.location.origin,
                                 cc_load_policy: 0,
                                 iv_load_policy: 3,
@@ -438,7 +451,12 @@
                             events: {
                                 onReady: (event) => {
                                     this.tvPlayerReady = true;
-                                    event.target.mute();
+                                    if (this.tvSoundEnabled) {
+                                        event.target.unMute();
+                                        event.target.setVolume(this.isAdzanMode ? (this.adzanTargetVolume ?? 10) : (this.tvVolume ?? 100));
+                                    } else {
+                                        event.target.mute();
+                                    }
                                     this.disableCaptions();
 
                                     if (this.nowPlaying && this.nowPlaying.youtube_id) {
@@ -486,7 +504,12 @@
                                         setTimeout(() => {
                                             if (this.isPlaying && this.tvPlayer && typeof this.tvPlayer.playVideo === 'function') {
                                                 try {
-                                                    if (typeof this.tvPlayer.mute === 'function') this.tvPlayer.mute();
+                                                    if (this.tvSoundEnabled && typeof this.tvPlayer.unMute === 'function') {
+                                                        this.tvPlayer.unMute();
+                                                        this.tvPlayer.setVolume(this.isAdzanMode ? (this.adzanTargetVolume ?? 10) : (this.tvVolume ?? 100));
+                                                    } else if (!this.tvSoundEnabled && typeof this.tvPlayer.mute === 'function') {
+                                                        this.tvPlayer.mute();
+                                                    }
                                                 } catch (e) {}
                                                 this.tvPlayer.playVideo();
                                             }
@@ -537,7 +560,10 @@
                         if (this.isPlaying) {
                             if (state !== YT.PlayerState.PLAYING && state !== YT.PlayerState.BUFFERING) {
                                 try {
-                                    if (typeof this.tvPlayer.mute === 'function') {
+                                    if (this.tvSoundEnabled && typeof this.tvPlayer.unMute === 'function') {
+                                        this.tvPlayer.unMute();
+                                        this.tvPlayer.setVolume(this.isAdzanMode ? (this.adzanTargetVolume ?? 10) : (this.tvVolume ?? 100));
+                                    } else if (!this.tvSoundEnabled && typeof this.tvPlayer.mute === 'function') {
                                         this.tvPlayer.mute();
                                     }
                                 } catch (e) {}
@@ -548,6 +574,17 @@
                                 this._isManualPausing = true;
                                 this.tvPlayer.pauseVideo();
                                 setTimeout(() => { this._isManualPausing = false; }, 500);
+                            }
+                        }
+
+                        // Sinkronkan status mute/volume player dengan toggle tvSoundEnabled
+                        if (typeof this.tvPlayer.isMuted === 'function') {
+                            const isMuted = this.tvPlayer.isMuted();
+                            if (this.tvSoundEnabled && isMuted) {
+                                this.tvPlayer.unMute();
+                                this.tvPlayer.setVolume(this.isAdzanMode ? (this.adzanTargetVolume ?? 10) : (this.tvVolume ?? 100));
+                            } else if (!this.tvSoundEnabled && !isMuted) {
+                                this.tvPlayer.mute();
                             }
                         }
 
@@ -686,7 +723,14 @@
                             }
                             this.isAdzanMode = true;
                             this.adzanPrayerName = data.prayer_times.active_prayer.name;
+                            this.adzanTargetVolume = Number(data.adzan_settings.target_volume ?? 10);
+                            if (this.tvPlayer && this.tvSoundEnabled && typeof this.tvPlayer.setVolume === 'function') {
+                                this.tvPlayer.setVolume(this.adzanTargetVolume);
+                            }
                         } else if (!this._isTestAdzan && !this._isManualAdzan) {
+                            if (this.isAdzanMode && this.tvPlayer && this.tvSoundEnabled && typeof this.tvPlayer.setVolume === 'function') {
+                                this.tvPlayer.setVolume(this.tvVolume ?? 100);
+                            }
                             this.isAdzanMode = false;
                             this.adzanPrayerName = '';
                         }
@@ -802,6 +846,19 @@
                     try {
                         localStorage.setItem('tv_sound_enabled', this.tvSoundEnabled ? 'true' : 'false');
                     } catch (e) {}
+
+                    if (this.tvPlayer) {
+                        try {
+                            if (this.tvSoundEnabled) {
+                                if (typeof this.tvPlayer.unMute === 'function') this.tvPlayer.unMute();
+                                if (typeof this.tvPlayer.setVolume === 'function') {
+                                    this.tvPlayer.setVolume(this.isAdzanMode ? (this.adzanTargetVolume ?? 10) : (this.tvVolume ?? 100));
+                                }
+                            } else {
+                                if (typeof this.tvPlayer.mute === 'function') this.tvPlayer.mute();
+                            }
+                        } catch (e) {}
+                    }
                 },
 
                 initParticles() {
@@ -1079,11 +1136,14 @@
                     </span>
                 </button>
 
-                <!-- Toggle Suara Notifikasi TV -->
+                <!-- Toggle Terpadu: Suara TV (Video) & Notifikasi (Chime) -->
                 <button type="button" @click="toggleTvSound()"
-                        class="w-9 h-9 flex items-center justify-center rounded-xl bg-[#261D16] hover:bg-[#32261C] border border-[#3A2D22] hover:border-[#D9973E] text-[#D9973E] transition shadow-sm active:scale-95 cursor-pointer"
-                        :title="tvSoundEnabled ? 'Suara Notifikasi TV: AKTIF (Klik untuk Heningkan)' : 'Suara Notifikasi TV: HENING (Klik untuk Aktifkan)'">
-                    <span class="text-sm" x-text="tvSoundEnabled ? '🔔' : '🔕'"></span>
+                        class="h-9 px-2.5 sm:px-3 flex items-center gap-1.5 rounded-xl bg-[#261D16] hover:bg-[#32261C] border transition shadow-sm active:scale-95 cursor-pointer relative"
+                        :class="tvSoundEnabled ? 'border-[#5F7F42] text-[#85BF5C]' : 'border-[#3A2D22] text-[#A89A85] hover:border-[#D9973E] hover:text-[#D9973E]'"
+                        :title="tvSoundEnabled ? 'Suara TV & Notifikasi: AKTIF (Musik & Chime Bersuara — Klik untuk Mute)' : 'Suara TV & Notifikasi: HENING (TV Mute Total — Klik untuk Bunyikan TV)'">
+                    <span class="text-sm" x-text="tvSoundEnabled ? '🔊' : '🔇'"></span>
+                    <span class="hidden sm:inline font-mono text-xs font-bold" x-text="tvSoundEnabled ? 'Suara ON' : 'Mute'"></span>
+                    <span x-show="tvSoundEnabled" class="w-2 h-2 rounded-full bg-[#5F7F42] absolute -top-0.5 -right-0.5 border border-[#140E0A] animate-pulse"></span>
                 </button>
 
                 <!-- Toggle Fullscreen -->
