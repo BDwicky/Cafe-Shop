@@ -539,13 +539,27 @@
                 <div class="font-mono text-2xl sm:text-[26px] text-[#D9973E] font-bold tracking-tight" x-text="fmt(total)"></div>
             </div>
 
-            <!-- Input Tunai jika Cash -->
-            <div class="flex items-center justify-between gap-3 bg-[#1B140E] border border-[#3A3026] rounded-xl px-3 py-2" x-show="method === 'cash'">
-                <span class="text-[#A89A85] text-xs font-medium shrink-0">Diterima (Rp)</span>
-                <input x-model.number="paid"
-                       type="number"
-                       min="0"
-                       class="w-36 bg-[#221A14] border border-[#3A3026] text-[#F7F3EC] px-3 py-1.5 text-right font-mono text-sm font-bold rounded-lg focus:outline-none focus:border-[#D9973E] focus:ring-1 focus:ring-[#D9973E]/40">
+            <!-- Input Tunai jika Cash (Touch-Friendly Tablet POS: Bebas Pop-up Keyboard Tablet) -->
+            <div class="flex items-center justify-between gap-2 bg-[#1B140E] border border-[#3A3026] hover:border-[#D9973E]/70 rounded-xl px-3 py-2 transition-colors cursor-pointer group"
+                 x-show="method === 'cash'"
+                 @click="openNumpad()">
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="w-7 h-7 rounded-lg bg-[#2A2016] group-hover:bg-[#D9973E] text-[#D9973E] group-hover:text-[#1F1812] flex items-center justify-center text-xs font-mono font-bold transition shrink-0 shadow-2xs">
+                        🔢
+                    </span>
+                    <div class="min-w-0">
+                        <span class="text-[#FAF7F2] text-xs font-semibold block leading-tight">Diterima</span>
+                        <span class="text-[#8A7B66] text-[10px] font-mono block leading-tight">Ketuk untuk keypad</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <span class="font-mono text-xs text-[#8A7B66]">Rp</span>
+                    <input type="text"
+                           readonly
+                           inputmode="none"
+                           :value="(parseInt(paid) || 0).toLocaleString('id-ID')"
+                           class="w-28 sm:w-32 bg-[#221A14] border border-[#3A3026] group-hover:border-[#D9973E] text-[#FAF7F2] px-2.5 py-1.5 text-right font-mono text-sm font-bold rounded-lg focus:outline-none cursor-pointer select-none transition-colors">
+                </div>
             </div>
 
             <!-- Notifikasi Error -->
@@ -1117,6 +1131,198 @@
             </div>
         </div>
     </div>
+
+    <!-- 7. MODAL OVERLAY NUMBER PAD (TOUCH NUMPAD NOMINAL DITERIMA - TABLET POS FRIENDLY) -->
+    <div x-show="showNumpadModal"
+         x-cloak
+         @keydown.window="if(showNumpadModal) handleNumpadKey($event)"
+         class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-xs transition-all duration-200">
+        <div class="bg-[#1C1611] border border-[#3A2D22] text-[#F7F3EC] w-full max-w-sm sm:max-w-md shadow-2xl rounded-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150 select-none"
+             @click.away="closeNumpad()">
+            
+            <!-- Header Modal Numpad -->
+            <div class="p-3.5 sm:p-4 bg-[#261D16] border-b border-[#3A2D22] flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <span class="w-8 h-8 rounded-xl bg-[#D9973E]/15 border border-[#D9973E]/30 flex items-center justify-center text-[#D9973E] text-base shrink-0 font-mono">
+                        🔢
+                    </span>
+                    <div>
+                        <h3 class="font-sans text-sm font-bold text-[#F7F3EC]">Nominal Uang Diterima</h3>
+                        <div class="text-[11px] text-[#A89A85] flex items-center gap-1.5 mt-0.5">
+                            <span>Total Tagihan:</span>
+                            <b class="font-mono text-[#D9973E]" x-text="fmt(total)"></b>
+                        </div>
+                    </div>
+                </div>
+                <button type="button"
+                        @click="closeNumpad()"
+                        title="Tutup (ESC)"
+                        class="text-[#8A7B66] hover:text-[#F7F3EC] p-1.5 transition-colors text-lg font-bold cursor-pointer">
+                    ✕
+                </button>
+            </div>
+
+            <!-- Body: Display Layar Nominal & Kembalian -->
+            <div class="p-4 space-y-3.5">
+                <!-- Layar Display Nominal -->
+                <div class="bg-[#140E0A] border-2 border-[#D9973E] rounded-xl p-3 sm:p-3.5 shadow-inner">
+                    <div class="flex items-center justify-between text-[10px] font-mono uppercase tracking-wider text-[#8A7B66] mb-1">
+                        <span>Uang Diterima Kasir</span>
+                        <span class="text-[#D9973E] font-bold">Rupiah (IDR)</span>
+                    </div>
+                    <div class="flex items-baseline justify-end gap-1 overflow-x-auto scrollbar-none py-1">
+                        <span class="font-mono text-base sm:text-lg text-[#8A7B66] font-semibold">Rp</span>
+                        <span class="font-mono text-3xl sm:text-4xl font-black text-[#F7F3EC] tracking-tight text-right"
+                              x-text="(parseInt(numpadInput) || 0).toLocaleString('id-ID')"></span>
+                    </div>
+
+                    <!-- Live Kembalian / Status Pembayaran -->
+                    <div class="mt-2 pt-2 border-t border-[#261D16] flex items-center justify-between text-xs font-mono">
+                        <span class="text-[#A89A85]">
+                            <template x-if="(parseInt(numpadInput) || 0) >= total">
+                                <span class="text-[#5F7F42] font-semibold flex items-center gap-1">
+                                    <span>✓</span> Kembalian:
+                                </span>
+                            </template>
+                            <template x-if="(parseInt(numpadInput) || 0) < total">
+                                <span class="text-[#E11D48] font-semibold flex items-center gap-1">
+                                    <span>⚠</span> Kurang:
+                                </span>
+                            </template>
+                        </span>
+                        <span class="font-bold text-sm"
+                              :class="(parseInt(numpadInput) || 0) >= total ? 'text-[#5F7F42]' : 'text-[#E11D48]'"
+                              x-text="(parseInt(numpadInput) || 0) >= total ? fmt((parseInt(numpadInput) || 0) - total) : fmt(total - (parseInt(numpadInput) || 0))"></span>
+                    </div>
+                </div>
+
+                <!-- Baris Preset Pecahan Uang Cepat -->
+                <div class="space-y-1.5">
+                    <div class="text-[10px] font-mono uppercase tracking-wider text-[#8A7B66] font-semibold">
+                        Pecahan Uang Kertas & Uang Pas
+                    </div>
+                    <div class="grid grid-cols-4 gap-1.5">
+                        <button type="button"
+                                @click="numpadExact()"
+                                class="py-2 px-1 text-center font-mono text-xs font-bold rounded-xl border border-[#D9973E]/50 bg-[#261D16] hover:bg-[#D9973E] text-[#D9973E] hover:text-[#1F1812] transition-all cursor-pointer active:scale-95 shadow-2xs">
+                            Uang Pas
+                        </button>
+                        <button type="button"
+                                @click="numpadSet(50000)"
+                                class="py-2 px-1 text-center font-mono text-xs font-semibold rounded-xl border border-[#3A2D22] bg-[#1E1711] hover:bg-[#32261C] text-[#FAF7F2] hover:text-[#D9973E] transition cursor-pointer active:scale-95">
+                            50.000
+                        </button>
+                        <button type="button"
+                                @click="numpadSet(100000)"
+                                class="py-2 px-1 text-center font-mono text-xs font-semibold rounded-xl border border-[#3A2D22] bg-[#1E1711] hover:bg-[#32261C] text-[#FAF7F2] hover:text-[#D9973E] transition cursor-pointer active:scale-95">
+                            100.000
+                        </button>
+                        <button type="button"
+                                @click="numpadSet(200000)"
+                                class="py-2 px-1 text-center font-mono text-xs font-semibold rounded-xl border border-[#3A2D22] bg-[#1E1711] hover:bg-[#32261C] text-[#FAF7F2] hover:text-[#D9973E] transition cursor-pointer active:scale-95">
+                            200.000
+                        </button>
+                    </div>
+                    <!-- Tambah Cepat (+5k, +10k, +20k, +50k) -->
+                    <div class="grid grid-cols-4 gap-1.5 pt-0.5">
+                        <button type="button"
+                                @click="numpadAdd(5000)"
+                                class="py-1.5 px-1 text-center font-mono text-[11px] rounded-lg border border-[#32261C] bg-[#18120D] hover:bg-[#2A2017] text-[#A89A85] hover:text-[#FAF7F2] transition cursor-pointer active:scale-95">
+                            +5.000
+                        </button>
+                        <button type="button"
+                                @click="numpadAdd(10000)"
+                                class="py-1.5 px-1 text-center font-mono text-[11px] rounded-lg border border-[#32261C] bg-[#18120D] hover:bg-[#2A2017] text-[#A89A85] hover:text-[#FAF7F2] transition cursor-pointer active:scale-95">
+                            +10.000
+                        </button>
+                        <button type="button"
+                                @click="numpadAdd(20000)"
+                                class="py-1.5 px-1 text-center font-mono text-[11px] rounded-lg border border-[#32261C] bg-[#18120D] hover:bg-[#2A2017] text-[#A89A85] hover:text-[#FAF7F2] transition cursor-pointer active:scale-95">
+                            +20.000
+                        </button>
+                        <button type="button"
+                                @click="numpadAdd(50000)"
+                                class="py-1.5 px-1 text-center font-mono text-[11px] rounded-lg border border-[#32261C] bg-[#18120D] hover:bg-[#2A2017] text-[#A89A85] hover:text-[#FAF7F2] transition cursor-pointer active:scale-95">
+                            +50.000
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Grid Touch Keypad Number (3 Kolom x 4 Baris) -->
+                <div class="grid grid-cols-3 gap-2 pt-1">
+                    <button type="button" @click="numpadPress('7')"
+                            class="py-3 sm:py-3.5 bg-[#221912] hover:bg-[#32261C] border border-[#3A2D22] text-[#FAF7F2] hover:text-[#D9973E] font-mono text-xl sm:text-2xl font-bold rounded-xl transition-all active:scale-95 shadow-2xs cursor-pointer">7</button>
+                    <button type="button" @click="numpadPress('8')"
+                            class="py-3 sm:py-3.5 bg-[#221912] hover:bg-[#32261C] border border-[#3A2D22] text-[#FAF7F2] hover:text-[#D9973E] font-mono text-xl sm:text-2xl font-bold rounded-xl transition-all active:scale-95 shadow-2xs cursor-pointer">8</button>
+                    <button type="button" @click="numpadPress('9')"
+                            class="py-3 sm:py-3.5 bg-[#221912] hover:bg-[#32261C] border border-[#3A2D22] text-[#FAF7F2] hover:text-[#D9973E] font-mono text-xl sm:text-2xl font-bold rounded-xl transition-all active:scale-95 shadow-2xs cursor-pointer">9</button>
+
+                    <button type="button" @click="numpadPress('4')"
+                            class="py-3 sm:py-3.5 bg-[#221912] hover:bg-[#32261C] border border-[#3A2D22] text-[#FAF7F2] hover:text-[#D9973E] font-mono text-xl sm:text-2xl font-bold rounded-xl transition-all active:scale-95 shadow-2xs cursor-pointer">4</button>
+                    <button type="button" @click="numpadPress('5')"
+                            class="py-3 sm:py-3.5 bg-[#221912] hover:bg-[#32261C] border border-[#3A2D22] text-[#FAF7F2] hover:text-[#D9973E] font-mono text-xl sm:text-2xl font-bold rounded-xl transition-all active:scale-95 shadow-2xs cursor-pointer">5</button>
+                    <button type="button" @click="numpadPress('6')"
+                            class="py-3 sm:py-3.5 bg-[#221912] hover:bg-[#32261C] border border-[#3A2D22] text-[#FAF7F2] hover:text-[#D9973E] font-mono text-xl sm:text-2xl font-bold rounded-xl transition-all active:scale-95 shadow-2xs cursor-pointer">6</button>
+
+                    <button type="button" @click="numpadPress('1')"
+                            class="py-3 sm:py-3.5 bg-[#221912] hover:bg-[#32261C] border border-[#3A2D22] text-[#FAF7F2] hover:text-[#D9973E] font-mono text-xl sm:text-2xl font-bold rounded-xl transition-all active:scale-95 shadow-2xs cursor-pointer">1</button>
+                    <button type="button" @click="numpadPress('2')"
+                            class="py-3 sm:py-3.5 bg-[#221912] hover:bg-[#32261C] border border-[#3A2D22] text-[#FAF7F2] hover:text-[#D9973E] font-mono text-xl sm:text-2xl font-bold rounded-xl transition-all active:scale-95 shadow-2xs cursor-pointer">2</button>
+                    <button type="button" @click="numpadPress('3')"
+                            class="py-3 sm:py-3.5 bg-[#221912] hover:bg-[#32261C] border border-[#3A2D22] text-[#FAF7F2] hover:text-[#D9973E] font-mono text-xl sm:text-2xl font-bold rounded-xl transition-all active:scale-95 shadow-2xs cursor-pointer">3</button>
+
+                    <button type="button" @click="numpadPress('C')"
+                            title="Reset 0"
+                            class="py-3 sm:py-3.5 bg-[#2C1814] hover:bg-[#C4553D] border border-[#4A2620] text-[#E57373] hover:text-white font-mono text-lg sm:text-xl font-bold rounded-xl transition-all active:scale-95 shadow-2xs cursor-pointer">C</button>
+                    <button type="button" @click="numpadPress('0')"
+                            class="py-3 sm:py-3.5 bg-[#221912] hover:bg-[#32261C] border border-[#3A2D22] text-[#FAF7F2] hover:text-[#D9973E] font-mono text-xl sm:text-2xl font-bold rounded-xl transition-all active:scale-95 shadow-2xs cursor-pointer">0</button>
+                    <button type="button" @click="numpadPress('000')"
+                            title="Tambah 3 nol (ribu)"
+                            class="py-3 sm:py-3.5 bg-[#221912] hover:bg-[#32261C] border border-[#3A2D22] text-[#D9973E] font-mono text-base sm:text-lg font-bold rounded-xl transition-all active:scale-95 shadow-2xs cursor-pointer">000</button>
+                </div>
+
+                <!-- Tombol Hapus 1 Digit (Backspace) & Aksi Cepat -->
+                <div class="grid grid-cols-3 gap-2">
+                    <button type="button" @click="numpadPress('backspace')"
+                            class="col-span-1 py-2.5 bg-[#1C140E] hover:bg-[#2A1F16] border border-[#3A2D22] text-[#A89A85] hover:text-[#FAF7F2] font-mono text-xs uppercase tracking-wider rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-95">
+                        <span>⌫</span>
+                        <span>Hapus</span>
+                    </button>
+                    <button type="button" @click="numpadPress('00')"
+                            class="col-span-1 py-2.5 bg-[#221912] hover:bg-[#32261C] border border-[#3A2D22] text-[#A89A85] hover:text-[#FAF7F2] font-mono text-xs font-bold rounded-xl transition cursor-pointer flex items-center justify-center active:scale-95">
+                        00
+                    </button>
+                    <button type="button" @click="closeNumpad()"
+                            class="col-span-1 py-2.5 bg-[#1C140E] hover:bg-[#2A1F16] border border-[#3A2D22] text-[#A89A85] hover:text-[#FAF7F2] font-mono text-xs uppercase tracking-wider rounded-xl transition cursor-pointer flex items-center justify-center active:scale-95">
+                        Tutup
+                    </button>
+                </div>
+            </div>
+
+            <!-- Footer: Aksi Terapkan / Bayar Langsung -->
+            <div class="p-3.5 sm:p-4 bg-[#261D16] border-t border-[#3A2D22] flex items-center justify-between gap-2.5">
+                <button type="button"
+                        @click="closeNumpad()"
+                        class="px-4 py-2.5 rounded-xl border border-[#3A2D22] text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#1C140E] font-mono text-xs uppercase tracking-wider transition cursor-pointer">
+                    Batal
+                </button>
+                <div class="flex items-center gap-2 flex-1 justify-end">
+                    <button type="button"
+                            @click="closeNumpad()"
+                            class="px-4 py-2.5 rounded-xl bg-[#2E2319] hover:bg-[#3D2F22] border border-[#4A392A] text-[#FAF7F2] font-mono text-xs uppercase tracking-wider font-bold transition shadow-xs cursor-pointer active:scale-98">
+                        ✓ Terapkan
+                    </button>
+                    <button type="button"
+                            @click="applyNumpadAndSubmit()"
+                            :disabled="items.length === 0 || submitting || (parseInt(numpadInput) || 0) < total"
+                            class="flex-1 max-w-[180px] bg-[#D9973E] hover:bg-[#B5762A] text-[#1F1812] hover:text-white py-2.5 px-3 rounded-xl font-mono text-xs uppercase tracking-[0.1em] font-bold transition-all shadow-md active:scale-98 disabled:opacity-40 disabled:cursor-not-allowed text-center cursor-pointer">
+                        <span x-show="!submitting">Bayar Sekarang ›</span>
+                        <span x-show="submitting">Memproses…</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -1154,6 +1360,8 @@ function pos() {
         submitting: false,
         showSuccessModal: false,
         completedOrder: null,
+        showNumpadModal: false,
+        numpadInput: '0',
 
         get sortedItems() {
             return [...this.items].sort((a, b) => {
@@ -1664,6 +1872,94 @@ function pos() {
         closeSuccessModal() {
             this.showSuccessModal = false;
             this.completedOrder = null;
+        },
+
+        openNumpad() {
+            if (this.method !== 'cash') return;
+            const initial = (this.paid > 0) ? this.paid : (this.total > 0 ? this.total : 0);
+            this.numpadInput = String(initial > 0 ? initial : '0');
+            this.paid = parseInt(this.numpadInput) || 0;
+            this.showNumpadModal = true;
+        },
+
+        closeNumpad() {
+            this.showNumpadModal = false;
+        },
+
+        numpadPress(val) {
+            let current = String(this.numpadInput || '0');
+            if (val === 'C') {
+                current = '0';
+            } else if (val === 'backspace') {
+                current = current.slice(0, -1);
+                if (!current || current === '') current = '0';
+            } else if (val === '000') {
+                if (current !== '0' && current.length < 9) {
+                    current += '000';
+                }
+            } else if (val === '00') {
+                if (current !== '0' && current.length < 10) {
+                    current += '00';
+                }
+            } else {
+                // Digit 0-9
+                if (current === '0') {
+                    current = String(val);
+                } else if (current.length < 11) {
+                    current += String(val);
+                }
+            }
+            this.numpadInput = current;
+            this.paid = parseInt(current) || 0;
+        },
+
+        numpadSet(amount) {
+            this.paid = amount;
+            this.numpadInput = String(amount);
+        },
+
+        numpadAdd(amount) {
+            const current = parseInt(this.numpadInput) || 0;
+            const next = current + amount;
+            this.paid = next;
+            this.numpadInput = String(next);
+        },
+
+        numpadExact() {
+            this.setExactPaid();
+            this.numpadInput = String(this.paid);
+        },
+
+        applyNumpadAndSubmit() {
+            this.closeNumpad();
+            if (this.items.length > 0 && this.paid >= this.total && !this.submitting) {
+                this.submit();
+            }
+        },
+
+        handleNumpadKey(e) {
+            if (!this.showNumpadModal) return;
+            const key = e.key;
+            if (key === 'Escape') {
+                e.preventDefault();
+                this.closeNumpad();
+            } else if (key === 'Enter') {
+                e.preventDefault();
+                if (this.paid >= this.total && this.items.length > 0) {
+                    this.applyNumpadAndSubmit();
+                } else {
+                    this.closeNumpad();
+                }
+            } else if (key >= '0' && key <= '9') {
+                e.preventDefault();
+                this.numpadPress(key);
+            } else if (key === 'Backspace') {
+                e.preventDefault();
+                this.numpadPress('backspace');
+            } else if (key === 'c' || key === 'C' || key === 'Delete') {
+                e.preventDefault();
+                this.numpadPress('C');
+            }
         },
     };
 }
