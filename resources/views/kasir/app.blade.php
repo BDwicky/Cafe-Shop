@@ -90,8 +90,8 @@
                     </div>
                 </div>
 
-                <!-- Navigasi Menu Kasir -->
-                <nav class="p-3 space-y-1">
+                <!-- Navigasi Menu Kasir (Auto-close overlay saat link diklik) -->
+                <nav class="p-3 space-y-1" @click="if ($event.target.closest('a')) { terminalSidebarOpen = false; mobileNavOpen = false; }">
                     <div class="px-2 pt-2 pb-1.5 flex items-center gap-2">
                         <span class="font-mono text-[9px] uppercase tracking-[0.25em] text-[#8A7B66] font-semibold">Navigasi Utama</span>
                         <span class="flex-1 h-px bg-[#32261C]"></span>
@@ -340,6 +340,12 @@
                         this.mobileNavOpen = false;
                     });
 
+                    // Event untuk menutup sidebar drawer seketika
+                    window.addEventListener('kasir:close-sidebar', () => {
+                        this.terminalSidebarOpen = false;
+                        this.mobileNavOpen = false;
+                    });
+
                     // Listen ke custom event toggle-terminal-sidebar
                     window.addEventListener('toggle-terminal-sidebar', () => {
                         this.terminalSidebarOpen = !this.terminalSidebarOpen;
@@ -446,6 +452,9 @@
         });
 
         async function swapKasirPage(url, pushState = true) {
+            // Tutup sidebar drawer seketika saat link diklik
+            window.dispatchEvent(new CustomEvent('kasir:close-sidebar'));
+
             const mainEl = document.querySelector('main');
             if (!mainEl) {
                 window.location.href = url;
