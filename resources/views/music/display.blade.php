@@ -1157,7 +1157,7 @@
                             <div class="absolute bottom-0 inset-x-0 z-20 bg-[#120D09]/75 backdrop-blur-md border-t border-white/10 px-4 py-3 sm:px-5 sm:py-3.5 flex flex-col gap-1.5 pointer-events-none select-none">
                                 <div class="flex items-center justify-between gap-3">
                                     <div class="min-w-0 flex-1 flex items-center gap-2.5">
-                                        <span class="w-2 h-2 rounded-full bg-[#D9973E] animate-ping shrink-0"></span>
+                                        <span class="w-2 h-2 rounded-full bg-[#D9973E] shrink-0" :class="isPlaying ? 'animate-ping' : 'opacity-40'"></span>
                                         <div class="min-w-0 flex-1">
                                             <h2 class="text-sm sm:text-base font-serif font-bold text-[#FAF7F2] truncate drop-shadow-md leading-tight"
                                                 x-text="nowPlaying ? (nowPlaying.song_title || nowPlaying.title) : 'Playlist Kafe KopiKita'"></h2>
@@ -1180,6 +1180,32 @@
                                              :style="'width: ' + playbackProgressPercent + '%'"></div>
                                     </div>
                                     <span class="font-mono text-[11px] text-[#FAF7F2] font-semibold shrink-0" x-text="playbackDurationFormatted">00:00</span>
+                                </div>
+                            </div>
+
+                            <!-- OVERLAY INDIKATOR KETIKA MUSIK TERJEDA (PAUSED) DI DALAM FRAME VIDEO -->
+                            <div x-show="!isPlaying && nowPlaying"
+                                 x-cloak
+                                 x-transition:enter="transition ease-out duration-300"
+                                 x-transition:enter-start="opacity-0 scale-95"
+                                 x-transition:enter-end="opacity-100 scale-100"
+                                 x-transition:leave="transition ease-in duration-200"
+                                 x-transition:leave-start="opacity-100 scale-100"
+                                 x-transition:leave-end="opacity-0 scale-95"
+                                 class="absolute inset-0 z-22 bg-black/60 backdrop-blur-xs flex flex-col items-center justify-center pointer-events-none select-none text-center p-4">
+                                <div class="px-5 py-3.5 bg-[#1C1611]/95 border-2 border-[#D9973E]/60 rounded-2xl text-[#FAF7F2] shadow-[0_12px_40px_rgba(0,0,0,0.85)] backdrop-blur-md flex items-center gap-3.5 animate-pulse">
+                                    <div class="w-10 h-10 rounded-xl bg-[#D9973E]/20 border border-[#D9973E]/50 flex items-center justify-center text-[#D9973E] text-lg shrink-0 shadow-inner">
+                                        ⏸
+                                    </div>
+                                    <div class="text-left min-w-0">
+                                        <div class="font-mono text-xs font-bold text-[#D9973E] uppercase tracking-wider flex items-center gap-1.5">
+                                            <span class="w-2 h-2 rounded-full bg-[#D9973E] animate-ping"></span>
+                                            <span>Audio & Video Terjeda</span>
+                                        </div>
+                                        <div class="text-[11px] text-[#C4B6A3] font-mono mt-0.5 truncate">
+                                            Pemutaran dijeda sementara di stasiun kasir
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
