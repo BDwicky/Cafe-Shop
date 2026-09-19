@@ -498,6 +498,13 @@ function navbarMusicWidget() {
             return '{{ \App\Http\Controllers\KasirMusicController::getActiveAnnouncerSettings()['reopen_time'] ?? '06:00' }}';
         })(),
         _hasAutoPausedTonight: false,
+        _manualPlaybackOverride: (() => {
+            try {
+                return sessionStorage.getItem('pos_soundstation_manual_override') === 'true';
+            } catch (e) {
+                return false;
+            }
+        })(),
 
         voiceAnnouncerEnabled: true,
         isAnnouncing: false,
@@ -950,6 +957,10 @@ function navbarMusicWidget() {
                         if (reloadIntent.wasPlaying) {
                             this.isPlaying = true;
                         }
+                        if (reloadIntent.manualOverride) {
+                            this._manualPlaybackOverride = true;
+                            this._hasAutoPausedTonight = true;
+                        }
                     }
                 }
             } catch (e) {}
@@ -1123,7 +1134,7 @@ function navbarMusicWidget() {
                 }
             }, 1000);
 
-            // Simpan state dan informasikan jika tab host ditutup
+            // Simpan state dan reload intent saat tab kasir di-refresh
             window.addEventListener('beforeunload', () => {
                 // Catat reload intent ke sessionStorage.
                 // sessionStorage HANYA bertahan jika halaman di-refresh dalam tab yang sama.
@@ -1135,14 +1146,16 @@ function navbarMusicWidget() {
                         currentTime: this.currentTime,
                         duration: this.duration,
                         currentTrack: this.currentTrack,
+                        manualOverride: !!this._manualPlaybackOverride,
                         timestamp: Date.now()
                     }));
                 } catch (e) {}
 
+                // Simpan snapshot state terakhir tanpa mematikan isPlaying agar refresh tidak mematikan musik
                 if (this.isMasterHost) {
                     try {
                         localStorage.setItem('pos_soundstation_state', JSON.stringify({
-                            isPlaying: false, // Jeda otomatis saat tab kasir ditutup
+                            isPlaying: this.isPlaying,
                             currentTrack: this.currentTrack,
                             currentTime: this.currentTime,
                             duration: this.duration,
@@ -1151,28 +1164,6 @@ function navbarMusicWidget() {
                             queueCount: this.queueCount,
                             voiceAnnouncerEnabled: this.voiceAnnouncerEnabled
                         }));
-                        localStorage.removeItem('pos_soundstation_active_host');
-
-                        if (window.SoundStationHub && window.SoundStationHub.channel) {
-                            window.SoundStationHub.channel.postMessage({
-                                type: 'HOST_CLOSED',
-                                tabId: this.myTabId,
-                                lastTrack: this.currentTrack,
-                                lastTime: this.currentTime,
-                                wasPlaying: false
-                            });
-                        }
-
-                        // Beritahu server untuk melepaskan master lock & jeda playback secara asynchronous tanpa menunda navigasi
-                        fetch('{{ route('kasir.music.master.release') }}', {
-                            method: 'POST',
-                            keepalive: true,
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                            },
-                            body: JSON.stringify({ client_id: this.myTabId })
-                        }).catch(() => {});
                     } catch (e) {}
                 }
             });
@@ -1330,7 +1321,7 @@ function navbarMusicWidget() {
                         } else if (event.data === 0) {
                             this.clearPlaybackWatchdog();
                             this.isPlaying = false;
-                            if (this.isStoreClosedNow()) {
+                            if (this.isStoreClosedNow() && !this._manualPlaybackOverride) {
                                 console.warn('[SoundStation] Lagu berakhir saat jam tutup kafe (' + (this.closingTime || '00:00') + ' WIB). Pemutar musik otomatis berhenti/jeda.');
                                 if (this.currentRequestId) {
                                     fetch('{{ route('kasir.music.next') }}', {
@@ -1707,8 +1698,12 @@ function navbarMusicWidget() {
             };
             this.currentRequestId = null;
             this.lastDefaultTrackId = track.id;
+            this._manualPlaybackOverride = true;
+            this._hasAutoPausedTonight = true;
             try {
+                sessionStorage.setItem('pos_soundstation_manual_override', 'true');
                 localStorage.setItem('pos_soundstation_last_default_id', track.id);
+                localStorage.setItem('pos_soundstation_auto_paused_date', new Date().toDateString());
             } catch (e) {}
 
             this.currentTime = 0;
@@ -2059,13 +2054,20 @@ function navbarMusicWidget() {
 
             if (this.isPlaying) {
                 this.isPlaying = false;
+                this._manualPlaybackOverride = false;
+                try {
+                    sessionStorage.removeItem('pos_soundstation_manual_override');
+                } catch (e) {}
                 if (typeof this.player.pauseVideo === 'function') {
                     this.player.pauseVideo();
                 }
             } else {
-                if (this.isStoreClosedNow()) {
-                    this._hasAutoPausedTonight = true;
-                }
+                this._manualPlaybackOverride = true;
+                this._hasAutoPausedTonight = true;
+                try {
+                    sessionStorage.setItem('pos_soundstation_manual_override', 'true');
+                    localStorage.setItem('pos_soundstation_auto_paused_date', new Date().toDateString());
+                } catch (e) {}
                 this.isPlaying = true;
 
                 // Pastikan volume dan status unmute disiapkan saat user gesture
@@ -2538,17 +2540,31 @@ function navbarMusicWidget() {
         checkClosingTimeAutoPause() {
             if (!this.autoPauseClosingEnabled) return;
 
+            // Jika pengguna secara manual memutar lagu pada jam tutup (manual override), jangan auto-pause!
+            if (this._manualPlaybackOverride) return;
+
             const isClosed = this.isStoreClosedNow();
 
             // Reset flag _hasAutoPausedTonight jika toko sudah memasuki jam buka kembali
             if (!isClosed) {
                 this._hasAutoPausedTonight = false;
+                try { localStorage.removeItem('pos_soundstation_auto_paused_date'); } catch (e) {}
                 return;
             }
+
+            // Cek apakah untuk malam ini sudah pernah di-auto-pause sebelumnya (mencegah auto-pause berulang saat refresh/testing)
+            const todayStr = new Date().toDateString();
+            try {
+                const lastPausedDate = localStorage.getItem('pos_soundstation_auto_paused_date');
+                if (lastPausedDate === todayStr) {
+                    return;
+                }
+            } catch (e) {}
 
             // Jika toko tutup, pemutar sedang aktif di Master Host, dan belum di-auto-pause malam ini:
             if (this.isMasterHost && this.isPlaying && !this._hasAutoPausedTonight) {
                 this._hasAutoPausedTonight = true;
+                try { localStorage.setItem('pos_soundstation_auto_paused_date', todayStr); } catch (e) {}
                 this.isPlaying = false;
                 if (this.player && typeof this.player.pauseVideo === 'function') {
                     try {

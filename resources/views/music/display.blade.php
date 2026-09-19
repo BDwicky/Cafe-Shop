@@ -712,9 +712,6 @@
 
                         if (data.playback) {
                             let newIsPlaying = hasMaster && (typeof data.playback.is_playing !== 'undefined' ? !!data.playback.is_playing : false);
-                            if (data.closing_settings && data.closing_settings.is_store_closed && !data.playback.is_playing) {
-                                newIsPlaying = false;
-                            }
 
                             // JIKA Display TV baru saja menerima sinkronisasi langsung (BroadcastChannel) dari kasir dalam 10 detik terakhir:
                             // Jangan biarkan polling HTTP yang tertunda/stale menimpa status play lokal!
