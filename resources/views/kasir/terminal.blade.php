@@ -200,6 +200,17 @@
             </div>
             <div class="hidden sm:flex items-center gap-2 shrink-0">
                 <span class="font-mono text-xs text-[#8A7B66] bg-[#F7F3EC] px-2.5 py-1 rounded-full border border-[#E4DCCC]" x-text="filteredMenus.length + ' menu'"></span>
+                <!-- Shortcut Cepat ke Layar Dapur (KDS) -->
+                <a href="{{ route('kasir.kitchen.index') }}"
+                   title="Buka Layar Dapur (KDS) (Alt+K)"
+                   class="px-2.5 py-1 bg-[#EFE9DE] hover:bg-[#5F7F42] border border-[#E4DCCC] hover:border-[#5F7F42] text-[#2A211A] hover:text-white rounded-lg text-xs font-mono transition-all flex items-center gap-1.5 shrink-0 group shadow-2xs">
+                    <span class="w-1.5 h-1.5 rounded-full bg-[#5F7F42] group-hover:bg-white animate-pulse"></span>
+                    <svg class="w-3.5 h-3.5 text-[#5F7F42] group-hover:text-white transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    <span class="font-semibold">Dapur</span>
+                    <span class="px-1 py-0.2 rounded bg-white/70 group-hover:bg-white/20 text-[#8A7B66] group-hover:text-white text-[10px] font-mono">Alt+K</span>
+                </a>
             </div>
         </div>
 
@@ -560,7 +571,7 @@
     <!-- 4. MODAL TRANSAKSI BERHASIL (SEAMLESS POS - MUSIK TIDAK TERPUTUS) -->
     <div x-show="showSuccessModal"
          x-cloak
-         @keydown.escape.window="if(showSuccessModal) closeSuccessModal()"
+         @keydown.window="if(showSuccessModal) handleSuccessModalKey($event)"
          class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs transition-all duration-200">
         <div class="bg-[#1F1812] border border-[#3A3026] text-[#F7F3EC] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200"
              @click.away="closeSuccessModal()">
@@ -585,15 +596,16 @@
                 </div>
                 <button type="button"
                         @click="closeSuccessModal()"
+                        title="Tutup (ESC / Enter)"
                         class="text-[#8A7B66] hover:text-[#F7F3EC] p-1.5 transition-colors text-lg font-bold cursor-pointer">
                     ✕
                 </button>
             </div>
 
             <!-- Body Modal -->
-            <div class="p-5 space-y-4">
+            <div class="p-5 space-y-3.5">
                 <!-- Banner Kembalian (Highlight Besar) -->
-                <div class="bg-[#2A211A] border border-[#3A3026] p-4 text-center rounded-xs">
+                <div class="bg-[#2A211A] border border-[#3A3026] p-4 text-center rounded-xl">
                     <div class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#8A7B66]">KEMBALIAN PELANGGAN</div>
                     <div class="font-mono text-3xl font-bold text-[#5F7F42] mt-1" x-text="fmt(completedOrder?.change_amount || 0)"></div>
                     <div class="font-mono text-xs text-[#A89A85] mt-2 flex items-center justify-center gap-4">
@@ -603,49 +615,87 @@
                     </div>
                 </div>
 
-                <!-- Card Musik Request Code -->
-                <div class="bg-[#2A211A]/80 border border-[#D9973E]/30 p-3.5 flex items-center justify-between gap-3">
+                <!-- Shortcut Pintas Layar Dapur (KDS) -->
+                <div class="bg-[#261E17] border border-[#5F7F42]/50 rounded-xl p-3 flex items-center justify-between gap-3 shadow-xs">
                     <div class="flex items-center gap-2.5 min-w-0">
-                        <span class="text-2xl shrink-0">🎵</span>
+                        <span class="w-8 h-8 rounded-lg bg-[#5F7F42]/20 border border-[#5F7F42]/60 text-[#5F7F42] flex items-center justify-center font-bold text-sm shrink-0">
+                            👨‍🍳
+                        </span>
+                        <div class="min-w-0">
+                            <div class="font-mono text-xs font-bold text-[#FAF7F2] flex items-center gap-1.5">
+                                <span>Pesanan Masuk ke Layar Dapur</span>
+                                <span class="w-1.5 h-1.5 rounded-full bg-[#5F7F42] animate-ping"></span>
+                            </div>
+                            <div class="text-[11px] text-[#A89A85] truncate">Barista & Dapur langsung memproses pesanan ini.</div>
+                        </div>
+                    </div>
+                    <button type="button"
+                            @click="goToKitchen()"
+                            title="Buka Layar Dapur (Tekan K)"
+                            class="px-3 py-1.5 rounded-lg bg-[#5F7F42] hover:bg-[#4E6B35] text-white font-mono text-xs font-bold transition flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer shrink-0">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                        <span>Pantau</span>
+                        <span class="px-1 py-0.2 rounded bg-[#1F1812]/50 text-[#D9973E] text-[10px] font-mono">K</span>
+                    </button>
+                </div>
+
+                <!-- Card Musik Request Code -->
+                <div class="bg-[#2A211A]/80 border border-[#D9973E]/30 p-3 flex items-center justify-between gap-3 rounded-xl">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <span class="text-xl shrink-0">🎵</span>
                         <div class="min-w-0">
                             <div class="font-mono text-[10px] uppercase tracking-wider text-[#D9973E] font-bold">Kode Request Musik</div>
                             <div class="text-[11px] text-[#A89A85] truncate">Pelanggan dapat memindai QR di struk atau masukkan kode:</div>
                         </div>
                     </div>
-                    <div class="font-mono text-base font-black px-3 py-1 bg-[#1F1812] border border-[#D9973E] text-[#D9973E] tracking-widest shrink-0" x-text="completedOrder?.music_code || '-'"></div>
+                    <div class="font-mono text-base font-black px-3 py-1 bg-[#1F1812] border border-[#D9973E] text-[#D9973E] tracking-widest shrink-0 rounded-lg" x-text="completedOrder?.music_code || '-'"></div>
                 </div>
 
                 <!-- Status Audio & Background Print -->
-                <div class="flex items-center gap-2 text-xs text-[#8A7B66] bg-[#1F1812] border border-[#3A3026] px-3 py-2">
+                <div class="flex items-center gap-2 text-xs text-[#8A7B66] bg-[#1F1812] border border-[#3A3026] px-3 py-2 rounded-xl">
                     <span class="text-base">🖨️</span>
                     <span class="leading-tight">
-                        Struk otomatis dikirim ke printer di background. <b class="text-[#5F7F42]">Musik kafe tetap mengalun tanpa jeda.</b>
+                        Struk otomatis dicetak di background. <b class="text-[#5F7F42]">Musik kafe tetap mengalun tanpa jeda.</b>
                     </span>
                 </div>
             </div>
 
             <!-- Footer Actions -->
-            <div class="p-4 bg-[#2A211A] border-t border-[#3A3026] flex items-center justify-between gap-2.5">
-                <div class="flex items-center gap-2">
+            <div class="p-4 bg-[#2A211A] border-t border-[#3A3026] flex flex-wrap sm:flex-nowrap items-center justify-between gap-2">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                    <!-- Tombol Cepat Layar Dapur (KDS) -->
+                    <button type="button"
+                            @click="goToKitchen()"
+                            title="Buka Layar Dapur (Tekan K)"
+                            class="px-3 py-2 bg-[#1F1812] hover:bg-[#5F7F42] border border-[#5F7F42]/60 hover:border-[#5F7F42] text-[#FAF7F2] font-mono text-xs uppercase tracking-wider transition-colors flex items-center gap-1.5 rounded-xl cursor-pointer group shadow-xs">
+                        <span class="text-sm">👨‍🍳</span>
+                        <span class="font-bold">Dapur</span>
+                        <span class="px-1 rounded bg-[#2A211A] text-[#5F7F42] group-hover:text-white text-[10px] font-bold border border-[#3A3026]">K</span>
+                    </button>
+                    <!-- Tombol Cetak Ulang Struk (P) -->
                     <button type="button"
                             @click="reprintReceipt()"
-                            title="Cetak ulang struk thermal"
-                            class="px-3 py-2 bg-[#1F1812] hover:bg-[#3A3026] border border-[#3A3026] text-[#F7F3EC] font-mono text-xs uppercase tracking-wider transition-colors flex items-center gap-1.5 cursor-pointer">
+                            title="Cetak ulang struk thermal (Tekan P)"
+                            class="px-2.5 py-2 bg-[#1F1812] hover:bg-[#3A3026] border border-[#3A3026] text-[#F7F3EC] font-mono text-xs uppercase tracking-wider transition-colors flex items-center gap-1.5 rounded-xl cursor-pointer">
                         <span>🖨️</span>
                         <span>Cetak Ulang</span>
+                        <span class="px-1 rounded bg-[#2A211A] text-[#A89A85] text-[10px] font-bold border border-[#3A3026]">P</span>
                     </button>
+                    <!-- Lihat Struk Baru -->
                     <button type="button"
                             @click="if(completedOrder?.receipt_url) window.open(completedOrder.receipt_url, '_blank')"
                             title="Buka struk di tab baru"
-                            class="px-3 py-2 bg-[#1F1812] hover:bg-[#3A3026] border border-[#3A3026] text-[#8A7B66] hover:text-[#F7F3EC] font-mono text-xs uppercase tracking-wider transition-colors flex items-center gap-1 cursor-pointer">
-                        <span>Lihat Struk</span>
+                            class="px-2.5 py-2 bg-[#1F1812] hover:bg-[#3A3026] border border-[#3A3026] text-[#8A7B66] hover:text-[#F7F3EC] font-mono text-xs uppercase tracking-wider transition-colors flex items-center gap-1 rounded-xl cursor-pointer">
+                        <span>Struk</span>
                         <span>↗</span>
                     </button>
                 </div>
                 <button type="button"
                         @click="closeSuccessModal()"
-                        class="flex-1 max-w-[200px] bg-[#D9973E] hover:bg-[#B5762A] text-[#1F1812] font-mono text-xs uppercase tracking-[0.15em] font-bold py-2.5 px-4 transition-colors shadow-md text-center cursor-pointer">
-                    ✓ Selesai (ESC)
+                        class="flex-1 sm:max-w-[200px] bg-[#D9973E] hover:bg-[#B5762A] text-[#1F1812] font-mono text-xs uppercase tracking-[0.15em] font-bold py-2.5 px-4 transition-colors shadow-md text-center rounded-xl cursor-pointer active:scale-98">
+                    ✓ Transaksi Baru (Enter)
                 </button>
             </div>
 
@@ -1583,6 +1633,31 @@ function pos() {
                         type: 'info'
                     });
                 }
+            }
+        },
+
+        handleSuccessModalKey(e) {
+            if (!this.showSuccessModal) return;
+            const key = (e.key || '').toLowerCase();
+            if (key === 'escape' || key === 'enter') {
+                e.preventDefault();
+                this.closeSuccessModal();
+            } else if (key === 'k') {
+                e.preventDefault();
+                this.goToKitchen();
+            } else if (key === 'p') {
+                e.preventDefault();
+                this.reprintReceipt();
+            }
+        },
+
+        goToKitchen() {
+            this.closeSuccessModal();
+            const kitchenUrl = @js(route('kasir.kitchen.index'));
+            if (typeof swapKasirPage === 'function') {
+                swapKasirPage(kitchenUrl, true);
+            } else {
+                window.location.href = kitchenUrl;
             }
         },
 

@@ -379,6 +379,22 @@
                                 this.mobileNavOpen = !this.mobileNavOpen;
                             }
                         }
+                        if (e.altKey && (e.key === 'k' || e.key === 'K')) {
+                            e.preventDefault();
+                            if (typeof swapKasirPage === 'function') {
+                                swapKasirPage('{{ route('kasir.kitchen.index') }}', true);
+                            } else {
+                                window.location.href = '{{ route('kasir.kitchen.index') }}';
+                            }
+                        }
+                        if (e.altKey && (e.key === 't' || e.key === 'T')) {
+                            e.preventDefault();
+                            if (typeof swapKasirPage === 'function') {
+                                swapKasirPage('{{ route('kasir.terminal') }}', true);
+                            } else {
+                                window.location.href = '{{ route('kasir.terminal') }}';
+                            }
+                        }
                     });
 
                     // Polling realtime counts untuk sidebar badge (hanya saat tab aktif & tidak sedang navigasi)
