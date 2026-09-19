@@ -61,10 +61,8 @@
                 <!-- Header Brand & Clock -->
                 <div class="p-4 border-b border-[#32261C]">
                     <div class="flex items-center justify-between gap-2">
-                        <a href="{{ route('kasir.terminal') }}" class="flex items-center gap-2.5 min-w-0 group">
-                            <div class="w-8 h-8 rounded-xl bg-[#261D16] border border-[#3A2D22] flex items-center justify-center p-1.5 shrink-0 group-hover:border-[#D9973E] transition shadow-xs">
-                                <img src="{{ asset('images/logo-light.svg') }}" alt="{{ config('cafe.name') }}" class="h-5 w-auto">
-                            </div>
+                        <a href="{{ route('kasir.terminal') }}" class="flex items-center gap-3 min-w-0 group">
+                            <img src="{{ asset('images/logo-light.svg') }}" alt="{{ config('cafe.name') }}" class="h-8 w-auto shrink-0 group-hover:scale-105 transition-transform">
                             <div class="truncate">
                                 <div class="font-medium tracking-tight text-sm text-[#FAF7F2] group-hover:text-[#D9973E] transition truncate">{{ config('cafe.name') }}</div>
                                 <div class="font-mono text-[9px] uppercase tracking-[0.22em] text-[#D9973E] font-semibold">Tablet POS System</div>

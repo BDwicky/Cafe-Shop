@@ -69,11 +69,19 @@
             -ms-overflow-style: none !important;
             scrollbar-width: none !important;
         }
+        #tv-player-wrap {
+            width: 100% !important;
+            height: 100% !important;
+            overflow: hidden !important;
+            position: relative !important;
+        }
         #tv-player-wrap iframe, #tv-yt-player {
             width: 100% !important;
             height: 100% !important;
             border: none !important;
             pointer-events: none !important;
+            transform: scale(1.06);
+            transform-origin: center center;
         }
         @keyframes cardFlyIn {
             0% {
@@ -275,6 +283,21 @@
                     }
                 },
 
+                disableCaptions() {
+                    if (!this.tvPlayer) return;
+                    try {
+                        if (typeof this.tvPlayer.unloadModule === 'function') {
+                            this.tvPlayer.unloadModule('captions');
+                            this.tvPlayer.unloadModule('cc');
+                        }
+                        if (typeof this.tvPlayer.setOption === 'function') {
+                            this.tvPlayer.setOption('captions', 'track', {});
+                            this.tvPlayer.setOption('cc', 'track', {});
+                            this.tvPlayer.setOption('captions', 'fontSize', 0);
+                        }
+                    } catch (e) {}
+                },
+
                 initTvPlayer() {
                     if (this.tvPlayer) return;
                     const targetEl = document.getElementById('tv-yt-player');
@@ -306,16 +329,7 @@
                                 onReady: (event) => {
                                     this.tvPlayerReady = true;
                                     event.target.mute();
-                                    try {
-                                        if (typeof event.target.unloadModule === 'function') {
-                                            event.target.unloadModule('captions');
-                                            event.target.unloadModule('cc');
-                                        }
-                                        if (typeof event.target.setOption === 'function') {
-                                            event.target.setOption('captions', 'track', {});
-                                            event.target.setOption('cc', 'track', {});
-                                        }
-                                    } catch (e) {}
+                                    this.disableCaptions();
 
                                     if (this.nowPlaying && this.nowPlaying.youtube_id) {
                                         const startSec = Math.max(0, Math.floor(this.playbackCurrentTime || 0));
@@ -332,9 +346,18 @@
                                         } else {
                                             event.target.pauseVideo();
                                         }
+                                        setTimeout(() => this.disableCaptions(), 500);
                                     }
                                 },
                                 onStateChange: (event) => {
+                                    // Matikan paksa closed caption / subtitle setiap kali video mulai memutar
+                                    if (event.data === YT.PlayerState.PLAYING) {
+                                        this.disableCaptions();
+                                        setTimeout(() => this.disableCaptions(), 400);
+                                        setTimeout(() => this.disableCaptions(), 1200);
+                                        setTimeout(() => this.disableCaptions(), 2500);
+                                    }
+
                                     if (event.data === YT.PlayerState.PAUSED && this.isPlaying && !this._isManualPausing) {
                                         setTimeout(() => {
                                             if (this.isPlaying && this.tvPlayer && typeof this.tvPlayer.playVideo === 'function') {
@@ -369,18 +392,16 @@
                             } else {
                                 this.tvPlayer.loadVideoById(this.nowPlaying.youtube_id);
                             }
-                            try {
-                                if (typeof this.tvPlayer.unloadModule === 'function') {
-                                    this.tvPlayer.unloadModule('captions');
-                                    this.tvPlayer.unloadModule('cc');
-                                }
-                            } catch (e) {}
+                            this.disableCaptions();
+                            setTimeout(() => this.disableCaptions(), 500);
+                            setTimeout(() => this.disableCaptions(), 1500);
                         }
 
                         const state = (typeof this.tvPlayer.getPlayerState === 'function') ? this.tvPlayer.getPlayerState() : -1;
                         if (this.isPlaying) {
                             if (state === YT.PlayerState.PAUSED || state === YT.PlayerState.CUED) {
                                 this.tvPlayer.playVideo();
+                                setTimeout(() => this.disableCaptions(), 500);
                             }
                         } else {
                             if (state === YT.PlayerState.PLAYING || state === YT.PlayerState.BUFFERING) {
@@ -759,23 +780,19 @@
     </div>
 
     <!-- CONTENT WRAPPER -->
-    <div class="w-full h-full min-h-screen max-h-screen flex flex-col justify-between p-4 sm:p-6 lg:p-7 xl:p-8 relative z-10 box-border overflow-hidden"
-         @dblclick="toggleFullscreen()"
-         title="Klik dua kali untuk beralih Layar Penuh">
+    <div class="w-full h-full min-h-screen max-h-screen flex flex-col justify-between p-4 sm:p-6 lg:p-7 xl:p-8 relative z-10 box-border overflow-hidden">
 
         <!-- 1. TOP BAR -->
         <header class="w-full flex items-center justify-between border-b border-[#32261C] pb-3.5 shrink-0">
             <!-- Brand & Status -->
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-[#261D16] border border-[#3A2D22] flex items-center justify-center p-2 shrink-0 shadow-xs">
-                    <img src="{{ asset('images/logo-light.svg') }}" alt="{{ config('cafe.name') }}" class="h-6 w-auto">
-                </div>
-                <div class="border-l border-[#32261C] pl-3">
-                    <div class="font-mono text-xs uppercase tracking-[0.22em] text-[#D9973E] flex items-center gap-2 font-bold">
+            <div class="flex items-center gap-3.5">
+                <img src="{{ asset('images/logo-light.svg') }}" alt="{{ config('cafe.name') }}" class="h-10 sm:h-12 w-auto shrink-0 drop-shadow-md">
+                <div class="border-l border-[#32261C] pl-3.5">
+                    <div class="font-mono text-xs sm:text-sm uppercase tracking-[0.22em] text-[#D9973E] flex items-center gap-2 font-bold">
                         <span>{{ config('cafe.name') }} SOUNDSTATION</span>
                         <span class="w-2 h-2 rounded-full bg-[#5F7F42] animate-pulse"></span>
                     </div>
-                    <div class="text-[11px] text-[#A89A85] font-sans">{{ config('cafe.tagline') }}</div>
+                    <div class="text-xs text-[#A89A85] font-sans">{{ config('cafe.tagline') }}</div>
                 </div>
             </div>
 
@@ -955,16 +972,6 @@
                         </div>
                     </div>
 
-                    <!-- Video Track Info Bar -->
-                    <div class="flex items-center justify-between gap-4 p-3 bg-[#1C1611]/90 border border-[#32261C] rounded-xl backdrop-blur w-full">
-                        <div class="min-w-0">
-                            <h3 class="font-serif font-bold text-base text-[#FAF7F2] truncate"
-                                x-text="nowPlaying ? (nowPlaying.song_title || nowPlaying.title) : 'Lagu Kafe'"></h3>
-                            <div class="text-xs text-[#A89A85] font-mono truncate"
-                                 x-text="nowPlaying ? (nowPlaying.artist || 'Artis') : '-'"></div>
-                        </div>
-                        <div class="font-mono text-xs text-[#D9973E] shrink-0 font-bold" x-text="playbackCurrentTimeFormatted + ' / ' + playbackDurationFormatted"></div>
-                    </div>
                 </div>
 
             </div>
