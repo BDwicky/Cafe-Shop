@@ -1052,4 +1052,68 @@ class MusicRequestTest extends TestCase
             ->assertJsonPath('settings.template_type', 'formal')
             ->assertJsonPath('settings.chime_style', 'bell');
     }
+
+    public function test_status_endpoint_returns_combined_queue_with_request_and_bawaan_badges(): void
+    {
+        MusicRequest::query()->delete();
+        MusicDefaultTrack::query()->delete();
+
+        // 1. Buat track bawaan kafe
+        $defaultTrack1 = MusicDefaultTrack::create([
+            'title' => 'Morning Coffee Jazz',
+            'artist' => 'Coffee Lounge',
+            'youtube_id' => 'MCJAZZ123',
+            'duration_seconds' => 180,
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $defaultTrack2 = MusicDefaultTrack::create([
+            'title' => 'Evening Chill Lo-Fi',
+            'artist' => 'Lofi Beats',
+            'youtube_id' => 'ECLOFI456',
+            'duration_seconds' => 210,
+            'is_active' => true,
+            'sort_order' => 2,
+        ]);
+
+        // 2. Buat request dari pelanggan yang berstatus 'queued'
+        $order = Order::factory()->create(['status' => 'paid']);
+        $req = MusicRequest::create([
+            'order_id' => $order->id,
+            'customer_name' => 'Meja 8 Doni',
+            'song_title' => 'Sialan',
+            'artist' => 'Juicy Luicy',
+            'youtube_id' => 'SIALAN789',
+            'duration_seconds' => 240,
+            'status' => 'queued',
+        ]);
+
+        // 3. Panggil API status
+        $response = $this->getJson(route('music.status'));
+
+        $response->assertOk();
+
+        $data = $response->json();
+
+        // Verifikasi queue_count hanya menghitung request pelanggan (untuk menjaga aturan fade-out)
+        $this->assertEquals(1, $data['queue_count']);
+        $this->assertEquals(1, $data['request_queue_count']);
+        $this->assertEquals(2, $data['default_tracks_count']);
+        $this->assertEquals(2, $data['total_queue_count']);
+
+        // Item pertama di antrean HARUS merupakan request pelanggan (prioritas utama)
+        $firstItem = $data['queue'][0];
+        $this->assertEquals('request', $firstItem['type']);
+        $this->assertEquals('Request', $firstItem['badge']);
+        $this->assertEquals('Sialan', $firstItem['title']);
+        $this->assertEquals('Meja 8 Doni', $firstItem['customer_name']);
+        $this->assertTrue($firstItem['is_request']);
+
+        // Item kedua dan ketiga adalah lagu bawaan kafe
+        $secondItem = $data['queue'][1];
+        $this->assertEquals('default', $secondItem['type']);
+        $this->assertEquals('Bawaan', $secondItem['badge']);
+        $this->assertFalse($secondItem['is_request']);
+    }
 }

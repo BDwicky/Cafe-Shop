@@ -20,6 +20,14 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
+        User::firstOrCreate(
+            ['email' => 'owner@kopikita.test'],
+            [
+                'name' => 'Owner KopiKita',
+                'password' => bcrypt('123123'),
+            ]
+        );
+
         $categoriesData = [
             ['Kopi', 'kopi'],
             ['Non-Kopi', 'non-kopi'],
@@ -110,5 +118,6 @@ class DatabaseSeeder extends Seeder
         }
 
         $this->call(MusicDefaultSeeder::class);
+        $this->call(PromoSeeder::class);
     }
 }

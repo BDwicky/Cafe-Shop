@@ -1,195 +1,485 @@
 @extends('kasir.app')
 
-@section('title', 'Laporan Penjualan')
+@section('title', 'Laporan Keuangan & Penjualan')
 
 @section('content')
-<div>
+<div x-data="reportPage()" class="w-full p-4 sm:p-6 space-y-6">
+
     <!-- TAMPILAN DASHBOARD (LAYAR MONITOR / TABLET) -->
-    <div class="screen-dashboard-container p-6">
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+    <div class="screen-dashboard-container space-y-6">
+
+        <!-- 1. HEADER HALAMAN -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-[#E4DCCC]">
             <div>
-                <h1 class="text-2xl tracking-tight font-medium">Laporan Penjualan</h1>
-                <p class="font-mono text-xs text-[#8A7B66] mt-0.5">Rekapitulasi penjualan kasir, omzet, dan metode pembayaran.</p>
-            </div>
-            <div class="flex flex-wrap items-center gap-2 print:hidden">
-                <form method="GET" action="{{ route('kasir.laporan') }}" class="flex items-center gap-2">
-                    <input type="date" name="from" value="{{ $from->format('Y-m-d') }}"
-                           class="bg-white border border-[#E4DCCC] px-3 py-2 text-sm focus:outline-none focus:border-[#B5762A]">
-                    <span class="text-[#8A7B66] text-sm">s/d</span>
-                    <input type="date" name="to" value="{{ $to->format('Y-m-d') }}"
-                           class="bg-white border border-[#E4DCCC] px-3 py-2 text-sm focus:outline-none focus:border-[#B5762A]">
-                    <button class="border border-[#2A211A] px-4 py-2 font-mono text-[11px] uppercase tracking-[0.15em] hover:bg-[#2A211A] hover:text-[#F7F3EC] transition-colors">Tampilkan</button>
-                </form>
-
-                <!-- Tombol Cetak Format Struk Thermal 80mm -->
-                <a href="{{ route('kasir.laporan.receipt', ['from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d')]) }}"
-                   target="_blank"
-                   class="bg-[#1F1812] text-[#F7F3EC] border border-[#1F1812] px-4 py-2 font-mono text-[11px] uppercase tracking-[0.15em] hover:bg-[#D9973E] hover:text-[#1F1812] transition-colors flex items-center gap-2 shadow-sm font-semibold">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
-                    </svg>
-                    <span>Cetak Struk (80mm) ›</span>
-                </a>
-            </div>
-        </div>
-
-    <!-- Stat utama -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <div class="bg-white border border-[#E4DCCC] p-5">
-            <div class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#8A7B66]">Transaksi</div>
-            <div class="mt-2 font-mono text-4xl">{{ number_format($totals->trx, 0, ',', '.') }}</div>
-        </div>
-        <div class="bg-[#1F1812] text-[#F7F3EC] border border-[#3A3026] p-5">
-            <div class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#A89A85]">Omzet Penjualan</div>
-            <div class="mt-2 font-mono text-4xl text-[#D9973E]">Rp {{ number_format($totals->omzet, 0, ',', '.') }}</div>
-        </div>
-        <div class="bg-white border border-[#E4DCCC] p-5">
-            <div class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#8A7B66]">Rata-rata / Basket</div>
-            <div class="mt-2 font-mono text-4xl">Rp {{ number_format(round($totals->avg_basket), 0, ',', '.') }}</div>
-        </div>
-        <div class="bg-white border border-[#E4DCCC] p-5">
-            <div class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#8A7B66]">Item Terjual</div>
-            <div class="mt-2 font-mono text-4xl">{{ number_format($itemsSold, 0, ',', '.') }}</div>
-        </div>
-    </div>
-
-    <!-- Analisis Keuangan: HPP Modal, Pengeluaran & Laba Bersih Toko -->
-    <div class="mb-6 bg-white border border-[#E4DCCC] p-5 shadow-xs">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-3 border-b border-[#E4DCCC] gap-2 mb-4">
-            <div>
-                <h3 class="font-serif font-bold text-lg text-[#1F1812]">Analisis Keuangan & Laba Toko</h3>
-                <p class="font-mono text-xs text-[#8A7B66] mt-0.5">
-                    Perhitungan otomatis dari resep BOM bahan baku dan buku pengeluaran kasir.
+                <div class="flex items-center gap-2.5">
+                    <h1 class="text-2xl sm:text-3xl font-serif font-bold text-[#1F1812] tracking-tight">
+                        Laporan Keuangan & Penjualan
+                    </h1>
+                    <span class="px-2.5 py-0.5 rounded-full bg-[#D9973E]/15 border border-[#D9973E]/30 text-[#B5762A] font-mono text-xs font-bold">
+                        Rekonsiliasi Kasir
+                    </span>
+                </div>
+                <p class="font-sans text-xs text-[#8A7B66] mt-1">
+                    Rekapitulasi penjualan kasir, analisis omzet, laba kotor, biaya operasional, dan laba bersih toko.
                 </p>
             </div>
-            <div class="flex items-center gap-2">
-                <a href="{{ route('kasir.expenses.index') }}"
-                   class="px-3 py-1.5 bg-[#F7F3EC] border border-[#E4DCCC] hover:border-[#1F1812] font-mono text-xs text-[#1F1812] transition">
-                    + Pengeluaran Toko
+
+            <div class="flex flex-wrap items-center gap-2.5 print:hidden">
+                <!-- Periode Badge -->
+                <div class="flex items-center gap-2 font-mono text-xs text-[#8A7B66] bg-white border border-[#E4DCCC] rounded-xl px-3.5 py-2 shadow-2xs">
+                    <span class="w-2 h-2 rounded-full bg-[#5F7F42] animate-pulse"></span>
+                    <span>
+                        @if ($from->format('Y-m-d') === $to->format('Y-m-d'))
+                            {{ $from->translatedFormat('d M Y') }}
+                        @else
+                            {{ $from->translatedFormat('d M Y') }} — {{ $to->translatedFormat('d M Y') }}
+                        @endif
+                    </span>
+                </div>
+
+                <!-- Tombol Cetak Struk Thermal 80mm -->
+                <a href="{{ route('kasir.laporan.receipt', ['from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d')]) }}"
+                   target="_blank"
+                   title="Buka dan cetak format struk thermal 80mm"
+                   class="px-3.5 py-2 bg-white hover:bg-[#FAF7F2] text-[#1F1812] border border-[#E4DCCC] hover:border-[#D9973E] font-mono text-xs font-bold rounded-xl transition shadow-2xs flex items-center gap-2 active:scale-98">
+                    <svg class="w-4 h-4 text-[#B5762A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                    </svg>
+                    <span>Cetak Struk (80mm)</span>
                 </a>
-                <a href="{{ route('kasir.inventory.index') }}"
-                   class="px-3 py-1.5 bg-[#F7F3EC] border border-[#E4DCCC] hover:border-[#1F1812] font-mono text-xs text-[#1F1812] transition">
-                    📦 Master Stok Bahan
+
+                <!-- Buka POS -->
+                <a href="{{ route('kasir.terminal') }}"
+                   class="px-4 py-2 bg-[#1F1812] hover:bg-[#D9973E] text-[#F7F3EC] hover:text-[#1F1812] font-mono text-xs uppercase tracking-wider font-bold rounded-xl transition-all shadow-md active:scale-98 flex items-center gap-1.5">
+                    <span>+ Terminal POS ›</span>
                 </a>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <!-- 1. HPP Bahan Baku Terpakai -->
-            <div class="p-4 bg-[#F7F3EC]/70 border border-[#E4DCCC]">
-                <div class="flex items-center justify-between text-[#8A7B66]">
-                    <span class="font-mono text-[10px] uppercase tracking-wider font-semibold">HPP Bahan Terjual</span>
-                    <span class="text-xs">🌱</span>
-                </div>
-                <div class="mt-2 font-mono text-2xl font-bold text-[#1F1812]">
-                    Rp {{ number_format($finance['cogs'], 0, ',', '.') }}
-                </div>
-                <div class="mt-1 text-[11px] font-mono text-[#8A7B66]">
-                    Modal resep bahan yang terpakai
-                </div>
-            </div>
+        <!-- 2. FILTER PERIODE & PINTASAN CEPAT -->
+        @php
+            $todayStr = now()->format('Y-m-d');
+            $yesterdayStr = now()->subDay()->format('Y-m-d');
+            $from7DaysStr = now()->subDays(6)->format('Y-m-d');
+            $startOfMonthStr = now()->startOfMonth()->format('Y-m-d');
 
-            <!-- 2. Laba Kotor (Gross Profit) -->
-            <div class="p-4 bg-emerald-50/50 border border-emerald-200">
-                <div class="flex items-center justify-between text-[#5F7F42]">
-                    <span class="font-mono text-[10px] uppercase tracking-wider font-semibold">Laba Kotor (Gross)</span>
-                    <span class="font-mono text-xs font-bold">{{ $finance['gross_margin'] }}%</span>
-                </div>
-                <div class="mt-2 font-mono text-2xl font-bold text-[#5F7F42]">
-                    Rp {{ number_format($finance['gross_profit'], 0, ',', '.') }}
-                </div>
-                <div class="mt-1 text-[11px] font-mono text-[#5F7F42]">
-                    Omzet dikurangi HPP bahan
-                </div>
-            </div>
+            $currentFrom = $from->format('Y-m-d');
+            $currentTo = $to->format('Y-m-d');
 
-            <!-- 3. Total Pengeluaran Toko (Expenses) -->
-            <div class="p-4 bg-red-50/40 border border-red-200">
-                <div class="flex items-center justify-between text-[#C84B31]">
-                    <span class="font-mono text-[10px] uppercase tracking-wider font-semibold">Pengeluaran Toko</span>
-                    <span class="text-xs">🧾</span>
+            $isToday = ($currentFrom === $todayStr && $currentTo === $todayStr);
+            $isYesterday = ($currentFrom === $yesterdayStr && $currentTo === $yesterdayStr);
+            $is7Days = ($currentFrom === $from7DaysStr && $currentTo === $todayStr);
+            $isMonth = ($currentFrom === $startOfMonthStr && $currentTo === $todayStr);
+        @endphp
+        <div class="bg-white border border-[#E4DCCC] rounded-2xl p-4 sm:p-5 shadow-xs print:hidden">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                
+                <!-- Pintasan Periode Cepat -->
+                <div class="flex items-center flex-wrap gap-2">
+                    <span class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#8A7B66] font-bold mr-1">
+                        PERIODE CEPAT:
+                    </span>
+                    <button type="button"
+                            @click="setDateRange('today')"
+                            class="px-3.5 py-1.5 rounded-xl font-mono text-xs font-bold transition border {{ $isToday ? 'bg-[#1F1812] text-[#F7F3EC] border-[#1F1812] shadow-xs' : 'bg-[#FAF7F2] text-[#8A7B66] border-[#E4DCCC] hover:text-[#1F1812] hover:border-[#B5762A]' }}">
+                        Hari Ini
+                    </button>
+                    <button type="button"
+                            @click="setDateRange('yesterday')"
+                            class="px-3.5 py-1.5 rounded-xl font-mono text-xs font-bold transition border {{ $isYesterday ? 'bg-[#1F1812] text-[#F7F3EC] border-[#1F1812] shadow-xs' : 'bg-[#FAF7F2] text-[#8A7B66] border-[#E4DCCC] hover:text-[#1F1812] hover:border-[#B5762A]' }}">
+                        Kemarin
+                    </button>
+                    <button type="button"
+                            @click="setDateRange('7days')"
+                            class="px-3.5 py-1.5 rounded-xl font-mono text-xs font-bold transition border {{ $is7Days ? 'bg-[#1F1812] text-[#F7F3EC] border-[#1F1812] shadow-xs' : 'bg-[#FAF7F2] text-[#8A7B66] border-[#E4DCCC] hover:text-[#1F1812] hover:border-[#B5762A]' }}">
+                        7 Hari Terakhir
+                    </button>
+                    <button type="button"
+                            @click="setDateRange('month')"
+                            class="px-3.5 py-1.5 rounded-xl font-mono text-xs font-bold transition border {{ $isMonth ? 'bg-[#1F1812] text-[#F7F3EC] border-[#1F1812] shadow-xs' : 'bg-[#FAF7F2] text-[#8A7B66] border-[#E4DCCC] hover:text-[#1F1812] hover:border-[#B5762A]' }}">
+                        Bulan Ini
+                    </button>
                 </div>
-                <div class="mt-2 font-mono text-2xl font-bold text-[#C84B31]">
-                    Rp {{ number_format($finance['total_expenses'], 0, ',', '.') }}
-                </div>
-                <div class="mt-1 text-[11px] font-mono text-[#8A7B66]">
-                    Restock: Rp {{ number_format($finance['restock_expenses'], 0, ',', '.') }} • Opr: Rp {{ number_format($finance['operational_expenses'], 0, ',', '.') }}
-                </div>
-            </div>
 
-            <!-- 4. Laba Bersih Toko (Net Profit) -->
-            @php
-                $isNetPositive = $finance['net_profit'] >= 0;
-            @endphp
-            <div class="p-4 {{ $isNetPositive ? 'bg-[#1F1812] text-[#F7F3EC] border border-[#3A3026]' : 'bg-red-100 text-red-900 border border-red-300' }}">
-                <div class="flex items-center justify-between {{ $isNetPositive ? 'text-[#D9973E]' : 'text-red-700' }}">
-                    <span class="font-mono text-[10px] uppercase tracking-wider font-bold">Laba Bersih Toko</span>
-                    <span class="font-mono text-xs font-bold">{{ $finance['net_margin'] }}%</span>
-                </div>
-                <div class="mt-2 font-mono text-2xl font-bold {{ $isNetPositive ? 'text-[#D9973E]' : 'text-red-700' }}">
-                    Rp {{ number_format($finance['net_profit'], 0, ',', '.') }}
-                </div>
-                <div class="mt-1 text-[11px] font-mono {{ $isNetPositive ? 'text-[#A89A85]' : 'text-red-600' }}">
-                    Omzet dikurangi total biaya operasional
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Metode bayar -->
-        <div class="bg-white border border-[#E4DCCC] p-5">
-            <div class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#8A7B66] mb-3">Metode Bayar</div>
-            <table class="w-full text-sm">
-                @forelse ($byMethod as $m)
-                    <tr class="border-b border-[#E4DCCC] last:border-0">
-                        <td class="py-2 uppercase font-mono text-xs">{{ $m->payment_method }}</td>
-                        <td class="py-2 text-right font-mono">{{ number_format($m->c, 0, ',', '.') }} trx</td>
-                        <td class="py-2 text-right font-mono">Rp {{ number_format($m->t, 0, ',', '.') }}</td>
-                    </tr>
-                @empty
-                    <tr><td class="py-4 text-[#8A7B66]">Tidak ada transaksi.</td></tr>
-                @endforelse
-            </table>
-        </div>
-
-        <!-- Best seller -->
-        <div class="bg-white border border-[#E4DCCC] p-5">
-            <div class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#8A7B66] mb-3">10 Menu Terlaris</div>
-            <table class="w-full text-sm">
-                @forelse ($best as $b)
-                    <tr class="border-b border-[#E4DCCC] last:border-0">
-                        <td class="py-2">{{ $b->menu_name }}</td>
-                        <td class="py-2 text-right font-mono">{{ $b->qty }} pcs</td>
-                        <td class="py-2 text-right font-mono">Rp {{ number_format($b->omzet, 0, ',', '.') }}</td>
-                    </tr>
-                @empty
-                    <tr><td class="py-4 text-[#8A7B66]">Tidak ada penjualan.</td></tr>
-                @endforelse
-            </table>
-        </div>
-    </div>
-
-    <!-- Per hari (bar CSS murni) -->
-    @if ($perDay->count())
-        <div class="bg-white border border-[#E4DCCC] p-5 mt-6">
-            <div class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#8A7B66] mb-4">Omzet per Hari</div>
-            @php
-                $max = $perDay->max('t') ?: 1;
-            @endphp
-            <div class="space-y-2">
-                @foreach ($perDay as $d)
-                    <div class="flex items-center gap-3">
-                        <span class="font-mono text-xs text-[#8A7B66] w-24 shrink-0">{{ \Illuminate\Support\Str::of($d->d)->explode('-')->reverse()->implode('/') }}</span>
-                        <div class="flex-1 h-5 bg-[#F7F3EC] border border-[#E4DCCC]">
-                            <div class="h-full bg-[#B5762A]" style="width: {{ round($d->t / $max * 100) }}%"></div>
-                        </div>
-                        <span class="font-mono text-xs w-32 text-right">Rp {{ number_format($d->t, 0, ',', '.') }}</span>
+                <!-- Form Filter Tanggal Kustom -->
+                <form id="report-filter-form" method="GET" action="{{ route('kasir.laporan') }}" class="flex items-center flex-wrap gap-2.5">
+                    <div class="flex items-center gap-1.5 bg-[#FAF7F2] border border-[#E4DCCC] rounded-xl px-2.5 py-1.5 focus-within:border-[#B5762A] focus-within:bg-white transition">
+                        <span class="font-mono text-[10px] uppercase tracking-wider text-[#8A7B66] font-bold">DARI:</span>
+                        <input type="date"
+                               id="report-from-date"
+                               name="from"
+                               value="{{ $from->format('Y-m-d') }}"
+                               class="bg-transparent border-0 text-xs font-mono text-[#1F1812] focus:outline-none cursor-pointer">
                     </div>
-                @endforeach
+
+                    <span class="text-[#8A7B66] font-mono text-xs">s/d</span>
+
+                    <div class="flex items-center gap-1.5 bg-[#FAF7F2] border border-[#E4DCCC] rounded-xl px-2.5 py-1.5 focus-within:border-[#B5762A] focus-within:bg-white transition">
+                        <span class="font-mono text-[10px] uppercase tracking-wider text-[#8A7B66] font-bold">SAMPAI:</span>
+                        <input type="date"
+                               id="report-to-date"
+                               name="to"
+                               value="{{ $to->format('Y-m-d') }}"
+                               class="bg-transparent border-0 text-xs font-mono text-[#1F1812] focus:outline-none cursor-pointer">
+                    </div>
+
+                    <button type="submit"
+                            class="px-4 py-2 bg-[#1F1812] hover:bg-[#D9973E] text-[#F7F3EC] hover:text-[#1F1812] font-mono text-xs uppercase tracking-wider font-bold rounded-xl transition shadow-xs active:scale-95">
+                        Tampilkan
+                    </button>
+                </form>
+
             </div>
         </div>
-    @endif
+
+        <!-- 3. KARTU STATISTIK UTAMA PENJUALAN (HERO STAT CARDS) -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+            
+            <!-- 1. Total Transaksi -->
+            <div class="bg-white border border-[#E4DCCC] rounded-2xl p-4 sm:p-5 shadow-xs transition hover:border-[#D9973E]/60 flex flex-col justify-between">
+                <div class="flex items-center justify-between text-[#8A7B66]">
+                    <span class="font-mono text-[10px] uppercase tracking-[0.2em] font-bold">TOTAL TRANSAKSI</span>
+                    <span class="w-8 h-8 rounded-xl bg-[#FAF7F2] border border-[#E4DCCC] flex items-center justify-center text-sm shadow-2xs">🧾</span>
+                </div>
+                <div class="mt-3 flex items-baseline gap-2">
+                    <span class="font-mono text-3xl sm:text-4xl font-extrabold text-[#1F1812] tracking-tight">
+                        {{ number_format($totals->trx, 0, ',', '.') }}
+                    </span>
+                    <span class="text-xs text-[#8A7B66] font-mono font-medium">transaksi</span>
+                </div>
+                <div class="mt-2 text-[11px] text-[#8A7B66] font-mono flex items-center gap-1.5 pt-2 border-t border-[#F2EDE4]">
+                    <span class="h-2 w-2 rounded-full bg-[#5F7F42]"></span>
+                    <span>Status Lunas (Paid)</span>
+                </div>
+            </div>
+
+            <!-- 2. Omzet Penjualan (Highlight Card) -->
+            <div class="bg-[#1F1812] text-[#F7F3EC] border border-[#3A3026] rounded-2xl p-4 sm:p-5 shadow-md relative overflow-hidden flex flex-col justify-between">
+                <div class="flex items-center justify-between text-[#A89A85]">
+                    <span class="font-mono text-[10px] uppercase tracking-[0.2em] font-bold text-[#D9973E]">OMZET BERSIH</span>
+                    <span class="w-8 h-8 rounded-xl bg-[#2A211A] border border-[#3A3026] flex items-center justify-center text-sm shadow-2xs">💰</span>
+                </div>
+                <div class="mt-3">
+                    <div class="font-mono text-2xl sm:text-3xl font-extrabold text-[#D9973E] tracking-tight">
+                        Rp {{ number_format($totals->omzet, 0, ',', '.') }}
+                    </div>
+                </div>
+                <div class="mt-2 text-[11px] text-[#A89A85] font-mono flex items-center justify-between pt-2 border-t border-[#3A3026]">
+                    <span>Pendapatan Penjualan</span>
+                    @if (!empty($totals->total_discount) && $totals->total_discount > 0)
+                        <span class="text-[#D9973E] font-semibold">Diskon: Rp {{ number_format($totals->total_discount, 0, ',', '.') }}</span>
+                    @endif
+                </div>
+            </div>
+
+            <!-- 3. Rata-rata per Basket / Transaksi -->
+            <div class="bg-white border border-[#E4DCCC] rounded-2xl p-4 sm:p-5 shadow-xs transition hover:border-[#D9973E]/60 flex flex-col justify-between">
+                <div class="flex items-center justify-between text-[#8A7B66]">
+                    <span class="font-mono text-[10px] uppercase tracking-[0.2em] font-bold">RATA-RATA / BASKET</span>
+                    <span class="w-8 h-8 rounded-xl bg-[#FAF7F2] border border-[#E4DCCC] flex items-center justify-center text-sm shadow-2xs">🏷️</span>
+                </div>
+                <div class="mt-3">
+                    <div class="font-mono text-2xl sm:text-3xl font-bold text-[#1F1812] tracking-tight">
+                        Rp {{ number_format(round($totals->avg_basket), 0, ',', '.') }}
+                    </div>
+                </div>
+                <div class="mt-2 text-[11px] text-[#8A7B66] font-mono flex items-center gap-1.5 pt-2 border-t border-[#F2EDE4]">
+                    <span>Rata-rata belanja per tamu</span>
+                </div>
+            </div>
+
+            <!-- 4. Total Item Terjual -->
+            <div class="bg-white border border-[#E4DCCC] rounded-2xl p-4 sm:p-5 shadow-xs transition hover:border-[#D9973E]/60 flex flex-col justify-between">
+                <div class="flex items-center justify-between text-[#8A7B66]">
+                    <span class="font-mono text-[10px] uppercase tracking-[0.2em] font-bold">ITEM TERJUAL</span>
+                    <span class="w-8 h-8 rounded-xl bg-[#FAF7F2] border border-[#E4DCCC] flex items-center justify-center text-sm shadow-2xs">☕</span>
+                </div>
+                <div class="mt-3 flex items-baseline gap-2">
+                    <span class="font-mono text-3xl sm:text-4xl font-extrabold text-[#1F1812] tracking-tight">
+                        {{ number_format($itemsSold, 0, ',', '.') }}
+                    </span>
+                    <span class="text-xs text-[#8A7B66] font-mono font-medium">porsi</span>
+                </div>
+                <div class="mt-2 text-[11px] text-[#8A7B66] font-mono flex items-center gap-1.5 pt-2 border-t border-[#F2EDE4]">
+                    <span>Total cup & makanan keluar</span>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 4. KARTU ANALISIS KEUANGAN & LABA BERSIH TOKO -->
+        <div class="bg-white border border-[#E4DCCC] rounded-2xl p-5 sm:p-6 shadow-xs">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-[#E4DCCC] gap-3 mb-5">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-lg">📊</span>
+                        <h2 class="font-serif font-bold text-lg text-[#1F1812]">Analisis Keuangan & Laba Toko</h2>
+                    </div>
+                    <p class="font-mono text-xs text-[#8A7B66] mt-0.5">
+                        Perhitungan otomatis dari resep BOM bahan baku dan buku pengeluaran kasir.
+                    </p>
+                </div>
+                <div class="flex items-center gap-2 print:hidden">
+                    <a href="{{ route('kasir.expenses.index') }}"
+                       class="px-3 py-1.5 bg-[#FAF7F2] hover:bg-[#1F1812] hover:text-white border border-[#E4DCCC] rounded-xl font-mono text-xs text-[#1F1812] transition shadow-2xs">
+                        + Catat Pengeluaran
+                    </a>
+                    <a href="{{ route('kasir.inventory.index') }}"
+                       class="px-3 py-1.5 bg-[#FAF7F2] hover:bg-[#1F1812] hover:text-white border border-[#E4DCCC] rounded-xl font-mono text-xs text-[#1F1812] transition shadow-2xs">
+                        📦 Master Stok Bahan
+                    </a>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- 1. HPP Bahan Baku Terpakai -->
+                <div class="p-4 bg-[#FAF7F2] border border-[#E4DCCC] rounded-xl flex flex-col justify-between">
+                    <div class="flex items-center justify-between text-[#8A7B66]">
+                        <span class="font-mono text-[10px] uppercase tracking-wider font-bold">HPP Bahan Terjual</span>
+                        <span class="text-sm">🌱</span>
+                    </div>
+                    <div class="mt-3 font-mono text-2xl font-bold text-[#1F1812]">
+                        Rp {{ number_format($finance['cogs'], 0, ',', '.') }}
+                    </div>
+                    <div class="mt-2 text-[11px] font-mono text-[#8A7B66] pt-2 border-t border-[#E4DCCC]/60">
+                        Modal resep bahan yang terpakai
+                    </div>
+                </div>
+
+                <!-- 2. Laba Kotor (Gross Profit) -->
+                <div class="p-4 bg-[#5F7F42]/10 border border-[#5F7F42]/30 rounded-xl flex flex-col justify-between">
+                    <div class="flex items-center justify-between text-[#5F7F42]">
+                        <span class="font-mono text-[10px] uppercase tracking-wider font-bold">Laba Kotor (Gross)</span>
+                        <span class="px-2 py-0.5 rounded-full bg-[#5F7F42]/20 font-mono text-[10px] font-bold text-[#5F7F42]">
+                            {{ $finance['gross_margin'] }}%
+                        </span>
+                    </div>
+                    <div class="mt-3 font-mono text-2xl font-bold text-[#5F7F42]">
+                        Rp {{ number_format($finance['gross_profit'], 0, ',', '.') }}
+                    </div>
+                    <div class="mt-2 text-[11px] font-mono text-[#5F7F42] pt-2 border-t border-[#5F7F42]/20">
+                        Omzet dikurangi HPP bahan
+                    </div>
+                </div>
+
+                <!-- 3. Total Pengeluaran Toko (Expenses) -->
+                <div class="p-4 bg-[#C4553D]/10 border border-[#C4553D]/30 rounded-xl flex flex-col justify-between">
+                    <div class="flex items-center justify-between text-[#C4553D]">
+                        <span class="font-mono text-[10px] uppercase tracking-wider font-bold">Pengeluaran Toko</span>
+                        <span class="text-sm">🧾</span>
+                    </div>
+                    <div class="mt-3 font-mono text-2xl font-bold text-[#C4553D]">
+                        Rp {{ number_format($finance['total_expenses'], 0, ',', '.') }}
+                    </div>
+                    <div class="mt-2 text-[10px] font-mono text-[#8A7B66] pt-2 border-t border-[#C4553D]/20 truncate"
+                         title="Restock: Rp {{ number_format($finance['restock_expenses'], 0, ',', '.') }} • Opr: Rp {{ number_format($finance['operational_expenses'], 0, ',', '.') }}">
+                        Restock: Rp {{ number_format($finance['restock_expenses'], 0, ',', '.') }} • Opr: Rp {{ number_format($finance['operational_expenses'], 0, ',', '.') }}
+                    </div>
+                </div>
+
+                <!-- 4. Laba Bersih Toko (Net Profit) -->
+                @php
+                    $isNetPositive = $finance['net_profit'] >= 0;
+                @endphp
+                <div class="p-4 {{ $isNetPositive ? 'bg-[#1F1812] text-[#F7F3EC] border border-[#3A3026]' : 'bg-red-50 text-red-900 border border-red-200' }} rounded-xl flex flex-col justify-between shadow-xs">
+                    <div class="flex items-center justify-between {{ $isNetPositive ? 'text-[#D9973E]' : 'text-red-700' }}">
+                        <span class="font-mono text-[10px] uppercase tracking-wider font-bold">Laba Bersih Toko</span>
+                        <span class="px-2 py-0.5 rounded-full {{ $isNetPositive ? 'bg-[#D9973E]/20 text-[#D9973E]' : 'bg-red-200 text-red-800' }} font-mono text-[10px] font-bold">
+                            {{ $finance['net_margin'] }}%
+                        </span>
+                    </div>
+                    <div class="mt-3 font-mono text-2xl font-extrabold {{ $isNetPositive ? 'text-[#D9973E]' : 'text-red-700' }}">
+                        Rp {{ number_format($finance['net_profit'], 0, ',', '.') }}
+                    </div>
+                    <div class="mt-2 text-[11px] font-mono {{ $isNetPositive ? 'text-[#A89A85]' : 'text-red-600' }} pt-2 border-t {{ $isNetPositive ? 'border-[#3A3026]' : 'border-red-200' }}">
+                        Omzet dikurangi seluruh pengeluaran
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. DUA KOLOM KOMPARASI: METODE PEMBAYARAN & 10 MENU TERLARIS -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <!-- Kolom Kiri: Distribusi Metode Pembayaran -->
+            <div class="bg-white border border-[#E4DCCC] rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between pb-3 border-b border-[#E4DCCC] mb-4">
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm">💳</span>
+                            <h3 class="font-serif font-bold text-base text-[#1F1812]">Metode Pembayaran</h3>
+                        </div>
+                        <span class="font-mono text-xs text-[#8A7B66]">
+                            Total: Rp {{ number_format($totals->omzet, 0, ',', '.') }}
+                        </span>
+                    </div>
+
+                    <div class="space-y-3.5">
+                        @php
+                            $omzetTotal = (int) $totals->omzet ?: 1;
+                        @endphp
+                        @forelse ($byMethod as $m)
+                            @php
+                                $pct = round(($m->t / $omzetTotal) * 100, 1);
+                                $badgeColor = match($m->payment_method) {
+                                    'cash' => 'bg-emerald-50 text-emerald-800 border-emerald-200',
+                                    'qris' => 'bg-purple-50 text-purple-800 border-purple-200',
+                                    'debit' => 'bg-blue-50 text-blue-800 border-blue-200',
+                                    default => 'bg-[#FAF7F2] text-[#1F1812] border-[#E4DCCC]'
+                                };
+                                $barColor = match($m->payment_method) {
+                                    'cash' => 'bg-emerald-500',
+                                    'qris' => 'bg-purple-500',
+                                    'debit' => 'bg-blue-500',
+                                    default => 'bg-[#D9973E]'
+                                };
+                                $methodLabel = match($m->payment_method) {
+                                    'cash' => 'Tunai (Cash)',
+                                    'qris' => 'QRIS Dinamis',
+                                    'debit' => 'Kartu Debit',
+                                    default => strtoupper($m->payment_method)
+                                };
+                            @endphp
+                            <div class="p-3 bg-[#FAF7F2] rounded-xl border border-[#E4DCCC]/70">
+                                <div class="flex items-center justify-between mb-2">
+                                    <div class="flex items-center gap-2">
+                                        <span class="px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold uppercase border {{ $badgeColor }}">
+                                            {{ $methodLabel }}
+                                        </span>
+                                        <span class="font-mono text-xs text-[#8A7B66]">
+                                            {{ number_format($m->c, 0, ',', '.') }} transaksi
+                                        </span>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="font-mono text-sm font-bold text-[#1F1812]">
+                                            Rp {{ number_format($m->t, 0, ',', '.') }}
+                                        </span>
+                                        <span class="font-mono text-[11px] text-[#8A7B66] ml-1.5 font-semibold">
+                                            ({{ $pct }}%)
+                                        </span>
+                                    </div>
+                                </div>
+                                <!-- Progress Bar Persentase -->
+                                <div class="w-full h-2 bg-[#E4DCCC]/60 rounded-full overflow-hidden">
+                                    <div class="h-full rounded-full transition-all duration-500 {{ $barColor }}"
+                                         style="width: {{ $pct }}%"></div>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="py-8 text-center text-[#8A7B66] font-mono text-xs">
+                                Belum ada transaksi tercatat pada periode ini.
+                            </div>
+                        @endforelse
+                    </div>
+                </div>
+            </div>
+
+            <!-- Kolom Kanan: 10 Menu Terlaris (Top Performers) -->
+            <div class="bg-white border border-[#E4DCCC] rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between pb-3 border-b border-[#E4DCCC] mb-4">
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm">🏆</span>
+                            <h3 class="font-serif font-bold text-base text-[#1F1812]">10 Menu Terlaris</h3>
+                        </div>
+                        <span class="font-mono text-xs text-[#8A7B66]">Peringkat Penjualan</span>
+                    </div>
+
+                    <div class="space-y-2.5">
+                        @php
+                            $maxQty = $best->max('qty') ?: 1;
+                        @endphp
+                        @forelse ($best as $idx => $b)
+                            @php
+                                $rankColor = match($idx) {
+                                    0 => 'bg-[#D9973E] text-[#1F1812]', // Emas
+                                    1 => 'bg-[#A89A85] text-white',      // Perak
+                                    2 => 'bg-[#8A7B66] text-white',      // Perunggu
+                                    default => 'bg-[#FAF7F2] text-[#8A7B66] border border-[#E4DCCC]'
+                                };
+                                $barPct = round(($b->qty / $maxQty) * 100);
+                            @endphp
+                            <div class="flex items-center gap-3 p-2.5 bg-[#FAF7F2] rounded-xl border border-[#E4DCCC]/60 hover:border-[#D9973E]/60 transition">
+                                <!-- Rank Badge -->
+                                <div class="w-6 h-6 rounded-lg font-mono text-xs font-bold flex items-center justify-center shrink-0 shadow-2xs {{ $rankColor }}">
+                                    {{ $idx + 1 }}
+                                </div>
+
+                                <!-- Detail Menu & Progress -->
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="font-sans text-xs font-bold text-[#1F1812] truncate mr-2">
+                                            {{ $b->menu_name }}
+                                        </span>
+                                        <div class="flex items-center gap-2 shrink-0">
+                                            <span class="font-mono text-xs font-bold text-[#B5762A]">
+                                                {{ $b->qty }} pcs
+                                            </span>
+                                            <span class="font-mono text-xs text-[#1F1812] font-semibold">
+                                                Rp {{ number_format($b->omzet, 0, ',', '.') }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <!-- Progress Bar -->
+                                    <div class="w-full h-1.5 bg-[#E4DCCC]/60 rounded-full overflow-hidden">
+                                        <div class="h-full bg-[#D9973E] rounded-full transition-all duration-500"
+                                             style="width: {{ $barPct }}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        @empty
+                            <div class="py-8 text-center text-[#8A7B66] font-mono text-xs">
+                                Belum ada hidangan terjual pada periode ini.
+                            </div>
+                        @endforelse
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 6. PERKEMBANGAN OMZET PER HARI (JIKA PERIODE > 1 HARI) -->
+        @if ($perDay->count() > 1)
+            <div class="bg-white border border-[#E4DCCC] rounded-2xl p-5 sm:p-6 shadow-xs">
+                <div class="flex items-center justify-between pb-3 border-b border-[#E4DCCC] mb-4">
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm">📈</span>
+                        <h3 class="font-serif font-bold text-base text-[#1F1812]">Perkembangan Omzet Harian</h3>
+                    </div>
+                    <span class="font-mono text-xs text-[#8A7B66]">{{ $perDay->count() }} Hari Terpilih</span>
+                </div>
+
+                @php
+                    $maxDaily = $perDay->max('t') ?: 1;
+                @endphp
+                <div class="space-y-3">
+                    @foreach ($perDay as $d)
+                        @php
+                            $dailyDate = \Illuminate\Support\Carbon::parse($d->d);
+                            $barWidth = round(($d->t / $maxDaily) * 100);
+                        @endphp
+                        <div class="flex items-center gap-3">
+                            <span class="font-mono text-xs text-[#8A7B66] w-28 shrink-0 font-medium">
+                                {{ $dailyDate->translatedFormat('D, d M Y') }}
+                            </span>
+                            <div class="flex-1 h-6 bg-[#FAF7F2] border border-[#E4DCCC] rounded-lg overflow-hidden p-0.5">
+                                <div class="h-full bg-gradient-to-r from-[#D9973E] to-[#B5762A] rounded transition-all duration-500"
+                                     style="width: {{ $barWidth }}%"></div>
+                            </div>
+                            <div class="flex items-center gap-2 w-44 justify-end shrink-0">
+                                <span class="px-2 py-0.5 rounded bg-[#FAF7F2] border border-[#E4DCCC] font-mono text-[10px] text-[#8A7B66]">
+                                    {{ $d->c }} trx
+                                </span>
+                                <span class="font-mono text-xs font-bold text-[#1F1812]">
+                                    Rp {{ number_format($d->t, 0, ',', '.') }}
+                                </span>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+
     </div> <!-- end .screen-dashboard-container -->
 
     <!-- FORMAT STRUK THERMAL 80MM (TAMPIL HANYA SAAT PRINT LANGSUNG DARI HALAMAN INI) -->
@@ -246,6 +536,28 @@
                     <tr class="tot" style="border-top: 1px dashed #000; padding-top: 1.5mm;">
                         <td style="padding-top: 1.5mm;">TOTAL OMZET</td>
                         <td class="r" style="padding-top: 1.5mm;">Rp {{ number_format($totals->omzet, 0, ',', '.') }}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="dashed">
+                <div class="section-title">Analisis Keuangan</div>
+                <table>
+                    <tr>
+                        <td>HPP Modal Bahan</td>
+                        <td class="r">Rp {{ number_format($finance['cogs'], 0, ',', '.') }}</td>
+                    </tr>
+                    <tr>
+                        <td>Laba Kotor (Gross)</td>
+                        <td class="r">Rp {{ number_format($finance['gross_profit'], 0, ',', '.') }} ({{ $finance['gross_margin'] }}%)</td>
+                    </tr>
+                    <tr>
+                        <td>Pengeluaran Toko</td>
+                        <td class="r">Rp {{ number_format($finance['total_expenses'], 0, ',', '.') }}</td>
+                    </tr>
+                    <tr class="tot" style="border-top: 1px dashed #000; padding-top: 1.5mm;">
+                        <td style="padding-top: 1.5mm;">LABA BERSIH</td>
+                        <td class="r" style="padding-top: 1.5mm;">Rp {{ number_format($finance['net_profit'], 0, ',', '.') }} ({{ $finance['net_margin'] }}%)</td>
                     </tr>
                 </table>
             </div>
@@ -326,6 +638,50 @@
         </div>
     </div>
 </div>
+
+<script>
+    function reportPage() {
+        return {
+            setDateRange(preset) {
+                const fromInput = document.getElementById('report-from-date');
+                const toInput = document.getElementById('report-to-date');
+                const form = document.getElementById('report-filter-form');
+                if (!fromInput || !toInput || !form) return;
+
+                const today = new Date();
+                const formatDate = (d) => {
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    return `${y}-${m}-${day}`;
+                };
+
+                if (preset === 'today') {
+                    const tStr = formatDate(today);
+                    fromInput.value = tStr;
+                    toInput.value = tStr;
+                } else if (preset === 'yesterday') {
+                    const yest = new Date(today);
+                    yest.setDate(yest.getDate() - 1);
+                    const yStr = formatDate(yest);
+                    fromInput.value = yStr;
+                    toInput.value = yStr;
+                } else if (preset === '7days') {
+                    const past7 = new Date(today);
+                    past7.setDate(past7.getDate() - 6);
+                    fromInput.value = formatDate(past7);
+                    toInput.value = formatDate(today);
+                } else if (preset === 'month') {
+                    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+                    fromInput.value = formatDate(firstDay);
+                    toInput.value = formatDate(today);
+                }
+
+                form.submit();
+            }
+        };
+    }
+</script>
 
 <style>
 @media print {

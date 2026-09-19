@@ -5,8 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Category;
 use App\Models\Menu;
 use App\Models\Order;
+use App\Models\Promo;
 use App\Services\InventoryService;
+use App\Services\KitchenService;
 use App\Services\OrderService;
+use App\Services\PromoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -26,21 +29,58 @@ class KasirController extends Controller
             'available' => (bool) $m->is_available,
             'category_id' => $m->category_id,
             'category_name' => $m->category->name ?? '',
+            'category_slug' => $m->category->slug ?? '',
+            'category_order' => $m->category->sort_order ?? 999,
+            'is_drink' => in_array($m->category?->slug, KitchenService::DRINK_CATEGORIES, true),
             'image' => $m->image ? asset('storage/'.$m->image) : null,
             'description' => $m->description,
         ])->values()->all();
 
-        return view('kasir.terminal', compact('menus', 'menuData', 'categories'));
+        $activePromos = Promo::active()->get(['id', 'code', 'name', 'type', 'discount_value', 'max_discount', 'min_order']);
+
+        return view('kasir.terminal', compact('menus', 'menuData', 'categories', 'activePromos'));
     }
 
-    public function store(Request $request, OrderService $svc, InventoryService $inventoryService)
+    public function checkPromo(Request $request, PromoService $promoService)
+    {
+        $validated = $request->validate([
+            'code' => ['required', 'string', 'max:50'],
+            'subtotal' => ['required', 'integer', 'min:0'],
+        ]);
+
+        $result = $promoService->validateAndCalculate($validated['code'], (int) $validated['subtotal']);
+
+        if (! $result['success']) {
+            return response()->json([
+                'success' => false,
+                'message' => $result['message'],
+                'discount' => 0,
+            ], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => $result['message'],
+            'code' => $result['code'],
+            'name' => $result['name'],
+            'type' => $result['type'],
+            'discount_value' => $result['discount_value'],
+            'max_discount' => $result['max_discount'],
+            'min_order' => $result['min_order'],
+            'discount' => $result['discount'],
+        ]);
+    }
+
+    public function store(Request $request, OrderService $svc, InventoryService $inventoryService, PromoService $promoService)
     {
         $data = $request->validate([
             'items' => ['required', 'array', 'min:1'],
             'items.*.menu_id' => ['required', 'integer', 'exists:menus,id'],
             'items.*.qty' => ['required', 'integer', 'min:1', 'max:99'],
+            'items.*.note' => ['nullable', 'string', 'max:150'],
             'order_type' => ['required', 'in:dine_in,take_away'],
             'payment_method' => ['required', 'in:cash,qris,debit'],
+            'promo_code' => ['nullable', 'string', 'max:50'],
             'discount' => ['nullable', 'integer', 'min:0'],
             'paid_amount' => ['required', 'integer', 'min:0'],
             'customer_name' => ['nullable', 'string', 'max:100'],
@@ -65,15 +105,30 @@ class KasirController extends Controller
             'menu' => $menus[$i['menu_id']],
             'price' => (int) $menus[$i['menu_id']]->price,
             'qty' => (int) $i['qty'],
+            'note' => isset($i['note']) && trim((string) $i['note']) !== '' ? trim((string) $i['note']) : null,
         ]);
 
+        $subtotal = (int) $lines->sum(fn ($l) => $l['price'] * $l['qty']);
+        $promoCode = ! empty($data['promo_code']) ? strtoupper(trim((string) $data['promo_code'])) : null;
+        $promoModel = null;
+        $discount = (int) ($data['discount'] ?? 0);
+
+        if ($promoCode) {
+            $promoCheck = $promoService->validateAndCalculate($promoCode, $subtotal);
+            if (! $promoCheck['success']) {
+                return response()->json(['message' => $promoCheck['message']], 422);
+            }
+            $discount = $promoCheck['discount'];
+            $promoModel = $promoCheck['promo'] ?? null;
+        }
+
         try {
-            $calc = $svc->calculate($lines, (int) ($data['discount'] ?? 0), (int) $data['paid_amount']);
+            $calc = $svc->calculate($lines, $discount, (int) $data['paid_amount']);
         } catch (\InvalidArgumentException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }
 
-        $order = DB::transaction(function () use ($data, $lines, $calc, $request, $inventoryService) {
+        $order = DB::transaction(function () use ($data, $lines, $calc, $request, $inventoryService, $promoModel, $promoCode, $discount) {
             $order = Order::create([
                 'code' => 'TMP',
                 'user_id' => $request->user()->id,
@@ -81,7 +136,9 @@ class KasirController extends Controller
                 'customer_name' => $data['customer_name'] ?? null,
                 'payment_method' => $data['payment_method'],
                 'subtotal' => $calc['subtotal'],
-                'discount' => (int) ($data['discount'] ?? 0),
+                'discount' => $discount,
+                'promo_id' => $promoModel?->id,
+                'promo_code' => $promoCode,
                 'total' => $calc['total'],
                 'paid_amount' => (int) $data['paid_amount'],
                 'change_amount' => $calc['change_amount'],
@@ -90,9 +147,14 @@ class KasirController extends Controller
             ]);
 
             foreach ($lines as $l) {
+                $displayName = $l['menu']->name;
+                if ($l['note']) {
+                    $displayName .= ' ('.$l['note'].')';
+                }
+
                 $order->items()->create([
                     'menu_id' => $l['menu']->id,
-                    'menu_name' => $l['menu']->name,
+                    'menu_name' => $displayName,
                     'price' => $l['price'],
                     'qty' => $l['qty'],
                     'line_total' => $l['price'] * $l['qty'],
@@ -100,6 +162,10 @@ class KasirController extends Controller
             }
 
             $order->update(['code' => sprintf('KKI-%s-%04d', now()->format('ymd'), $order->id)]);
+
+            if ($promoModel) {
+                $promoModel->increment('used_count');
+            }
 
             // Potong stok bahan baku secara otomatis sesuai resep BOM
             $inventoryService->deductForOrder($order);
@@ -144,7 +210,7 @@ class KasirController extends Controller
             ? round($stats['net_omzet'] / $stats['paid_orders'])
             : 0;
 
-        $ordersQuery = (clone $baseQuery)->with(['items', 'user']);
+        $ordersQuery = (clone $baseQuery)->with(['items', 'user', 'promo']);
 
         if ($search !== '') {
             $ordersQuery->where(function ($q) use ($search) {

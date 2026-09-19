@@ -509,7 +509,7 @@ class KasirMusicController extends Controller
             Cache::put('soundstation_current_track', $currentTrack, now()->addHours(8));
 
             if (! empty($currentTrack['type']) && $currentTrack['type'] === 'default_track') {
-                MusicRequest::playing()->update(['status' => 'played', 'finished_at' => now()]);
+                MusicRequest::playing()->update(['status' => 'played']);
             }
         }
 
@@ -649,7 +649,7 @@ class KasirMusicController extends Controller
                 Cache::put('soundstation_current_track', $currentTrack, now()->addHours(8));
 
                 if (! empty($currentTrack['type']) && $currentTrack['type'] === 'default_track') {
-                    MusicRequest::playing()->update(['status' => 'played', 'finished_at' => now()]);
+                    MusicRequest::playing()->update(['status' => 'played']);
                 }
             }
         }

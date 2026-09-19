@@ -32,4 +32,36 @@ class KasirAuthTest extends TestCase
 
         $this->assertGuest();
     }
+
+    public function test_owner_can_login_with_owner_alias(): void
+    {
+        $owner = User::firstOrCreate(
+            ['email' => 'owner@kopikita.test'],
+            ['name' => 'Owner KopiKita', 'password' => bcrypt('123123')]
+        );
+
+        $res = $this->post('/kasir/login', [
+            'email' => 'owner',
+            'password' => '123123',
+        ]);
+
+        $res->assertRedirect('/kasir');
+        $this->assertAuthenticatedAs($owner);
+    }
+
+    public function test_kasir_can_login_with_kasir_alias(): void
+    {
+        $kasir = User::firstOrCreate(
+            ['email' => 'kasir@kopikita.test'],
+            ['name' => 'Kasir KopiKita', 'password' => bcrypt('kopikita123')]
+        );
+
+        $res = $this->post('/kasir/login', [
+            'email' => 'kasir',
+            'password' => 'kopikita123',
+        ]);
+
+        $res->assertRedirect('/kasir');
+        $this->assertAuthenticatedAs($kasir);
+    }
 }

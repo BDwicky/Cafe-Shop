@@ -40,6 +40,7 @@ Route::post('/kasir/logout', [KasirLoginController::class, 'logout'])
 
 Route::middleware('auth')->prefix('kasir')->name('kasir.')->group(function () {
     Route::get('/', [KasirController::class, 'index'])->name('terminal');
+    Route::post('/promo/check', [KasirController::class, 'checkPromo'])->name('promo.check');
     Route::get('/orders', [KasirController::class, 'orders'])->name('orders.index');
     Route::get('/orders/{order}/receipt', [KasirController::class, 'receipt'])->name('receipt');
     Route::post('/orders/{order}/void', [KasirController::class, 'void'])->name('orders.void');

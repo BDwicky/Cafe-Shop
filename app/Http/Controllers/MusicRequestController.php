@@ -212,8 +212,12 @@ class MusicRequestController extends Controller
 
         return response()->json([
             'now_playing' => $state['now_playing'],
+            'now_playing_type' => $state['now_playing_type'] ?? 'default',
             'queue' => $state['queue'],
             'queue_count' => $state['queue_count'],
+            'request_queue_count' => $state['request_queue_count'] ?? $state['queue_count'],
+            'default_tracks_count' => $state['default_tracks_count'] ?? 0,
+            'total_queue_count' => $state['total_queue_count'] ?? count($state['queue']),
             'ready_orders' => $readyOrders,
             'playback' => $playback,
         ]);

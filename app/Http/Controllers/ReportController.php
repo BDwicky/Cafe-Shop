@@ -45,7 +45,7 @@ class ReportController extends Controller
             ->where('status', 'paid')
             ->whereBetween('created_at', [$from, $to]);
 
-        $totals = (clone $base)->selectRaw('COUNT(*) trx, COALESCE(SUM(total),0) omzet, COALESCE(AVG(total),0) avg_basket')->first();
+        $totals = (clone $base)->selectRaw('COUNT(*) trx, COALESCE(SUM(total),0) omzet, COALESCE(SUM(subtotal),0) subtotal_gross, COALESCE(SUM(discount),0) total_discount, COALESCE(AVG(total),0) avg_basket')->first();
 
         $itemsSold = (clone $base)
             ->join('order_items', 'order_items.order_id', '=', 'orders.id')

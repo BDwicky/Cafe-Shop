@@ -375,11 +375,13 @@ class MusicService
      * Ambil data status pemutar musik saat ini (Lagu aktif & antrean).
      *
      * @return array{
-     *     now_playing: MusicRequest|MusicDefaultTrack|null,
+     *     now_playing: array<string, mixed>|null,
      *     now_playing_type: 'request'|'default'|'none',
-     *     queue: Collection<int, MusicRequest>,
+     *     queue: \Illuminate\Support\Collection<int, array<string, mixed>>,
      *     queue_count: int,
-     *     default_tracks_count: int
+     *     request_queue_count: int,
+     *     default_tracks_count: int,
+     *     total_queue_count: int
      * }
      */
     public function getPlayerState(): array
@@ -444,17 +446,86 @@ class MusicService
             }
         }
 
-        /** @var Collection<int, MusicRequest> $queue */
-        $queue = MusicRequest::queued()->get();
+        /** @var Collection<int, MusicRequest> $queueRequests */
+        $queueRequests = MusicRequest::queued()->get();
+        $requestQueueCount = $queueRequests->count();
 
-        $defaultTracksCount = MusicDefaultTrack::active()->count();
+        // Ambil daftar lagu bawaan aktif untuk digabung ke daftar antrean berikutnya
+        $activeDefaultTracks = MusicDefaultTrack::active()
+            ->orderBy('sort_order', 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
+        $defaultTracksCount = $activeDefaultTracks->count();
+
+        // Urutkan lagu bawaan berikutnya:
+        // Jika sedang memutar lagu bawaan, mulai lagu bawaan berikutnya setelah lagu yang sedang berputar
+        $orderedDefaultTracks = collect();
+        if ($activeDefaultTracks->isNotEmpty()) {
+            $currentDefaultId = ($nowPlaying && ($nowPlaying['type'] ?? '') === 'default_track') ? ($nowPlaying['id'] ?? null) : null;
+            if ($currentDefaultId) {
+                $currentIndex = $activeDefaultTracks->search(fn ($t) => (int) $t->id === (int) $currentDefaultId);
+                if ($currentIndex !== false) {
+                    $total = $activeDefaultTracks->count();
+                    for ($i = 1; $i < $total; $i++) {
+                        $orderedDefaultTracks->push($activeDefaultTracks[($currentIndex + $i) % $total]);
+                    }
+                } else {
+                    $orderedDefaultTracks = $activeDefaultTracks;
+                }
+            } else {
+                $orderedDefaultTracks = $activeDefaultTracks;
+            }
+        }
+
+        // Format antrean gabungan (Request pelanggan di depan, disusul Playlist bawaan)
+        $combinedQueue = collect();
+
+        // 1. Antrean request pelanggan (Prioritas utama)
+        foreach ($queueRequests as $req) {
+            $combinedQueue->push([
+                'id' => $req->id,
+                'type' => 'request',
+                'badge' => 'Request',
+                'title' => $req->song_title,
+                'song_title' => $req->song_title,
+                'artist' => $req->artist ?: 'YouTube',
+                'youtube_id' => $req->youtube_id,
+                'thumbnail_url' => $req->thumbnail_url ?: "https://img.youtube.com/vi/{$req->youtube_id}/hqdefault.jpg",
+                'customer_name' => $req->customer_name ?: 'Pelanggan',
+                'duration_seconds' => $req->duration_seconds,
+                'duration_formatted' => $this->formatDuration($req->duration_seconds),
+                'request_id' => $req->id,
+                'is_request' => true,
+            ]);
+        }
+
+        // 2. Antrean lagu bawaan berikutnya
+        foreach ($orderedDefaultTracks as $track) {
+            $combinedQueue->push([
+                'id' => $track->id,
+                'type' => 'default',
+                'badge' => 'Bawaan',
+                'title' => $track->title,
+                'song_title' => $track->title,
+                'artist' => $track->artist ?: 'Playlist Kafe',
+                'youtube_id' => $track->youtube_id,
+                'thumbnail_url' => "https://img.youtube.com/vi/{$track->youtube_id}/hqdefault.jpg",
+                'customer_name' => null,
+                'duration_seconds' => $track->duration_seconds,
+                'duration_formatted' => $this->formatDuration($track->duration_seconds),
+                'request_id' => null,
+                'is_request' => false,
+            ]);
+        }
 
         return [
             'now_playing' => $nowPlaying,
             'now_playing_type' => ($nowPlaying && ($nowPlaying['type'] ?? '') === 'customer_request') ? 'request' : 'default',
-            'queue' => $queue,
-            'queue_count' => $queue->count(),
+            'queue' => $combinedQueue,
+            'queue_count' => $requestQueueCount, // Tetap hitungan request pelanggan agar logika interrupt fade-out tidak berubah
+            'request_queue_count' => $requestQueueCount,
             'default_tracks_count' => $defaultTracksCount,
+            'total_queue_count' => $combinedQueue->count(),
         ];
     }
 

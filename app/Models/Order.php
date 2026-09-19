@@ -18,7 +18,7 @@ class Order extends Model
 
     protected $fillable = [
         'code', 'music_code', 'user_id', 'order_type', 'customer_name', 'payment_method',
-        'subtotal', 'discount', 'total', 'paid_amount', 'change_amount', 'status', 'prep_status',
+        'subtotal', 'discount', 'promo_id', 'promo_code', 'total', 'paid_amount', 'change_amount', 'status', 'prep_status',
         'ready_at', 'announced_at', 'completed_at', 'music_request_used_at', 'note',
     ];
 
@@ -68,6 +68,11 @@ class Order extends Model
     public function user(): BelongsTo
     {
         return $this->cashier();
+    }
+
+    public function promo(): BelongsTo
+    {
+        return $this->belongsTo(Promo::class);
     }
 
     public function musicRequest(): HasOne

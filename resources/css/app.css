@@ -12,3 +12,93 @@
     display: none !important;
 }
 
+/* Layout utama POS berdasarkan mode halaman (server-rendered, tidak butuh Alpine) */
+@media (min-width: 768px) {
+    body[data-pos-mode="standard"] #kasir-main {
+        margin-left: 15rem;
+        /* w-60 = 240px = 15rem */
+    }
+}
+
+@media (min-width: 1024px) {
+    body[data-pos-mode="standard"] #kasir-main {
+        margin-left: 16rem;
+        /* lg:w-64 = 256px = 16rem */
+    }
+}
+
+/* Terminal POS: sidebar adalah overlay, main mulai dari kiri */
+body[data-pos-mode="terminal"] #kasir-main {
+    margin-left: 0;
+}
+
+/* ==========================================================================
+   CUSTOM THEME SCROLLBAR (AESTHETIC CAFE AMBER & ESPRESSO)
+   ========================================================================== */
+
+/* WebKit Browsers (Chrome, Edge, Safari, Brave) */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: #D1C4B2;
+    border-radius: 9999px;
+    border: 1px solid transparent;
+    background-clip: padding-box;
+    transition: background-color 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: #D9973E;
+}
+
+/* Dark Containers (Sidebar Kasir, Keranjang Tiket POS, Player Musik) */
+aside::-webkit-scrollbar-thumb,
+.bg-\[\#1F1812\]::-webkit-scrollbar-thumb,
+.bg-\[\#19130E\]::-webkit-scrollbar-thumb,
+.bg-\[\#140E0A\]::-webkit-scrollbar-thumb,
+.dark-scrollbar::-webkit-scrollbar-thumb {
+    background-color: #4A3E33;
+}
+
+aside::-webkit-scrollbar-thumb:hover,
+.bg-\[\#1F1812\]::-webkit-scrollbar-thumb:hover,
+.bg-\[\#19130E\]::-webkit-scrollbar-thumb:hover,
+.bg-\[\#140E0A\]::-webkit-scrollbar-thumb:hover,
+.dark-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: #D9973E;
+}
+
+/* Firefox Scrollbar Support */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #D1C4B2 transparent;
+}
+
+aside,
+.bg-\[\#1F1812\],
+.bg-\[\#19130E\],
+.bg-\[\#140E0A\],
+.dark-scrollbar {
+    scrollbar-color: #4A3E33 transparent;
+}
+
+/* Utilitas Sembunyikan Scrollbar */
+.scrollbar-none::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+}
+
+.scrollbar-none,
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}

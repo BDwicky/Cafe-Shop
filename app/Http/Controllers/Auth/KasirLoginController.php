@@ -15,10 +15,22 @@ class KasirLoginController extends Controller
 
     public function authenticate(Request $request)
     {
-        $credentials = $request->validate([
-            'email' => ['required', 'email'],
+        $validated = $request->validate([
+            'email' => ['required', 'string'],
             'password' => ['required'],
         ]);
+
+        $loginInput = strtolower(trim($validated['email']));
+        if ($loginInput === 'owner') {
+            $loginInput = 'owner@kopikita.test';
+        } elseif ($loginInput === 'kasir') {
+            $loginInput = 'kasir@kopikita.test';
+        }
+
+        $credentials = [
+            'email' => $loginInput,
+            'password' => $validated['password'],
+        ];
 
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();

@@ -98,7 +98,7 @@
             <table>
                 <tr><td>Subtotal</td><td class="r">{{ number_format($order->subtotal, 0, ',', '.') }}</td></tr>
                 @if ($order->discount > 0)
-                    <tr><td>Diskon</td><td class="r">-{{ number_format($order->discount, 0, ',', '.') }}</td></tr>
+                    <tr><td>Diskon{{ $order->promo_code ? ' ('.$order->promo_code.')' : '' }}</td><td class="r">-{{ number_format($order->discount, 0, ',', '.') }}</td></tr>
                 @endif
                 <tr class="tot"><td>TOTAL</td><td class="r">Rp {{ number_format($order->total, 0, ',', '.') }}</td></tr>
                 <tr><td>{{ $order->payment_method === 'cash' ? 'Tunai' : ucfirst($order->payment_method) }}</td><td class="r">{{ number_format($order->paid_amount, 0, ',', '.') }}</td></tr>

@@ -3,58 +3,169 @@
 @section('title', 'Terminal Kasir')
 
 @section('content')
-<div x-data="pos()" class="flex flex-col lg:flex-row h-full w-full overflow-hidden select-none">
+<div x-data="pos()" class="flex-1 min-h-0 h-full w-full flex flex-col md:flex-row overflow-hidden select-none">
 
-    <!-- 1. PANEL KIRI: GRID KATEGORI MODEL NAVBAR (TABLET POS CATEGORY GRID) -->
-    <div class="w-full lg:w-48 xl:w-52 bg-[#EFE9DE] border-b lg:border-b-0 lg:border-r border-[#E4DCCC] flex flex-col shrink-0 overflow-y-auto">
-        <!-- Header Panel Kategori -->
-        <div class="p-3 border-b border-[#E4DCCC] bg-[#E8E1D5] flex items-center justify-between">
-            <span class="font-mono text-[10px] uppercase tracking-[0.2em] font-semibold text-[#8A7B66]">Kategori</span>
-            <span class="font-mono text-[10px] bg-[#D9973E] text-[#1F1812] px-1.5 py-0.5 font-bold" x-text="menus.length"></span>
+    <!-- 1. PANEL KIRI: DAFTAR KATEGORI POS (VERTICAL SIDEBAR) -->
+    <div class="w-48 sm:w-52 xl:w-56 bg-[#EFE9DE] border-r border-[#E4DCCC] flex flex-col shrink-0 h-full">
+        
+        <!-- Header Panel Kategori dengan Tombol Navigasi Overlay -->
+        <div class="p-3 sm:p-3.5 min-h-[65px] border-b border-[#E4DCCC] bg-[#E8E1D5] flex items-center justify-between gap-2 shrink-0">
+            <div class="flex items-center gap-2.5 min-w-0">
+                <button type="button"
+                        @click="window.dispatchEvent(new CustomEvent('toggle-terminal-sidebar'))"
+                        title="Buka Navigasi Utama Kasir (Alt+M)"
+                        class="p-2 bg-[#1F1812] hover:bg-[#D9973E] text-[#F7F3EC] hover:text-[#1F1812] rounded-lg transition shadow-xs flex items-center justify-center shrink-0 cursor-pointer active:scale-95">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                    </svg>
+                </button>
+                <div class="min-w-0">
+                    <span class="font-sans text-xs sm:text-[13px] font-bold uppercase tracking-wider text-[#1F1812] block leading-tight">Kategori</span>
+                    <span class="font-mono text-[10px] text-[#8A7B66] block leading-tight mt-0.5">Pilih menu</span>
+                </div>
+            </div>
+            
+            <span class="font-mono text-[10.5px] sm:text-xs bg-[#D9973E] text-[#1F1812] px-2.5 py-1 rounded-full font-bold shrink-0 shadow-2xs" x-text="menus.length + ' item'"></span>
         </div>
 
-        <!-- Grid Kategori Tombol Tablet -->
-        <div class="p-2 grid grid-cols-4 sm:grid-cols-7 lg:grid-cols-1 gap-1.5 flex-1 overflow-y-auto">
-            <!-- Tombol SEMUA -->
+        @php
+            $categoryColors = [
+                'all' => [
+                    'svg' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>',
+                    'color' => '#D9973E',
+                    'bg_light' => '#FDF4E7',
+                    'text_light' => '#B4721D',
+                    'border_light' => '#F5DCB8',
+                ],
+                'kopi' => [
+                    'svg' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 8h1a4 4 0 010 8h-1M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 1v3M10 1v3M14 1v3"/></svg>',
+                    'color' => '#8B4513',
+                    'bg_light' => '#F8EFEA',
+                    'text_light' => '#783A0F',
+                    'border_light' => '#E8CEBE',
+                ],
+                'non-kopi' => [
+                    'svg' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11l-2 9H7l-2-9h14zM5 11V7a2 2 0 012-2h10a2 2 0 012 2v4M14 2l-2 5"/></svg>',
+                    'color' => '#7C3AED',
+                    'bg_light' => '#F5F3FF',
+                    'text_light' => '#6D28D9',
+                    'border_light' => '#DDD6FE',
+                ],
+                'cocktail' => [
+                    'svg' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 4h14l-7 8-7-8zM12 12v7M8 19h8"/></svg>',
+                    'color' => '#E11D48',
+                    'bg_light' => '#FFF1F2',
+                    'text_light' => '#BE123C',
+                    'border_light' => '#FECDD3',
+                ],
+                'mocktail' => [
+                    'svg' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4h10l-1.5 15a2 2 0 01-2 2h-3a2 2 0 01-2-2L7 4zM6 8h12M14 2l-2 6"/></svg>',
+                    'color' => '#EA580C',
+                    'bg_light' => '#FFF7ED',
+                    'text_light' => '#C2410C',
+                    'border_light' => '#FFEDD5',
+                ],
+                'tea-herbal' => [
+                    'svg' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v18M12 3c-4.5 0-8 3.5-8 8 0 5 4 8 8 8 4.5 0 8-3.5 8-8 0-5-4-8-8-8zM12 8c2.5 0 4.5 1.5 5 4"/></svg>',
+                    'color' => '#16A34A',
+                    'bg_light' => '#F0FDF4',
+                    'text_light' => '#15803D',
+                    'border_light' => '#BBF7D0',
+                ],
+                'snack' => [
+                    'svg' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 9h14l-1.5 11a2 2 0 01-2 2H8.5a2 2 0 01-2-2L5 9zM8 9V4M12 9V3M16 9V5"/></svg>',
+                    'color' => '#D97706',
+                    'bg_light' => '#FEFCE8',
+                    'text_light' => '#A16207',
+                    'border_light' => '#FEF08A',
+                ],
+                'pastry' => [
+                    'svg' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 14a8 8 0 0116 0M4 14h16M7 14v4a2 2 0 002 2h6a2 2 0 002-2v-4M9 10a3 3 0 016 0"/></svg>',
+                    'color' => '#B45309',
+                    'bg_light' => '#FFFBEB',
+                    'text_light' => '#92400E',
+                    'border_light' => '#FDE68A',
+                ],
+            ];
+            $defaultColor = [
+                'svg' => '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6a7 7 0 00-7 7h14a7 7 0 00-7-7zM12 3v3M4 17h16a1 1 0 011 1v1H3v-1a1 1 0 011-1z"/></svg>',
+                'color' => '#4B5563',
+                'bg_light' => '#F3F4F6',
+                'text_light' => '#374151',
+                'border_light' => '#E5E7EB',
+            ];
+        @endphp
+
+        <!-- Daftar Tombol Kategori: Selalu Kolom Vertikal Rapi & Ergonomis -->
+        <div class="p-2.5 sm:p-3 flex flex-col gap-2 sm:gap-2.5 flex-1 overflow-y-auto">
+            <!-- Tombol SEMUA MENU -->
+            @php $allMeta = $categoryColors['all']; @endphp
             <button @click="cat = 'all'"
                     type="button"
-                    :class="cat === 'all' ? 'bg-[#1F1812] text-[#F7F3EC] border-[#1F1812] shadow-md' : 'bg-white text-[#2A211A] border-[#E4DCCC] hover:border-[#B5762A] hover:bg-white/80'"
-                    class="w-full text-left p-2.5 border flex items-center justify-between transition-all duration-150 active:scale-95 group">
-                <div class="flex items-center gap-2 min-w-0">
-                    <span class="text-base shrink-0">✨</span>
-                    <span class="font-mono text-xs uppercase tracking-wider font-medium truncate">Semua</span>
+                    :style="cat === 'all' ? 'border-left: 5px solid {{ $allMeta['color'] }};' : ''"
+                    :class="cat === 'all' 
+                        ? 'bg-[#1F1812] text-[#F7F3EC] border-[#1F1812] shadow-sm' 
+                        : 'bg-white text-[#2A211A] border-[#E4DCCC] hover:border-[#D9973E]/70 hover:bg-[#FAF6EE] shadow-2xs'"
+                    class="w-full text-left py-3 sm:py-3.5 px-3 sm:px-3.5 rounded-xl border transition-all duration-150 active:scale-[0.98] group flex items-center justify-between shrink-0 cursor-pointer min-h-[56px] sm:min-h-[60px]">
+                <div class="flex items-center gap-3 min-w-0">
+                    <span :style="cat === 'all' 
+                              ? 'background-color: {{ $allMeta['color'] }}; color: #1F1812;' 
+                              : 'background-color: {{ $allMeta['bg_light'] }}; color: {{ $allMeta['text_light'] }}; border: 1px solid {{ $allMeta['border_light'] }};'"
+                          class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 transition-all font-bold shadow-2xs">
+                        {!! $allMeta['svg'] !!}
+                    </span>
+                    <div class="min-w-0">
+                        <span class="font-sans text-[13.5px] sm:text-sm font-bold tracking-tight block truncate"
+                              :class="cat === 'all' ? 'text-[#F7F3EC]' : 'text-[#2A211A] group-hover:text-[#1F1812]'">
+                            Semua Menu
+                        </span>
+                        <span class="font-mono text-[10px] block leading-none mt-0.5"
+                              :class="cat === 'all' ? 'text-[#D9973E]' : 'text-[#8A7B66]'">
+                            Semua item
+                        </span>
+                    </div>
                 </div>
-                <span :class="cat === 'all' ? 'text-[#D9973E]' : 'text-[#8A7B66]'"
-                      class="font-mono text-[10px] hidden lg:inline"
+                <span :style="cat === 'all' 
+                          ? 'background-color: {{ $allMeta['color'] }}; color: #1F1812;' 
+                          : 'background-color: {{ $allMeta['bg_light'] }}; color: {{ $allMeta['text_light'] }}; border: 1px solid {{ $allMeta['border_light'] }};'"
+                      class="font-mono text-[11px] font-bold px-2.5 py-1 rounded-full shrink-0 transition-all shadow-2xs"
                       x-text="menus.length"></span>
             </button>
 
-            @php
-                $categoryIcons = [
-                    'kopi' => '☕',
-                    'non-kopi' => '🍫',
-                    'cocktail' => '🍸',
-                    'mocktail' => '🍹',
-                    'tea-herbal' => '🍵',
-                    'snack' => '🍟',
-                    'pastry' => '🥐',
-                ];
-            @endphp
-
+            <!-- Loop Kategori Dinamis dari Database -->
             @foreach($categories as $category)
                 @php
-                    $icon = $categoryIcons[$category->slug] ?? '🍽️';
+                    $meta = $categoryColors[$category->slug] ?? $defaultColor;
                 @endphp
                 <button @click="cat = {{ $category->id }}"
                         type="button"
-                        :class="cat === {{ $category->id }} ? 'bg-[#1F1812] text-[#F7F3EC] border-[#1F1812] shadow-md' : 'bg-white text-[#2A211A] border-[#E4DCCC] hover:border-[#B5762A] hover:bg-white/80'"
-                        class="w-full text-left p-2.5 border flex items-center justify-between transition-all duration-150 active:scale-95 group">
-                    <div class="flex items-center gap-2 min-w-0">
-                        <span class="text-base shrink-0">{{ $icon }}</span>
-                        <span class="font-mono text-xs uppercase tracking-wider font-medium truncate">{{ $category->name }}</span>
+                        :style="cat === {{ $category->id }} ? 'border-left: 5px solid {{ $meta['color'] }};' : ''"
+                        :class="cat === {{ $category->id }} 
+                            ? 'bg-[#1F1812] text-[#F7F3EC] border-[#1F1812] shadow-sm' 
+                            : 'bg-white text-[#2A211A] border-[#E4DCCC] hover:border-[#D9973E]/70 hover:bg-[#FAF6EE] shadow-2xs'"
+                        class="w-full text-left py-3 sm:py-3.5 px-3 sm:px-3.5 rounded-xl border transition-all duration-150 active:scale-[0.98] group flex items-center justify-between shrink-0 cursor-pointer min-h-[56px] sm:min-h-[60px]">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span :style="cat === {{ $category->id }} 
+                                  ? 'background-color: {{ $meta['color'] }}; color: #ffffff;' 
+                                  : 'background-color: {{ $meta['bg_light'] }}; color: {{ $meta['text_light'] }}; border: 1px solid {{ $meta['border_light'] }};'"
+                              class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 transition-all font-bold shadow-2xs">
+                            {!! $meta['svg'] !!}
+                        </span>
+                        <div class="min-w-0">
+                            <span class="font-sans text-[13.5px] sm:text-sm font-bold tracking-tight block truncate"
+                                  :class="cat === {{ $category->id }} ? 'text-[#F7F3EC]' : 'text-[#2A211A] group-hover:text-[#1F1812]'">
+                                {{ $category->name }}
+                            </span>
+                            <span class="font-mono text-[10px] block leading-none mt-0.5"
+                                  :class="cat === {{ $category->id }} ? 'text-[#D9973E]' : 'text-[#8A7B66]'">
+                                {{ $category->menus_count }} menu
+                            </span>
+                        </div>
                     </div>
-                    <span :class="cat === {{ $category->id }} ? 'text-[#D9973E]' : 'text-[#8A7B66]'"
-                          class="font-mono text-[10px] hidden lg:inline">
+                    <span :style="cat === {{ $category->id }} 
+                              ? 'background-color: {{ $meta['color'] }}; color: #ffffff;' 
+                              : 'background-color: {{ $meta['bg_light'] }}; color: {{ $meta['text_light'] }}; border: 1px solid {{ $meta['border_light'] }};'"
+                          class="font-mono text-[11px] font-bold px-2.5 py-1 rounded-full shrink-0 transition-all shadow-2xs">
                         {{ $category->menus_count }}
                     </span>
                 </button>
@@ -62,7 +173,7 @@
         </div>
 
         <!-- Status Cepat di Bawah Panel Kiri -->
-        <div class="p-3 border-t border-[#E4DCCC] bg-[#E8E1D5] hidden lg:block text-center">
+        <div class="p-3 border-t border-[#E4DCCC] bg-[#E8E1D5] hidden md:block text-center shrink-0">
             <div class="font-mono text-[10px] uppercase tracking-wider text-[#8A7B66]">Mode Kasir Cepat</div>
             <div class="font-mono text-[9px] text-[#A89A85] mt-0.5">Ketuk item untuk tambah</div>
         </div>
@@ -72,7 +183,7 @@
     <div class="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-[#F7F3EC]">
 
         <!-- Top Search Bar & Active Category Status -->
-        <div class="p-3 border-b border-[#E4DCCC] bg-white flex items-center gap-3 shrink-0">
+        <div class="p-3 sm:p-3.5 min-h-[65px] border-b border-[#E4DCCC] bg-white flex items-center gap-3 shrink-0">
             <div class="relative flex-1">
                 <svg class="w-4 h-4 text-[#8A7B66] absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -80,7 +191,7 @@
                 <input x-model="search"
                        type="text"
                        placeholder="Cari menu (kopi, latte, matcha, cocktail, pastry)..."
-                       class="w-full pl-10 pr-9 py-2 bg-[#F7F3EC] border border-[#E4DCCC] text-sm text-[#2A211A] placeholder-[#8A7B66] focus:outline-none focus:border-[#B5762A] focus:bg-white transition-colors">
+                       class="w-full pl-10 pr-9 py-2 bg-[#F7F3EC] border border-[#E4DCCC] rounded-lg text-sm text-[#2A211A] placeholder-[#8A7B66] focus:outline-none focus:border-[#B5762A] focus:bg-white transition-colors">
                 <button x-show="search"
                         @click="search = ''"
                         class="absolute right-3 top-1/2 -translate-y-1/2 text-[#8A7B66] hover:text-[#2A211A] text-sm font-bold">
@@ -88,20 +199,20 @@
                 </button>
             </div>
             <div class="hidden sm:flex items-center gap-2 shrink-0">
-                <span class="font-mono text-xs text-[#8A7B66]" x-text="filteredMenus.length + ' menu'"></span>
+                <span class="font-mono text-xs text-[#8A7B66] bg-[#F7F3EC] px-2.5 py-1 rounded-full border border-[#E4DCCC]" x-text="filteredMenus.length + ' menu'"></span>
             </div>
         </div>
 
         <!-- Grid Menu dengan Foto Resolusi Tinggi & Label Nama Jelas -->
-        <div class="flex-1 p-3 overflow-y-auto">
-            <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+        <div class="flex-1 p-3.5 sm:p-4 overflow-y-auto">
+            <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3.5 sm:gap-4">
                 <template x-for="menu in filteredMenus" :key="menu.id">
-                    <div @click="add(menu.id)"
-                         @keydown.enter.prevent="add(menu.id)"
-                         @keydown.space.prevent="add(menu.id)"
+                    <div @click="selectMenu(menu)"
+                         @keydown.enter.prevent="selectMenu(menu)"
+                         @keydown.space.prevent="selectMenu(menu)"
                          role="button"
                          tabindex="0"
-                         class="group text-left bg-white border border-[#E4DCCC] overflow-hidden flex flex-col justify-between transition-all duration-150 hover:border-[#B5762A] hover:shadow-md active:scale-[0.98] select-none"
+                         class="group text-left bg-white border border-[#E4DCCC] rounded-xl overflow-hidden flex flex-col justify-between transition-all duration-200 hover:border-[#D9973E] hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] select-none"
                          :class="!menu.available ? 'opacity-45 cursor-not-allowed' : 'cursor-pointer'">
 
                         <!-- Gambar Menu -->
@@ -119,7 +230,7 @@
                             </template>
 
                             <!-- Badge Kategori -->
-                            <div class="absolute top-2 left-2 bg-[#1F1812]/85 backdrop-blur-xs px-2 py-0.5 text-[9px] font-mono uppercase tracking-wider text-[#F7F3EC] border border-[#3A3026] rounded-xs">
+                            <div class="absolute top-2 left-2 bg-[#1F1812]/85 backdrop-blur-xs px-2.5 py-0.5 text-[9px] font-mono uppercase tracking-wider text-[#F7F3EC] border border-[#3A3026] rounded-full">
                                 <span x-text="menu.category_name"></span>
                             </div>
 
@@ -128,15 +239,15 @@
                                 <button type="button"
                                         @click.stop="toggleStock(menu)"
                                         :title="menu.available ? 'Klik untuk tandai Stok Habis' : 'Klik untuk aktifkan (Stok Tersedia)'"
-                                        class="px-1.5 py-0.5 font-mono text-[9px] uppercase font-bold tracking-wider transition border shadow-xs flex items-center gap-1 rounded-xs cursor-pointer"
-                                        :class="menu.available ? 'bg-black/70 hover:bg-[#C4553D] text-[#5F7F42] hover:text-white border-white/20' : 'bg-[#C4553D] hover:bg-[#5F7F42] text-white border-[#C4553D]'">
+                                        class="px-2 py-0.5 font-mono text-[9px] uppercase font-bold tracking-wider transition border shadow-xs flex items-center gap-1.5 rounded-full cursor-pointer"
+                                        :class="menu.available ? 'bg-black/75 hover:bg-[#C4553D] text-[#5F7F42] hover:text-white border-white/20' : 'bg-[#C4553D] hover:bg-[#5F7F42] text-white border-[#C4553D]'">
                                     <span class="w-1.5 h-1.5 rounded-full" :class="menu.available ? 'bg-[#5F7F42]' : 'bg-white'"></span>
                                     <span x-text="menu.available ? 'Tersedia' : 'Habis'"></span>
                                 </button>
                             </div>
 
                             <!-- Overlay Label Nama Menu di Atas Gambar -->
-                            <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-2 pt-4 pointer-events-none">
+                            <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-2.5 pt-4 pointer-events-none">
                                 <div class="text-[11px] sm:text-xs font-bold text-white truncate leading-tight drop-shadow-sm" x-text="menu.name"></div>
                             </div>
                         </div>
@@ -149,7 +260,7 @@
                             </div>
                             <div class="mt-2.5 flex items-baseline justify-between border-t border-[#E4DCCC] pt-2">
                                 <span class="font-mono text-sm font-bold text-[#B5762A]" x-text="fmt(menu.price)"></span>
-                                <span class="font-mono text-[10px] uppercase font-semibold text-[#5F7F42] bg-[#5F7F42]/10 px-2 py-0.5 rounded border border-[#5F7F42]/20 group-hover:bg-[#5F7F42] group-hover:text-white transition-colors">+ Tambah</span>
+                                <span class="font-mono text-[10px] uppercase font-semibold text-[#5F7F42] bg-[#5F7F42]/10 px-2.5 py-1 rounded-full border border-[#5F7F42]/25 group-hover:bg-[#5F7F42] group-hover:text-white transition-colors">+ Tambah</span>
                             </div>
                         </div>
                     </div>
@@ -168,78 +279,134 @@
     </div>
 
     <!-- 3. PANEL KANAN: KERANJANG & CHECKOUT POS (ORDER TICKET) -->
-    <div class="w-full lg:w-80 xl:w-96 bg-[#1F1812] text-[#F7F3EC] flex flex-col shrink-0 h-full border-t lg:border-t-0 lg:border-l border-[#3A3026]">
+    <div class="w-full md:w-[330px] lg:w-[360px] xl:w-[400px] bg-[#1F1812] text-[#F7F3EC] flex flex-col shrink-0 h-full border-t md:border-t-0 md:border-l border-[#3A3026]">
 
-        <!-- Header Tiket Pesanan -->
-        <div class="p-4 border-b border-[#3A3026] flex items-center justify-between bg-[#19130E] shrink-0">
-            <div>
-                <span class="font-mono text-[11px] uppercase tracking-[0.25em] font-semibold text-[#D9973E]">TIKET PESANAN</span>
-                <div class="font-mono text-[10px] text-[#A89A85]" x-text="items.reduce((s, i) => s + i.qty, 0) + ' item dipilih'"></div>
+        <!-- Header Tiket Pesanan (Tinggi Selaras min-h-[65px]) -->
+        <div class="p-3 sm:p-3.5 min-h-[65px] border-b border-[#3A3026] flex items-center justify-between bg-[#19130E] shrink-0">
+            <div class="flex items-center gap-2.5 min-w-0">
+                <span class="w-8 h-8 rounded-lg bg-[#D9973E]/15 border border-[#D9973E]/30 flex items-center justify-center text-[#D9973E] shrink-0">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+                    </svg>
+                </span>
+                <div class="min-w-0">
+                    <span class="font-mono text-xs uppercase tracking-[0.2em] font-bold text-[#D9973E] block leading-tight">TIKET PESANAN</span>
+                    <span class="font-mono text-[10px] text-[#A89A85] block leading-tight mt-0.5" x-text="items.reduce((s, i) => s + i.qty, 0) + ' item dipilih'"></span>
+                </div>
             </div>
             <button x-show="items.length > 0"
                     @click="clearCart()"
-                    class="font-mono text-[10px] uppercase tracking-wider text-[#C4553D] hover:underline">
+                    type="button"
+                    title="Kosongkan Keranjang"
+                    class="font-mono text-[11px] px-2.5 py-1 rounded-lg bg-[#C4553D]/10 hover:bg-[#C4553D]/20 text-[#E11D48] border border-[#C4553D]/30 transition-all flex items-center gap-1.5 cursor-pointer active:scale-95">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
                 Kosongkan
             </button>
         </div>
 
         <!-- Switcher Tipe Pesanan & Nama Pelanggan -->
-        <div class="p-3 border-b border-[#3A3026] bg-[#221B15] space-y-2 shrink-0">
-            <div class="grid grid-cols-2 gap-1.5 p-1 bg-[#19130E] border border-[#3A3026]">
+        <div class="p-3 sm:p-3.5 border-b border-[#3A3026] bg-[#221B15] space-y-2.5 shrink-0">
+            <!-- Segmented Pill Toggle -->
+            <div class="grid grid-cols-2 gap-1.5 p-1 bg-[#140E0A] border border-[#3A3026] rounded-xl">
                 <button type="button"
                         @click="orderType = 'dine_in'"
-                        :class="orderType === 'dine_in' ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow' : 'text-[#A89A85] hover:text-[#F7F3EC]'"
-                        class="py-1.5 text-center font-mono text-[11px] uppercase tracking-wider transition-all">
+                        :class="orderType === 'dine_in' ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-sm' : 'text-[#A89A85] hover:text-[#F7F3EC]'"
+                        class="py-2 text-center font-sans text-xs font-semibold tracking-wide rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 8h1a4 4 0 010 8h-1M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/>
+                    </svg>
                     Dine In
                 </button>
                 <button type="button"
                         @click="orderType = 'take_away'"
-                        :class="orderType === 'take_away' ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow' : 'text-[#A89A85] hover:text-[#F7F3EC]'"
-                        class="py-1.5 text-center font-mono text-[11px] uppercase tracking-wider transition-all">
+                        :class="orderType === 'take_away' ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-sm' : 'text-[#A89A85] hover:text-[#F7F3EC]'"
+                        class="py-2 text-center font-sans text-xs font-semibold tracking-wide rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>
+                    </svg>
                     Take Away
                 </button>
             </div>
 
+            <!-- Nama Pelanggan / No Meja Input -->
             <div class="relative">
+                <svg class="w-4 h-4 text-[#8A7B66] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                </svg>
                 <input x-model="customerName"
                        type="text"
                        placeholder="Nama Pelanggan (opsional / no meja)"
-                       class="w-full bg-[#19130E] border border-[#3A3026] text-[#F7F3EC] placeholder-[#A89A85] px-3 py-1.5 text-xs focus:outline-none focus:border-[#D9973E]">
+                       class="w-full bg-[#140E0A] border border-[#3A3026] text-[#F7F3EC] placeholder-[#8A7B66] pl-9 pr-3.5 py-2 text-xs rounded-xl focus:outline-none focus:border-[#D9973E] focus:ring-1 focus:ring-[#D9973E]/40 transition-all">
             </div>
         </div>
 
         <!-- Daftar Item di Keranjang (Scrollable) -->
-        <div class="flex-1 p-3 overflow-y-auto space-y-2">
+        <div class="flex-1 p-3 sm:p-3.5 overflow-y-auto space-y-2.5">
             <template x-if="items.length === 0">
                 <div class="h-full flex flex-col items-center justify-center text-[#A89A85] py-12">
-                    <div class="text-3xl mb-2 opacity-50">🛒</div>
-                    <div class="font-mono text-xs uppercase tracking-wider">Keranjang Kosong</div>
-                    <div class="text-[11px] mt-1 text-[#6A5E50] text-center px-4">Ketuk menu di sebelah kiri untuk memasukkan pesanan.</div>
+                    <div class="w-14 h-14 rounded-2xl bg-[#261E17] border border-[#3A3026] flex items-center justify-center text-[#D9973E] text-2xl mb-3 shadow-inner">
+                        🛒
+                    </div>
+                    <div class="font-mono text-xs uppercase tracking-wider font-semibold text-[#F7F3EC]">Keranjang Kosong</div>
+                    <div class="text-[11px] mt-1 text-[#8A7B66] text-center px-6 max-w-xs leading-relaxed">Ketuk item menu di sebelah kiri untuk memasukkan ke tiket pesanan.</div>
                 </div>
             </template>
 
-            <template x-for="(item, idx) in items" :key="item.id">
-                <div class="bg-[#2A211A] border border-[#3A3026] p-3 transition-colors hover:border-[#D9973E]/50">
-                    <div class="flex items-start justify-between gap-2">
-                        <span class="text-xs font-medium text-[#F7F3EC] leading-snug" x-text="item.name"></span>
-                        <button @click="remove(idx)"
-                                class="text-[#A89A85] hover:text-[#C4553D] text-sm leading-none p-1"
+            <template x-for="item in sortedItems" :key="item.option_key || item.id">
+                <div class="bg-[#261E17] border border-[#3A3026] rounded-xl p-3 sm:p-3.5 transition-all hover:border-[#D9973E]/60 shadow-2xs">
+                    <div class="flex items-start justify-between gap-2.5">
+                        <div class="flex items-start gap-2.5 min-w-0 flex-1 cursor-pointer"
+                             @click="editItem(item)"
+                             title="Klik untuk ubah opsi Hot/Ice, Gula, Catatan">
+                            <!-- Icon Kategori -->
+                            <span class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 [&_svg]:w-3.5 [&_svg]:h-3.5 font-bold shadow-2xs mt-0.5"
+                                  :style="'background-color: ' + getCatMeta(item.category_slug).bg_light + '; color: ' + getCatMeta(item.category_slug).color + '; border: 1px solid ' + getCatMeta(item.category_slug).border_light + ';'"
+                                  :title="item.category_name || ''"
+                                  x-html="getCatMeta(item.category_slug).svg">
+                            </span>
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-center gap-1.5 flex-wrap">
+                                    <span class="text-[13px] font-semibold text-[#F7F3EC] leading-snug hover:text-[#D9973E] transition" x-text="item.name"></span>
+                                    <!-- Tombol Edit Opsi Minuman / Catatan -->
+                                    <span class="text-[10px] text-[#D9973E] px-1.5 py-0.5 rounded-md bg-[#D9973E]/10 border border-[#D9973E]/30 inline-flex items-center gap-1">
+                                        <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                        </svg>
+                                        Opsi
+                                    </span>
+                                </div>
+                                <span class="font-mono text-[9.5px] text-[#8A7B66] block leading-none mt-0.5" x-text="item.category_name"></span>
+                                
+                                <!-- Modifier Pills (Hot/Ice, Sugar, Notes) -->
+                                <template x-if="item.note_string">
+                                    <div class="mt-1 flex items-center gap-1 flex-wrap">
+                                        <span class="inline-flex items-center gap-1 font-mono text-[10px] px-2 py-0.5 rounded-md bg-[#19130E] border border-[#3A3026] text-[#D9973E] font-medium leading-tight"
+                                              x-text="item.note_string"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                        <button @click.stop="remove(item)"
+                                type="button"
+                                class="w-6 h-6 rounded-full flex items-center justify-center text-[#8A7B66] hover:text-[#E11D48] hover:bg-[#E11D48]/15 text-xs transition cursor-pointer shrink-0 mt-0.5"
                                 title="Hapus item">✕</button>
                     </div>
-                    <div class="mt-2 flex items-center justify-between">
-                        <!-- Kontrol Qty Tablet Touch -->
-                        <div class="flex items-center border border-[#3A3026] bg-[#1F1812]">
-                            <button @click="dec(idx)"
+                    <div class="mt-2.5 flex items-center justify-between">
+                        <!-- Kontrol Qty Touch Friendly -->
+                        <div class="flex items-center border border-[#3A3026] bg-[#140E0A] rounded-lg overflow-hidden shadow-2xs">
+                            <button @click="dec(item)"
                                     type="button"
-                                    class="w-7 h-7 flex items-center justify-center text-[#F7F3EC] hover:bg-[#3A3026] font-mono text-sm active:bg-[#D9973E] active:text-[#1F1812]">−</button>
-                            <span class="w-8 text-center font-mono text-xs font-semibold text-[#F7F3EC]" x-text="item.qty"></span>
-                            <button @click="inc(idx)"
+                                    class="w-8 h-8 flex items-center justify-center text-[#F7F3EC] hover:bg-[#3A3026] font-mono text-sm font-bold active:bg-[#D9973E] active:text-[#1F1812] transition cursor-pointer">−</button>
+                            <span class="w-8 text-center font-mono text-xs font-bold text-[#F7F3EC]" x-text="item.qty"></span>
+                            <button @click="inc(item)"
                                     type="button"
-                                    class="w-7 h-7 flex items-center justify-center text-[#F7F3EC] hover:bg-[#3A3026] font-mono text-sm active:bg-[#D9973E] active:text-[#1F1812]">+</button>
+                                    class="w-8 h-8 flex items-center justify-center text-[#F7F3EC] hover:bg-[#3A3026] font-mono text-sm font-bold active:bg-[#D9973E] active:text-[#1F1812] transition cursor-pointer">+</button>
                         </div>
                         <div class="text-right">
-                            <div class="font-mono text-xs text-[#D9973E] font-medium" x-text="fmt(item.price * item.qty)"></div>
-                            <div class="font-mono text-[9px] text-[#A89A85]" x-text="'@ ' + fmt(item.price)"></div>
+                            <div class="font-mono text-sm text-[#D9973E] font-bold" x-text="fmt(item.price * item.qty)"></div>
+                            <div class="font-mono text-[10px] text-[#8A7B66]" x-text="'@ ' + fmt(item.price)"></div>
                         </div>
                     </div>
                 </div>
@@ -247,105 +414,137 @@
         </div>
 
         <!-- Bagian Pembayaran & Ringkasan Transaksi (Fixed Bottom) -->
-        <div class="p-3 border-t border-[#3A3026] bg-[#19130E] space-y-2.5 shrink-0">
+        <div class="p-3 sm:p-3.5 border-t border-[#3A3026] bg-[#140E0A] space-y-2.5 shrink-0">
 
             <!-- Metode Pembayaran -->
             <div>
-                <label class="font-mono text-[9px] uppercase tracking-[0.2em] text-[#A89A85] mb-1 block">Metode Pembayaran</label>
-                <div class="grid grid-cols-3 gap-1">
+                <label class="font-mono text-[9px] uppercase tracking-[0.2em] text-[#8A7B66] font-bold mb-1.5 block">Metode Pembayaran</label>
+                <div class="grid grid-cols-3 gap-1.5">
                     <button type="button"
                             @click="method = 'cash'; methodChange()"
-                            :class="method === 'cash' ? 'bg-[#D9973E] text-[#1F1812] font-bold' : 'bg-[#2A211A] text-[#A89A85] hover:text-[#F7F3EC] border border-[#3A3026]'"
-                            class="py-1.5 text-center font-mono text-[10px] uppercase tracking-wider transition-colors">
+                            :class="method === 'cash' ? 'bg-[#D9973E] text-[#1F1812] font-bold border-[#D9973E] shadow-sm' : 'bg-[#221A14] text-[#A89A85] hover:text-[#F7F3EC] border-[#3A3026] hover:border-[#8A7B66]'"
+                            class="py-2 text-center font-mono text-[11px] uppercase tracking-wider font-semibold rounded-xl border transition-all cursor-pointer">
                         Tunai
                     </button>
                     <button type="button"
                             @click="method = 'qris'; methodChange()"
-                            :class="method === 'qris' ? 'bg-[#D9973E] text-[#1F1812] font-bold' : 'bg-[#2A211A] text-[#A89A85] hover:text-[#F7F3EC] border border-[#3A3026]'"
-                            class="py-1.5 text-center font-mono text-[10px] uppercase tracking-wider transition-colors">
+                            :class="method === 'qris' ? 'bg-[#D9973E] text-[#1F1812] font-bold border-[#D9973E] shadow-sm' : 'bg-[#221A14] text-[#A89A85] hover:text-[#F7F3EC] border-[#3A3026] hover:border-[#8A7B66]'"
+                            class="py-2 text-center font-mono text-[11px] uppercase tracking-wider font-semibold rounded-xl border transition-all cursor-pointer">
                         QRIS
                     </button>
                     <button type="button"
                             @click="method = 'debit'; methodChange()"
-                            :class="method === 'debit' ? 'bg-[#D9973E] text-[#1F1812] font-bold' : 'bg-[#2A211A] text-[#A89A85] hover:text-[#F7F3EC] border border-[#3A3026]'"
-                            class="py-1.5 text-center font-mono text-[10px] uppercase tracking-wider transition-colors">
+                            :class="method === 'debit' ? 'bg-[#D9973E] text-[#1F1812] font-bold border-[#D9973E] shadow-sm' : 'bg-[#221A14] text-[#A89A85] hover:text-[#F7F3EC] border-[#3A3026] hover:border-[#8A7B66]'"
+                            class="py-2 text-center font-mono text-[11px] uppercase tracking-wider font-semibold rounded-xl border transition-all cursor-pointer">
                         Debit
                     </button>
                 </div>
             </div>
 
-            <!-- Subtotal & Diskon -->
-            <div class="space-y-1 text-xs">
+            <!-- Subtotal & Baris Promo / Diskon Ringkas -->
+            <div class="space-y-1.5 text-xs py-0.5">
                 <div class="flex items-center justify-between text-[#A89A85]">
                     <span>Subtotal</span>
-                    <span class="font-mono text-[#F7F3EC]" x-text="fmt(subtotal)"></span>
+                    <span class="font-mono text-[#F7F3EC] font-semibold" x-text="fmt(subtotal)"></span>
                 </div>
-                <div class="flex items-center justify-between gap-2" x-show="method === 'cash'">
-                    <span class="text-[#A89A85] shrink-0">Diskon (Rp)</span>
-                    <input x-model.number="discount"
-                           @input="syncPaidIfNotCash()"
-                           type="number"
-                           min="0"
-                           :max="subtotal"
-                           placeholder="0"
-                           class="w-24 bg-[#2A211A] border border-[#3A3026] text-[#F7F3EC] px-2 py-1 text-right font-mono text-xs focus:outline-none focus:border-[#D9973E]">
+
+                <!-- Tombol Buka Modal Promo / Diskon -->
+                <div class="flex items-center justify-between gap-2">
+                    <button type="button"
+                            @click="showPromoModal = true"
+                            class="flex-1 py-2 px-3 rounded-xl border transition-all flex items-center justify-between text-left cursor-pointer active:scale-[0.99]"
+                            :class="discount > 0 
+                                ? 'bg-[#5F7F42]/10 border-[#5F7F42]/50 hover:border-[#5F7F42]' 
+                                : 'bg-[#1C150F] border-[#3A3026] hover:border-[#D9973E]/60 text-[#A89A85] hover:text-[#F7F3EC]'">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="text-sm">🎟️</span>
+                            <div class="min-w-0">
+                                <template x-if="discount === 0">
+                                    <span class="font-sans text-xs text-[#A89A85]">Gunakan Promo / Diskon ›</span>
+                                </template>
+                                <template x-if="discount > 0">
+                                    <div class="flex items-center gap-1.5 flex-wrap">
+                                        <span class="font-mono text-xs font-bold text-[#F7F3EC]" 
+                                              x-text="appliedPromo ? appliedPromo.code : 'Diskon Manual'"></span>
+                                        <span class="text-[9.5px] px-1.5 py-0.2 rounded bg-[#5F7F42]/20 text-[#5F7F42] font-semibold">Aktif</span>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <template x-if="discount > 0">
+                                <span class="font-mono text-xs font-bold text-[#5F7F42]" x-text="'-' + fmt(discount)"></span>
+                            </template>
+                            <span class="text-[10px] text-[#8A7B66]" x-show="discount === 0">Pilih ›</span>
+                        </div>
+                    </button>
+
+                    <!-- Tombol Cepat Hapus Diskon jika sedang aktif -->
+                    <template x-if="discount > 0">
+                        <button type="button"
+                                @click="removePromo(); manualDiscount = 0"
+                                title="Hapus Diskon"
+                                class="w-8 h-8 rounded-xl bg-[#221A14] hover:bg-[#C4553D] text-[#8A7B66] hover:text-white border border-[#3A3026] flex items-center justify-center text-xs transition cursor-pointer shrink-0">
+                            ✕
+                        </button>
+                    </template>
                 </div>
             </div>
 
             <!-- Quick Cash Denominations (Khusus Pembayaran Tunai Tablet POS) -->
-            <div x-show="method === 'cash' && items.length > 0" class="pt-1">
-                <div class="grid grid-cols-4 gap-1">
+            <div x-show="method === 'cash' && items.length > 0" class="pt-0.5">
+                <div class="grid grid-cols-4 gap-1.5">
                     <button type="button"
                             @click="setExactPaid()"
-                            class="bg-[#2A211A] hover:bg-[#3A3026] border border-[#3A3026] text-[#D9973E] py-1 text-center font-mono text-[10px] font-semibold transition-colors">
+                            class="bg-[#221A14] hover:bg-[#2F241C] border border-[#D9973E]/40 text-[#D9973E] py-1.5 text-center font-mono text-[11px] font-bold rounded-lg transition-all active:scale-95 cursor-pointer">
                         Uang Pas
                     </button>
                     <button type="button"
                             @click="setCash(50000)"
-                            class="bg-[#2A211A] hover:bg-[#3A3026] border border-[#3A3026] text-[#F7F3EC] py-1 text-center font-mono text-[10px] transition-colors">
+                            class="bg-[#221A14] hover:bg-[#2F241C] border border-[#3A3026] text-[#F7F3EC] py-1.5 text-center font-mono text-[11px] font-semibold rounded-lg transition-all active:scale-95 cursor-pointer">
                         50k
                     </button>
                     <button type="button"
                             @click="setCash(100000)"
-                            class="bg-[#2A211A] hover:bg-[#3A3026] border border-[#3A3026] text-[#F7F3EC] py-1 text-center font-mono text-[10px] transition-colors">
+                            class="bg-[#221A14] hover:bg-[#2F241C] border border-[#3A3026] text-[#F7F3EC] py-1.5 text-center font-mono text-[11px] font-semibold rounded-lg transition-all active:scale-95 cursor-pointer">
                         100k
                     </button>
                     <button type="button"
                             @click="setCash(200000)"
-                            class="bg-[#2A211A] hover:bg-[#3A3026] border border-[#3A3026] text-[#F7F3EC] py-1 text-center font-mono text-[10px] transition-colors">
+                            class="bg-[#221A14] hover:bg-[#2F241C] border border-[#3A3026] text-[#F7F3EC] py-1.5 text-center font-mono text-[11px] font-semibold rounded-lg transition-all active:scale-95 cursor-pointer">
                         200k
                     </button>
                 </div>
             </div>
 
-            <!-- Total Pembayaran -->
-            <div class="border-t border-[#3A3026] pt-2 flex items-baseline justify-between">
+            <!-- Kartu Total Pembayaran -->
+            <div class="bg-[#221A14] border border-[#3A3026] rounded-xl p-3 flex items-baseline justify-between shadow-2xs">
                 <div>
-                    <span class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#A89A85]">TOTAL AKHIR</span>
-                    <div x-show="method === 'cash' && paid > 0" class="font-mono text-[11px] text-[#5F7F42] mt-0.5">
-                        Kembalian: <span class="font-bold" x-text="fmt(Math.max(change, 0))"></span>
+                    <span class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#8A7B66] font-bold block">TOTAL AKHIR</span>
+                    <div x-show="method === 'cash' && paid > 0" class="font-mono text-xs text-[#5F7F42] font-bold mt-0.5">
+                        Kembalian: <span x-text="fmt(Math.max(change, 0))"></span>
                     </div>
                 </div>
-                <div class="font-mono text-xl sm:text-2xl text-[#D9973E] font-bold" x-text="fmt(total)"></div>
+                <div class="font-mono text-2xl sm:text-[26px] text-[#D9973E] font-bold tracking-tight" x-text="fmt(total)"></div>
             </div>
 
             <!-- Input Tunai jika Cash -->
-            <div class="flex items-center justify-between gap-2" x-show="method === 'cash'">
-                <span class="text-[#A89A85] text-xs shrink-0">Diterima (Rp)</span>
+            <div class="flex items-center justify-between gap-3 bg-[#1B140E] border border-[#3A3026] rounded-xl px-3 py-2" x-show="method === 'cash'">
+                <span class="text-[#A89A85] text-xs font-medium shrink-0">Diterima (Rp)</span>
                 <input x-model.number="paid"
                        type="number"
                        min="0"
-                       class="w-32 bg-[#2A211A] border border-[#3A3026] text-[#F7F3EC] px-2 py-1 text-right font-mono text-sm focus:outline-none focus:border-[#D9973E]">
+                       class="w-36 bg-[#221A14] border border-[#3A3026] text-[#F7F3EC] px-3 py-1.5 text-right font-mono text-sm font-bold rounded-lg focus:outline-none focus:border-[#D9973E] focus:ring-1 focus:ring-[#D9973E]/40">
             </div>
 
             <!-- Notifikasi Error -->
-            <p class="text-xs text-[#C4553D] bg-[#C4553D]/10 border border-[#C4553D]/30 p-2" x-show="error" x-text="error"></p>
+            <p class="text-xs text-[#E11D48] bg-[#E11D48]/10 border border-[#E11D48]/30 rounded-xl p-2.5 flex items-center gap-2" x-show="error" x-text="error"></p>
 
             <!-- Tombol Proses Checkout (Touch Friendly) -->
             <button @click="submit()"
                     :disabled="items.length === 0 || submitting || (method === 'cash' && paid < total)"
                     type="button"
-                    class="w-full bg-[#D9973E] text-[#1F1812] py-3 px-4 font-mono text-xs uppercase tracking-[0.2em] font-bold hover:bg-[#B5762A] hover:text-white transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg active:scale-[0.99] flex items-center justify-center gap-2">
+                    class="w-full bg-[#D9973E] text-[#1F1812] py-3.5 px-4 rounded-xl font-mono text-xs uppercase tracking-[0.2em] font-bold hover:bg-[#B5762A] hover:text-white transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer">
                 <span x-show="!submitting">PROSES BAYAR ›</span>
                 <span x-show="submitting" class="flex items-center gap-2">
                     <svg class="animate-spin h-4 w-4 text-[#1F1812]" fill="none" viewBox="0 0 24 24">
@@ -452,6 +651,422 @@
 
         </div>
     </div>
+
+    <!-- 5. MODAL CEPAT KUSTOMISASI MINUMAN & MENU (HOT/ICE, SUGAR LEVEL, NOTES) -->
+    <div x-show="showModifierModal"
+         x-cloak
+         @keydown.escape.window="if(showModifierModal) showModifierModal = false"
+         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs transition-all duration-200">
+        <div class="bg-[#1F1812] border border-[#3A3026] text-[#F7F3EC] w-full max-w-md shadow-2xl rounded-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150"
+             @click.away="showModifierModal = false">
+            
+            <!-- Header Modal Kustomisasi -->
+            <div class="p-4 bg-[#261E17] border-b border-[#3A3026] flex items-center justify-between">
+                <div class="flex items-center gap-3 min-w-0">
+                    <span class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 [&_svg]:w-5 [&_svg]:h-5 font-bold shadow-sm"
+                          :style="'background-color: ' + getCatMeta(modifierMenu?.category_slug).bg_light + '; color: ' + getCatMeta(modifierMenu?.category_slug).color + '; border: 1px solid ' + getCatMeta(modifierMenu?.category_slug).border_light + ';'"
+                          x-html="getCatMeta(modifierMenu?.category_slug).svg">
+                    </span>
+                    <div class="min-w-0">
+                        <h3 class="font-sans text-base font-bold text-[#F7F3EC] truncate" x-text="modifierMenu?.name"></h3>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <span class="font-mono text-xs text-[#D9973E] font-bold" x-text="fmt(modifierMenu?.price)"></span>
+                            <span class="text-[#8A7B66] text-xs">•</span>
+                            <span class="font-mono text-[11px] text-[#A89A85]" x-text="modifierMenu?.category_name"></span>
+                        </div>
+                    </div>
+                </div>
+                <button type="button"
+                        @click="showModifierModal = false"
+                        class="w-8 h-8 rounded-full bg-[#1F1812] hover:bg-[#3A3026] text-[#A89A85] hover:text-[#F7F3EC] flex items-center justify-center transition cursor-pointer text-sm">
+                    ✕
+                </button>
+            </div>
+
+            <!-- Konten Opsi Kustomisasi -->
+            <div class="p-4 overflow-y-auto max-h-[70vh] space-y-4">
+                
+                <!-- Opsi Khusus Minuman: Suhu / Temperature -->
+                <template x-if="modifierMenu?.is_drink">
+                    <div>
+                        <label class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#A89A85] font-bold mb-2 block">Suhu Minuman</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button type="button"
+                                    @click="modOptions.temperature = 'ice'"
+                                    :class="modOptions.temperature === 'ice' 
+                                        ? 'bg-[#3B82F6]/20 border-[#3B82F6] text-[#93C5FD] font-bold shadow-sm' 
+                                        : 'bg-[#261E17] border-[#3A3026] text-[#A89A85] hover:text-[#F7F3EC]'"
+                                    class="py-2.5 px-3 rounded-xl border transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98">
+                                <span class="text-base">🧊</span>
+                                <span class="font-sans text-xs font-semibold">Ice (Dingin)</span>
+                            </button>
+                            <button type="button"
+                                    @click="modOptions.temperature = 'hot'"
+                                    :class="modOptions.temperature === 'hot' 
+                                        ? 'bg-[#EF4444]/20 border-[#EF4444] text-[#FCA5A5] font-bold shadow-sm' 
+                                        : 'bg-[#261E17] border-[#3A3026] text-[#A89A85] hover:text-[#F7F3EC]'"
+                                    class="py-2.5 px-3 rounded-xl border transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98">
+                                <span class="text-base">🔥</span>
+                                <span class="font-sans text-xs font-semibold">Hot (Panas)</span>
+                            </button>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Opsi Khusus Minuman: Level Gula (Sugar Level) -->
+                <template x-if="modifierMenu?.is_drink">
+                    <div>
+                        <label class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#A89A85] font-bold mb-2 block">Level Gula (Sugar)</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button type="button"
+                                    @click="modOptions.sugar = 'normal'"
+                                    :class="modOptions.sugar === 'normal' 
+                                        ? 'bg-[#D9973E] border-[#D9973E] text-[#1F1812] font-bold shadow-sm' 
+                                        : 'bg-[#261E17] border-[#3A3026] text-[#A89A85] hover:text-[#F7F3EC]'"
+                                    class="py-2 px-2 rounded-xl border transition-all text-center font-sans text-xs cursor-pointer active:scale-98">
+                                <div class="font-semibold">Normal</div>
+                                <div class="text-[10px] opacity-80 font-mono">100% Gula</div>
+                            </button>
+                            <button type="button"
+                                    @click="modOptions.sugar = 'less'"
+                                    :class="modOptions.sugar === 'less' 
+                                        ? 'bg-[#D9973E] border-[#D9973E] text-[#1F1812] font-bold shadow-sm' 
+                                        : 'bg-[#261E17] border-[#3A3026] text-[#A89A85] hover:text-[#F7F3EC]'"
+                                    class="py-2 px-2 rounded-xl border transition-all text-center font-sans text-xs cursor-pointer active:scale-98">
+                                <div class="font-semibold">Less Sugar</div>
+                                <div class="text-[10px] opacity-80 font-mono">50% Gula</div>
+                            </button>
+                            <button type="button"
+                                    @click="modOptions.sugar = 'no'"
+                                    :class="modOptions.sugar === 'no' 
+                                        ? 'bg-[#D9973E] border-[#D9973E] text-[#1F1812] font-bold shadow-sm' 
+                                        : 'bg-[#261E17] border-[#3A3026] text-[#A89A85] hover:text-[#F7F3EC]'"
+                                    class="py-2 px-2 rounded-xl border transition-all text-center font-sans text-xs cursor-pointer active:scale-98">
+                                <div class="font-semibold">No Sugar</div>
+                                <div class="text-[10px] opacity-80 font-mono">0% Gula</div>
+                            </button>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Opsi Khusus Minuman Dingin: Level Es (Ice Level) -->
+                <template x-if="modifierMenu?.is_drink && modOptions.temperature === 'ice'">
+                    <div>
+                        <label class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#A89A85] font-bold mb-2 block">Level Es (Ice)</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button type="button"
+                                    @click="modOptions.ice_level = 'normal'"
+                                    :class="modOptions.ice_level === 'normal' 
+                                        ? 'bg-[#D9973E] border-[#D9973E] text-[#1F1812] font-bold shadow-sm' 
+                                        : 'bg-[#261E17] border-[#3A3026] text-[#A89A85] hover:text-[#F7F3EC]'"
+                                    class="py-2 px-2 rounded-xl border transition-all text-center font-sans text-xs cursor-pointer active:scale-98">
+                                <div class="font-semibold">Normal Ice</div>
+                            </button>
+                            <button type="button"
+                                    @click="modOptions.ice_level = 'less'"
+                                    :class="modOptions.ice_level === 'less' 
+                                        ? 'bg-[#D9973E] border-[#D9973E] text-[#1F1812] font-bold shadow-sm' 
+                                        : 'bg-[#261E17] border-[#3A3026] text-[#A89A85] hover:text-[#F7F3EC]'"
+                                    class="py-2 px-2 rounded-xl border transition-all text-center font-sans text-xs cursor-pointer active:scale-98">
+                                <div class="font-semibold">Less Ice</div>
+                            </button>
+                            <button type="button"
+                                    @click="modOptions.ice_level = 'none'"
+                                    :class="modOptions.ice_level === 'none' 
+                                        ? 'bg-[#D9973E] border-[#D9973E] text-[#1F1812] font-bold shadow-sm' 
+                                        : 'bg-[#261E17] border-[#3A3026] text-[#A89A85] hover:text-[#F7F3EC]'"
+                                    class="py-2 px-2 rounded-xl border transition-all text-center font-sans text-xs cursor-pointer active:scale-98">
+                                <div class="font-semibold">No Ice</div>
+                            </button>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Catatan Tambahan -->
+                <div>
+                    <label class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#A89A85] font-bold mb-1.5 block">Catatan Tambahan (Opsional)</label>
+                    <div class="relative">
+                        <input x-model="modOptions.note"
+                               @keydown.enter.prevent="saveModifier()"
+                               type="text"
+                               placeholder="misal: ekstra shot, oat milk, pisah saus..."
+                               class="w-full bg-[#140E0A] border border-[#3A3026] text-[#F7F3EC] placeholder-[#8A7B66] px-3.5 py-2.5 text-xs rounded-xl focus:outline-none focus:border-[#D9973E] focus:ring-1 focus:ring-[#D9973E]/40 transition-all">
+                    </div>
+                </div>
+
+                <!-- Stepper Jumlah / Quantity -->
+                <div class="flex items-center justify-between pt-2 border-t border-[#3A3026]/70">
+                    <span class="font-mono text-xs text-[#A89A85] font-semibold">Jumlah Item</span>
+                    <div class="flex items-center border border-[#3A3026] bg-[#140E0A] rounded-xl overflow-hidden shadow-2xs">
+                        <button @click="if(modOptions.qty > 1) modOptions.qty--"
+                                type="button"
+                                class="w-9 h-9 flex items-center justify-center text-[#F7F3EC] hover:bg-[#3A3026] font-mono text-base font-bold active:bg-[#D9973E] active:text-[#1F1812] transition cursor-pointer">−</button>
+                        <span class="w-10 text-center font-mono text-sm font-bold text-[#F7F3EC]" x-text="modOptions.qty"></span>
+                        <button @click="modOptions.qty++"
+                                type="button"
+                                class="w-9 h-9 flex items-center justify-center text-[#F7F3EC] hover:bg-[#3A3026] font-mono text-base font-bold active:bg-[#D9973E] active:text-[#1F1812] transition cursor-pointer">+</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Aksi Modal -->
+            <div class="p-4 bg-[#261E17] border-t border-[#3A3026] flex items-center justify-between gap-3">
+                <button type="button"
+                        @click="showModifierModal = false"
+                        class="px-4 py-2.5 rounded-xl border border-[#3A3026] text-[#A89A85] hover:text-[#F7F3EC] hover:bg-[#1F1812] font-mono text-xs uppercase tracking-wider transition cursor-pointer">
+                    Batal
+                </button>
+                <button type="button"
+                        @click="saveModifier()"
+                        class="flex-1 bg-[#D9973E] hover:bg-[#B5762A] text-[#1F1812] hover:text-white py-2.5 px-4 rounded-xl font-mono text-xs uppercase tracking-wider font-bold transition-all shadow-md active:scale-98 flex items-center justify-center gap-2 cursor-pointer">
+                    <span x-text="editingItemIndex !== null ? 'Simpan Perubahan' : '+ Tambahkan ke Pesanan'"></span>
+                    <span class="font-bold font-mono" x-text="'(' + fmt((modifierMenu?.price || 0) * (modOptions.qty || 1)) + ')'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. MODAL KODE PROMO & DISKON PESANAN -->
+    <div x-show="showPromoModal"
+         x-cloak
+         @keydown.escape.window="if(showPromoModal) showPromoModal = false"
+         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs transition-all duration-200">
+        <div class="bg-[#1F1812] border border-[#3A3026] text-[#F7F3EC] w-full max-w-md shadow-2xl rounded-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150"
+             @click.away="showPromoModal = false">
+            
+            <!-- Header Modal Promo -->
+            <div class="p-4 bg-[#261E17] border-b border-[#3A3026] flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <span class="w-9 h-9 rounded-xl bg-[#D9973E]/15 border border-[#D9973E]/30 flex items-center justify-center text-[#D9973E] text-base shrink-0">
+                        🎟️
+                    </span>
+                    <div>
+                        <h3 class="font-sans text-sm font-bold text-[#F7F3EC]">Promo & Diskon Pesanan</h3>
+                        <div class="text-[11px] text-[#8A7B66] flex items-center gap-1.5 mt-0.5">
+                            <span>Subtotal saat ini:</span>
+                            <b class="font-mono text-[#D9973E]" x-text="fmt(subtotal)"></b>
+                        </div>
+                    </div>
+                </div>
+                <button type="button"
+                        @click="showPromoModal = false"
+                        class="w-8 h-8 rounded-full bg-[#1F1812] hover:bg-[#3A3026] text-[#A89A85] hover:text-[#F7F3EC] flex items-center justify-center transition cursor-pointer text-sm">
+                    ✕
+                </button>
+            </div>
+
+            <!-- Switcher Tab: Kode Promo vs Diskon Manual -->
+            <div class="p-3 bg-[#19130E] border-b border-[#3A3026]">
+                <div class="grid grid-cols-2 gap-1.5 p-1 bg-[#140E0A] border border-[#3A3026] rounded-xl">
+                    <button type="button"
+                            @click="discountMode = 'promo'"
+                            :class="discountMode === 'promo' ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-sm' : 'text-[#A89A85] hover:text-[#F7F3EC]'"
+                            class="py-2 text-center font-sans text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                        <span>🏷️</span>
+                        <span>Kode Promo</span>
+                    </button>
+                    <button type="button"
+                            @click="discountMode = 'manual'"
+                            :class="discountMode === 'manual' ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-sm' : 'text-[#A89A85] hover:text-[#F7F3EC]'"
+                            class="py-2 text-center font-sans text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                        <span>✏️</span>
+                        <span>Diskon Manual</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Body Modal -->
+            <div class="p-4 overflow-y-auto max-h-[60vh] space-y-4">
+
+                <!-- TAB 1: KODE PROMO -->
+                <div x-show="discountMode === 'promo'" class="space-y-3.5">
+                    <!-- Input Form Kode Promo -->
+                    <div>
+                        <label class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#A89A85] font-bold mb-1.5 block">
+                            Masukkan Kode Promo
+                        </label>
+                        <div class="flex items-center gap-2">
+                            <div class="relative flex-1">
+                                <input x-model="promoInput"
+                                       @keydown.enter.prevent="applyPromo()"
+                                       type="text"
+                                       placeholder="misal: KOPIHEMAT, DISKON10..."
+                                       class="w-full bg-[#140E0A] border border-[#3A3026] text-[#F7F3EC] placeholder-[#8A7B66] uppercase font-mono px-3.5 py-2.5 text-xs rounded-xl focus:outline-none focus:border-[#D9973E] transition-all">
+                            </div>
+                            <button type="button"
+                                    @click="applyPromo()"
+                                    :disabled="promoLoading || !promoInput.trim()"
+                                    class="px-4 py-2.5 bg-[#D9973E] hover:bg-[#B5762A] text-[#1F1812] font-mono text-xs font-bold rounded-xl transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-1.5 shrink-0 shadow-sm active:scale-98">
+                                <span x-show="!promoLoading">Terapkan</span>
+                                <span x-show="promoLoading" class="animate-spin text-xs">⏳</span>
+                            </button>
+                        </div>
+
+                        <!-- Pesan Feedback (Error / Sukses) -->
+                        <template x-if="promoMessage">
+                            <div class="mt-2 text-xs p-2.5 rounded-xl flex items-center gap-2"
+                                 :class="promoStatus === 'error' ? 'text-[#E11D48] bg-[#E11D48]/10 border border-[#E11D48]/30' : 'text-[#5F7F42] bg-[#5F7F42]/10 border border-[#5F7F42]/30'">
+                                <span x-text="promoStatus === 'error' ? '⚠️' : '✓'"></span>
+                                <span x-text="promoMessage"></span>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Promo Aktif Saat Ini (Jika Ada) -->
+                    <template x-if="appliedPromo">
+                        <div class="bg-[#241B13] border border-[#5F7F42] rounded-xl p-3 shadow-md">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="flex items-start gap-2.5 min-w-0">
+                                    <div class="w-8 h-8 rounded-lg bg-[#5F7F42]/20 text-[#5F7F42] flex items-center justify-center font-bold text-sm shrink-0 mt-0.5">✓</div>
+                                    <div class="min-w-0">
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-mono text-sm font-bold text-[#F7F3EC] tracking-wider" x-text="appliedPromo.code"></span>
+                                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-[#5F7F42]/20 text-[#5F7F42] font-semibold"
+                                                  x-text="appliedPromo.type === 'percentage' ? (appliedPromo.discount_value + '%') : 'Potongan Tunai'"></span>
+                                        </div>
+                                        <div class="text-xs text-[#A89A85] mt-0.5 font-medium" x-text="appliedPromo.name"></div>
+                                        <div class="text-[11px] text-[#8A7B66] mt-1" x-text="appliedPromo.description"></div>
+                                    </div>
+                                </div>
+                                <button type="button"
+                                        @click="removePromo()"
+                                        title="Hapus Promo"
+                                        class="px-2.5 py-1 rounded-lg bg-[#3A3026] hover:bg-[#C4553D] text-[#A89A85] hover:text-white text-xs font-mono transition cursor-pointer shrink-0">
+                                    Hapus
+                                </button>
+                            </div>
+                            <div class="mt-3 pt-2.5 border-t border-[#3A3026] flex items-center justify-between text-xs">
+                                <span class="text-[#8A7B66]">Total Potongan Promo:</span>
+                                <span class="font-mono text-sm font-bold text-[#5F7F42]" x-text="'-' + fmt(discount)"></span>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Daftar Rekomendasi Promo Kafe -->
+                    <div>
+                        <label class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#8A7B66] font-bold mb-2 block">
+                            Daftar Promo Tersedia
+                        </label>
+                        <div class="space-y-2">
+                            <template x-for="p in activePromos" :key="p.id">
+                                <div class="bg-[#140E0A] border rounded-xl p-3 transition-all cursor-pointer hover:border-[#D9973E]"
+                                     :class="appliedPromo?.code === p.code ? 'border-[#5F7F42] bg-[#241B13]' : 'border-[#3A3026]'"
+                                     @click="applyPromo(p.code)">
+                                    <div class="flex items-start justify-between gap-2">
+                                        <div class="min-w-0">
+                                            <div class="flex items-center gap-2">
+                                                <span class="font-mono text-xs font-bold text-[#D9973E] px-2 py-0.5 rounded-md bg-[#D9973E]/10 border border-[#D9973E]/30 tracking-wider" x-text="p.code"></span>
+                                                <span class="font-sans text-xs font-semibold text-[#F7F3EC]" x-text="p.name"></span>
+                                            </div>
+                                            <p class="text-[11px] text-[#8A7B66] mt-1" x-text="p.description || '-'"></p>
+                                        </div>
+                                        <div class="text-right shrink-0">
+                                            <button type="button"
+                                                    class="px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition"
+                                                    :class="appliedPromo?.code === p.code 
+                                                        ? 'bg-[#5F7F42] text-white' 
+                                                        : 'bg-[#221A14] hover:bg-[#D9973E] text-[#D9973E] hover:text-[#1F1812] border border-[#3A3026]'">
+                                                <span x-text="appliedPromo?.code === p.code ? '✓ Dipakai' : 'Gunakan'"></span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="mt-2 pt-2 border-t border-[#3A3026]/60 flex items-center justify-between text-[10px] text-[#8A7B66]">
+                                        <span x-text="p.min_order > 0 ? ('Min. Belanja ' + fmt(p.min_order)) : 'Tanpa Min. Belanja'"></span>
+                                        <span x-text="p.max_discount ? ('Maks. ' + fmt(p.max_discount)) : ''"></span>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: DISKON MANUAL -->
+                <div x-show="discountMode === 'manual'" class="space-y-4">
+                    <div>
+                        <label class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#A89A85] font-bold mb-1.5 block">
+                            Potongan Nominal Manual (Rp)
+                        </label>
+                        <div class="relative">
+                            <span class="absolute left-3.5 top-1/2 -translate-y-1/2 font-mono text-xs text-[#8A7B66]">Rp</span>
+                            <input x-model.number="manualDiscount"
+                                   @input="if(method !== 'cash') paid = total"
+                                   type="number"
+                                   min="0"
+                                   :max="subtotal"
+                                   placeholder="0"
+                                   class="w-full bg-[#140E0A] border border-[#3A3026] text-[#F7F3EC] pl-10 pr-3.5 py-2.5 font-mono text-sm font-bold rounded-xl focus:outline-none focus:border-[#D9973E]">
+                        </div>
+                    </div>
+
+                    <!-- Preset Nominal Cepat -->
+                    <div>
+                        <label class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#8A7B66] font-bold mb-2 block">
+                            Pilihan Nominal Cepat
+                        </label>
+                        <div class="grid grid-cols-4 gap-2">
+                            <button type="button"
+                                    @click="manualDiscount = 5000; if(method !== 'cash') paid = total"
+                                    class="py-2 px-1 text-center font-mono text-xs font-semibold rounded-xl border border-[#3A3026] bg-[#140E0A] hover:bg-[#2A2016] text-[#F7F3EC] hover:text-[#D9973E] transition cursor-pointer">
+                                5k
+                            </button>
+                            <button type="button"
+                                    @click="manualDiscount = 10000; if(method !== 'cash') paid = total"
+                                    class="py-2 px-1 text-center font-mono text-xs font-semibold rounded-xl border border-[#3A3026] bg-[#140E0A] hover:bg-[#2A2016] text-[#F7F3EC] hover:text-[#D9973E] transition cursor-pointer">
+                                10k
+                            </button>
+                            <button type="button"
+                                    @click="manualDiscount = 15000; if(method !== 'cash') paid = total"
+                                    class="py-2 px-1 text-center font-mono text-xs font-semibold rounded-xl border border-[#3A3026] bg-[#140E0A] hover:bg-[#2A2016] text-[#F7F3EC] hover:text-[#D9973E] transition cursor-pointer">
+                                15k
+                            </button>
+                            <button type="button"
+                                    @click="manualDiscount = 20000; if(method !== 'cash') paid = total"
+                                    class="py-2 px-1 text-center font-mono text-xs font-semibold rounded-xl border border-[#3A3026] bg-[#140E0A] hover:bg-[#2A2016] text-[#F7F3EC] hover:text-[#D9973E] transition cursor-pointer">
+                                20k
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Preset Persentase Cepat -->
+                    <div>
+                        <label class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#8A7B66] font-bold mb-2 block">
+                            Pilihan Persentase Cepat
+                        </label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button type="button"
+                                    @click="manualDiscount = Math.round(subtotal * 0.05); if(method !== 'cash') paid = total"
+                                    class="py-2 px-1 text-center font-mono text-xs font-semibold rounded-xl border border-[#3A3026] bg-[#140E0A] hover:bg-[#2A2016] text-[#F7F3EC] hover:text-[#D9973E] transition cursor-pointer">
+                                5% (<span x-text="fmt(Math.round(subtotal * 0.05))"></span>)
+                            </button>
+                            <button type="button"
+                                    @click="manualDiscount = Math.round(subtotal * 0.10); if(method !== 'cash') paid = total"
+                                    class="py-2 px-1 text-center font-mono text-xs font-semibold rounded-xl border border-[#3A3026] bg-[#140E0A] hover:bg-[#2A2016] text-[#F7F3EC] hover:text-[#D9973E] transition cursor-pointer">
+                                10% (<span x-text="fmt(Math.round(subtotal * 0.10))"></span>)
+                            </button>
+                            <button type="button"
+                                    @click="manualDiscount = Math.round(subtotal * 0.20); if(method !== 'cash') paid = total"
+                                    class="py-2 px-1 text-center font-mono text-xs font-semibold rounded-xl border border-[#3A3026] bg-[#140E0A] hover:bg-[#2A2016] text-[#F7F3EC] hover:text-[#D9973E] transition cursor-pointer">
+                                20% (<span x-text="fmt(Math.round(subtotal * 0.20))"></span>)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Modal -->
+            <div class="p-4 bg-[#261E17] border-t border-[#3A3026] flex items-center justify-between gap-3">
+                <div>
+                    <div class="text-[10px] text-[#8A7B66] font-mono uppercase tracking-wider">Total Diskon</div>
+                    <div class="font-mono text-base font-bold text-[#5F7F42]" x-text="fmt(discount)"></div>
+                </div>
+                <button type="button"
+                        @click="showPromoModal = false"
+                        class="bg-[#D9973E] hover:bg-[#B5762A] text-[#1F1812] hover:text-white py-2.5 px-5 rounded-xl font-mono text-xs uppercase tracking-wider font-bold transition-all shadow-md active:scale-98 cursor-pointer">
+                    Selesai & Terapkan
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -461,15 +1076,42 @@ function pos() {
         cat: 'all',
         search: '',
         items: [],
+        showModifierModal: false,
+        showPromoModal: false,
+        editingItemIndex: null,
+        modifierMenu: null,
+        modOptions: {
+            temperature: 'ice',
+            sugar: 'normal',
+            ice_level: 'normal',
+            note: '',
+            qty: 1,
+        },
         orderType: 'dine_in',
         method: 'cash',
-        discount: 0,
+        activePromos: @json($activePromos ?? []),
+        promoInput: '',
+        appliedPromo: null,
+        promoLoading: false,
+        promoMessage: '',
+        promoStatus: '',
+        discountMode: 'promo',
+        manualDiscount: 0,
+        showPromoHints: false,
         paid: 0,
         customerName: '',
         error: '',
         submitting: false,
         showSuccessModal: false,
         completedOrder: null,
+
+        get sortedItems() {
+            return [...this.items].sort((a, b) => {
+                const catDiff = (a.category_order ?? 999) - (b.category_order ?? 999);
+                if (catDiff !== 0) return catDiff;
+                return a.name.localeCompare(b.name);
+            });
+        },
 
         get filteredMenus() {
             return this.menus.filter(m => {
@@ -484,36 +1126,224 @@ function pos() {
         },
 
         get subtotal() { return this.items.reduce((s, i) => s + i.price * i.qty, 0); },
-        get total() { return Math.max(this.subtotal - (parseInt(this.discount) || 0), 0); },
+        get discount() {
+            if (this.discountMode === 'manual') {
+                return Math.min(Math.max(parseInt(this.manualDiscount) || 0, 0), this.subtotal);
+            }
+            if (!this.appliedPromo) return 0;
+            if (this.subtotal < (this.appliedPromo.min_order || 0)) return 0;
+
+            if (this.appliedPromo.type === 'percentage') {
+                let calc = Math.round((this.subtotal * this.appliedPromo.discount_value) / 100);
+                if (this.appliedPromo.max_discount && this.appliedPromo.max_discount > 0) {
+                    calc = Math.min(calc, this.appliedPromo.max_discount);
+                }
+                return Math.min(calc, this.subtotal);
+            } else {
+                return Math.min(this.appliedPromo.discount_value || 0, this.subtotal);
+            }
+        },
+        get total() { return Math.max(this.subtotal - this.discount, 0); },
         get change() { return (parseInt(this.paid) || 0) - this.total; },
 
         fmt(v) { return 'Rp ' + (v || 0).toLocaleString('id-ID'); },
 
-        add(id) {
-            const m = this.menus.find(x => x.id === id);
+        getCatMeta(slug) {
+            const colors = @json($categoryColors);
+            return colors[slug] || colors['all'] || {
+                svg: '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6a7 7 0 00-7 7h14a7 7 0 00-7-7zM12 3v3M4 17h16a1 1 0 011 1v1H3v-1a1 1 0 011-1z"/></svg>',
+                color: '#D9973E',
+                bg_light: '#FDF4E7',
+                text_light: '#B4721D',
+                border_light: '#F5DCB8',
+            };
+        },
+
+        selectMenu(m) {
             if (!m || !m.available) return;
-            const found = this.items.find(i => i.id === id);
-            if (found) {
-                found.qty++;
+            this.addDirect(m, 1);
+        },
+
+        addDirect(m, qty = 1) {
+            if (m.is_drink) {
+                const defaultOpts = {
+                    temperature: 'ice',
+                    sugar: 'normal',
+                    ice_level: 'normal',
+                    note: '',
+                    qty: qty,
+                };
+                const optionKey = `${m.id}_ice_normal_normal_`;
+                const found = this.items.find(i => i.option_key === optionKey);
+                if (found) {
+                    found.qty += qty;
+                } else {
+                    this.items.push({
+                        id: m.id,
+                        name: m.name,
+                        price: m.price,
+                        qty: qty,
+                        category_id: m.category_id,
+                        category_slug: m.category_slug,
+                        category_name: m.category_name,
+                        category_order: m.category_order ?? 999,
+                        is_drink: true,
+                        options: defaultOpts,
+                        note_string: '🧊 Ice • Normal Sugar',
+                        option_key: optionKey,
+                    });
+                }
             } else {
-                this.items.push({ id: m.id, name: m.name, price: m.price, qty: 1 });
+                const optionKey = `${m.id}_direct`;
+                const found = this.items.find(i => i.option_key === optionKey);
+                if (found) {
+                    found.qty += qty;
+                } else {
+                    this.items.push({
+                        id: m.id,
+                        name: m.name,
+                        price: m.price,
+                        qty: qty,
+                        category_id: m.category_id,
+                        category_slug: m.category_slug,
+                        category_name: m.category_name,
+                        category_order: m.category_order ?? 999,
+                        is_drink: false,
+                        options: null,
+                        note_string: '',
+                        option_key: optionKey,
+                    });
+                }
             }
+
             this.error = '';
             if (this.method === 'cash' && this.paid < this.total) {
                 this.paid = this.total;
             }
         },
-        inc(idx) {
-            this.items[idx].qty++;
+
+        saveModifier() {
+            if (!this.modifierMenu) return;
+            const m = this.modifierMenu;
+            const opts = { ...this.modOptions };
+
+            const noteParts = [];
+            if (m.is_drink) {
+                if (opts.temperature === 'hot') {
+                    noteParts.push('🔥 Hot');
+                } else if (opts.temperature === 'ice') {
+                    const iceText = opts.ice_level === 'normal' ? '🧊 Ice' : `🧊 Ice (${opts.ice_level === 'less' ? 'Less Ice' : 'No Ice'})`;
+                    noteParts.push(iceText);
+                }
+
+                if (opts.sugar === 'less') {
+                    noteParts.push('Less Sugar');
+                } else if (opts.sugar === 'no') {
+                    noteParts.push('No Sugar');
+                } else if (opts.sugar === 'normal') {
+                    noteParts.push('Normal Sugar');
+                }
+            }
+
+            const noteClean = (opts.note || '').trim();
+            if (noteClean) {
+                noteParts.push(noteClean);
+            }
+            const noteString = noteParts.join(' • ');
+            const optionKey = m.is_drink
+                ? `${m.id}_${opts.temperature}_${opts.sugar}_${opts.ice_level}_${noteClean.toLowerCase()}`
+                : `${m.id}_${noteClean.toLowerCase()}`;
+
+            if (this.editingItemIndex !== null) {
+                const existingOtherIndex = this.items.findIndex((it, idx) => idx !== this.editingItemIndex && it.option_key === optionKey);
+                if (existingOtherIndex !== -1) {
+                    this.items[existingOtherIndex].qty += opts.qty;
+                    this.items.splice(this.editingItemIndex, 1);
+                } else {
+                    const item = this.items[this.editingItemIndex];
+                    if (item) {
+                        item.options = opts;
+                        item.note_string = noteString;
+                        item.option_key = optionKey;
+                        item.qty = opts.qty;
+                    }
+                }
+            } else {
+                const existing = this.items.find(i => i.option_key === optionKey);
+                if (existing) {
+                    existing.qty += opts.qty;
+                } else {
+                    this.items.push({
+                        id: m.id,
+                        name: m.name,
+                        price: m.price,
+                        qty: opts.qty,
+                        category_id: m.category_id,
+                        category_slug: m.category_slug,
+                        category_name: m.category_name,
+                        category_order: m.category_order ?? 999,
+                        is_drink: m.is_drink,
+                        options: opts,
+                        note_string: noteString,
+                        option_key: optionKey,
+                    });
+                }
+            }
+
+            this.showModifierModal = false;
+            this.modifierMenu = null;
+            this.editingItemIndex = null;
+            this.error = '';
+            if (this.method === 'cash' && this.paid < this.total) {
+                this.paid = this.total;
+            }
+        },
+
+        editItem(item) {
+            const idx = this.items.indexOf(item);
+            if (idx === -1) return;
+            const m = this.menus.find(x => x.id === item.id);
+            if (!m) return;
+            this.editingItemIndex = idx;
+            this.modifierMenu = m;
+            this.modOptions = {
+                temperature: item.options?.temperature || (m.is_drink ? 'ice' : ''),
+                sugar: item.options?.sugar || (m.is_drink ? 'normal' : ''),
+                ice_level: item.options?.ice_level || (m.is_drink ? 'normal' : ''),
+                note: item.options?.note || (!m.is_drink ? (item.note_string || '') : ''),
+                qty: item.qty,
+            };
+            this.showModifierModal = true;
+        },
+
+        add(id) {
+            const m = this.menus.find(x => x.id === id);
+            if (m) this.selectMenu(m);
+        },
+
+        inc(target) {
+            const item = typeof target === 'object' ? target : this.items[target];
+            if (!item) return;
+            item.qty++;
             if (this.method === 'cash' && this.paid < this.total) this.paid = this.total;
         },
-        dec(idx) {
-            this.items[idx].qty--;
-            if (this.items[idx].qty <= 0) this.items.splice(idx, 1);
+
+        dec(target) {
+            const item = typeof target === 'object' ? target : this.items[target];
+            if (!item) return;
+            item.qty--;
+            if (item.qty <= 0) {
+                const idx = this.items.indexOf(item);
+                if (idx !== -1) this.items.splice(idx, 1);
+            }
             if (this.method === 'cash' && this.paid > this.total && this.items.length === 0) this.paid = 0;
         },
-        remove(idx) {
-            this.items.splice(idx, 1);
+
+        remove(target) {
+            const item = typeof target === 'object' ? target : this.items[target];
+            if (!item) return;
+            const idx = this.items.indexOf(item);
+            if (idx !== -1) this.items.splice(idx, 1);
             if (this.items.length === 0) {
                 this.discount = 0;
                 this.paid = 0;
@@ -529,7 +1359,8 @@ function pos() {
             });
             if (ok) {
                 this.items = [];
-                this.discount = 0;
+                this.removePromo();
+                this.manualDiscount = 0;
                 this.paid = 0;
             }
         },
@@ -575,12 +1406,72 @@ function pos() {
             }
         },
         methodChange() {
-            if (this.method !== 'cash') {
-                this.paid = this.total;
-                this.discount = 0;
-            } else {
-                this.paid = this.total;
+            this.paid = this.total;
+        },
+
+        async applyPromo(code = null) {
+            const targetCode = (code || this.promoInput || '').trim();
+            if (!targetCode) {
+                this.promoMessage = 'Masukkan kode promo terlebih dahulu.';
+                this.promoStatus = 'error';
+                return;
             }
+            if (this.subtotal <= 0) {
+                this.promoMessage = 'Tambahkan menu ke keranjang terlebih dahulu.';
+                this.promoStatus = 'error';
+                return;
+            }
+            this.promoLoading = true;
+            this.promoMessage = '';
+            this.promoStatus = '';
+            try {
+                const token = document.querySelector('meta[name="csrf-token"]')?.content;
+                const res = await fetch(@js(route('kasir.promo.check', [], false)), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token,
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        code: targetCode,
+                        subtotal: this.subtotal,
+                    }),
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    this.appliedPromo = data;
+                    this.discountMode = 'promo';
+                    this.promoInput = data.code;
+                    this.promoStatus = 'success';
+                    this.promoMessage = data.message;
+                    this.showPromoHints = false;
+                    this.showPromoModal = false;
+                    this.paid = this.total;
+                    if (window.customToast) {
+                        window.customToast({
+                            message: `Kode promo ${data.code} berhasil diterapkan! Hemat ${this.fmt(this.discount)}`,
+                            type: 'success'
+                        });
+                    }
+                } else {
+                    this.promoStatus = 'error';
+                    this.promoMessage = data.message || 'Kode promo tidak dapat digunakan.';
+                }
+            } catch (e) {
+                this.promoStatus = 'error';
+                this.promoMessage = 'Gagal memeriksa kode promo.';
+            } finally {
+                this.promoLoading = false;
+            }
+        },
+
+        removePromo() {
+            this.appliedPromo = null;
+            this.promoInput = '';
+            this.promoMessage = '';
+            this.promoStatus = '';
+            this.paid = this.total;
         },
 
         async submit() {
@@ -597,9 +1488,10 @@ function pos() {
                         'Accept': 'application/json',
                     },
                     body: JSON.stringify({
-                        items: this.items.map(i => ({ menu_id: i.id, qty: i.qty })),
+                        items: this.items.map(i => ({ menu_id: i.id, qty: i.qty, note: i.note_string || null })),
                         order_type: this.orderType,
                         payment_method: this.method,
+                        promo_code: (this.discountMode === 'promo' && this.appliedPromo) ? this.appliedPromo.code : null,
                         discount: parseInt(this.discount) || 0,
                         paid_amount: parseInt(this.paid) || 0,
                         customer_name: this.customerName || null,
@@ -634,7 +1526,8 @@ function pos() {
                     this.printReceiptSilently(data.receipt_url);
                     // Reset keranjang untuk transaksi berikutnya
                     this.items = [];
-                    this.discount = 0;
+                    this.removePromo();
+                    this.manualDiscount = 0;
                     this.paid = 0;
                     this.customerName = '';
                 } else {

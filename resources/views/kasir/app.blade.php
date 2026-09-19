@@ -46,38 +46,62 @@
             </div>
         </header>
 
-        <!-- SIDEBAR NAVBAR KIRI (OPTIMAL UNTUK LAYOUT TABLET & POS) -->
-        <aside :class="mobileNavOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'"
-               class="fixed inset-y-0 left-0 z-40 md:static md:translate-x-0 w-60 lg:w-64 bg-[#1F1812] text-[#F7F3EC] border-r border-[#3A3026] flex flex-col justify-between shrink-0 transition-transform duration-200 ease-in-out h-full select-none shadow-2xl md:shadow-none">
+        <!-- SIDEBAR NAVBAR KIRI (REAKTIF: OVERLAY DRAWER DI TERMINAL POS, STATIK DI HALAMAN LAIN) -->
+        <aside :class="{
+                   'fixed inset-y-0 left-0 z-50 w-64 sm:w-72 shadow-2xl': isTerminalPage,
+                   'translate-x-0': isTerminalPage ? terminalSidebarOpen : mobileNavOpen,
+                   '-translate-x-full': isTerminalPage ? !terminalSidebarOpen : (!mobileNavOpen && true),
+                   'fixed inset-y-0 left-0 z-40 md:static md:translate-x-0 w-64 lg:w-68 shadow-2xl md:shadow-none': !isTerminalPage
+               }"
+               class="bg-[#1C1611] text-[#FAF7F2] border-r border-[#32261C] flex flex-col justify-between shrink-0 transition-transform duration-300 ease-in-out h-full select-none"
+               x-cloak>
 
-            <!-- Bagian Atas: Brand, Info Jam Tablet & Navigasi (Bisa scroll jika resolusi pendek) -->
-            <div class="flex-1 min-h-0 overflow-y-auto">
-                <div class="p-5 border-b border-[#3A3026]">
-                    <a href="{{ route('kasir.terminal') }}" class="flex items-center gap-3">
-                        <img src="{{ asset('images/logo-light.svg') }}" alt="{{ config('cafe.name') }}" class="h-7 w-auto">
-                        <div>
-                            <div class="font-medium tracking-tight text-sm text-[#F7F3EC]">{{ config('cafe.name') }}</div>
-                            <div class="font-mono text-[9px] uppercase tracking-[0.25em] text-[#D9973E]">TABLET POS SYSTEM</div>
-                        </div>
-                    </a>
+            <!-- Bagian Atas: Brand, Info Jam Tablet & Navigasi (Scrollable) -->
+            <div class="flex-1 min-h-0 overflow-y-auto scrollbar-thin scrollbar-thumb-[#32261C] scrollbar-track-transparent">
+                <!-- Header Brand & Clock -->
+                <div class="p-4 border-b border-[#32261C]">
+                    <div class="flex items-center justify-between gap-2">
+                        <a href="{{ route('kasir.terminal') }}" class="flex items-center gap-2.5 min-w-0 group">
+                            <div class="w-8 h-8 rounded-xl bg-[#261D16] border border-[#3A2D22] flex items-center justify-center p-1.5 shrink-0 group-hover:border-[#D9973E] transition shadow-xs">
+                                <img src="{{ asset('images/logo-light.svg') }}" alt="{{ config('cafe.name') }}" class="h-5 w-auto">
+                            </div>
+                            <div class="truncate">
+                                <div class="font-medium tracking-tight text-sm text-[#FAF7F2] group-hover:text-[#D9973E] transition truncate">{{ config('cafe.name') }}</div>
+                                <div class="font-mono text-[9px] uppercase tracking-[0.22em] text-[#D9973E] font-semibold">Tablet POS System</div>
+                            </div>
+                        </a>
+                        <!-- Tombol Tutup (muncul di Terminal POS overlay atau mobile drawer) -->
+                        <button type="button"
+                                x-show="isTerminalPage || mobileNavOpen"
+                                @click="isTerminalPage ? (terminalSidebarOpen = false) : (mobileNavOpen = false)"
+                                class="w-7 h-7 rounded-lg bg-[#261D16] border border-[#3A2D22] text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#32261C] flex items-center justify-center transition shrink-0 cursor-pointer active:scale-95"
+                                title="Tutup Navigasi (Esc)">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
 
                     <!-- Digital Clock Live Widget untuk Tablet POS -->
-                    <div class="mt-4 bg-[#2A211A] border border-[#3A3026] px-3 py-2 flex items-center justify-between">
+                    <div class="mt-3.5 bg-[#261D16]/90 border border-[#3A2D22] rounded-xl px-3 py-2 flex items-center justify-between shadow-xs">
                         <div class="flex items-center gap-1.5">
                             <span class="h-2 w-2 rounded-full bg-[#5F7F42] animate-pulse"></span>
                             <span class="font-mono text-[10px] uppercase tracking-wider text-[#A89A85]">{{ now()->translatedFormat('d M Y') }}</span>
                         </div>
-                        <span class="font-mono text-sm text-[#F7F3EC] font-semibold" x-text="currentTime"></span>
+                        <span class="font-mono text-xs text-[#FAF7F2] font-bold tracking-wider" x-text="currentTime"></span>
                     </div>
                 </div>
 
-                <!-- Navigasi Menu Kasir (Grid / List Model Navbar Tablet) -->
-                <nav class="p-3 space-y-1.5">
-                    <div class="px-3 pt-2 pb-1 font-mono text-[9px] uppercase tracking-[0.25em] text-[#A89A85]">NAVIGASI UTAMA</div>
+                <!-- Navigasi Menu Kasir -->
+                <nav class="p-3 space-y-1">
+                    <div class="px-2 pt-2 pb-1.5 flex items-center gap-2">
+                        <span class="font-mono text-[9px] uppercase tracking-[0.25em] text-[#8A7B66] font-semibold">Navigasi Utama</span>
+                        <span class="flex-1 h-px bg-[#32261C]"></span>
+                    </div>
 
                     <!-- 1. Terminal Kasir -->
                     <a href="{{ route('kasir.terminal') }}"
-                       class="flex items-center gap-3 px-3.5 py-3 rounded-none border text-xs font-mono tracking-wider uppercase transition-colors {{ request()->routeIs('kasir.terminal') ? 'bg-[#D9973E] text-[#1F1812] border-[#D9973E] font-bold shadow-md' : 'text-[#F7F3EC] border-transparent hover:bg-[#2A211A] hover:border-[#3A3026] text-[#A89A85] hover:text-[#F7F3EC]' }}">
+                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.terminal') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
                         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
                         </svg>
@@ -86,7 +110,7 @@
 
                     <!-- 2. Riwayat Transaksi -->
                     <a href="{{ route('kasir.orders.index') }}"
-                       class="flex items-center gap-3 px-3.5 py-3 rounded-none border text-xs font-mono tracking-wider uppercase transition-colors {{ request()->routeIs('kasir.orders.*') ? 'bg-[#D9973E] text-[#1F1812] border-[#D9973E] font-bold shadow-md' : 'text-[#A89A85] border-transparent hover:bg-[#2A211A] hover:border-[#3A3026] hover:text-[#F7F3EC]' }}">
+                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.orders.*') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
                         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
                         </svg>
@@ -95,7 +119,7 @@
 
                     <!-- 3. Kelola Menu -->
                     <a href="{{ route('kasir.menu.index') }}"
-                       class="flex items-center gap-3 px-3.5 py-3 rounded-none border text-xs font-mono tracking-wider uppercase transition-colors {{ request()->routeIs('kasir.menu.*') ? 'bg-[#D9973E] text-[#1F1812] border-[#D9973E] font-bold shadow-md' : 'text-[#A89A85] border-transparent hover:bg-[#2A211A] hover:border-[#3A3026] hover:text-[#F7F3EC]' }}">
+                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.menu.*') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
                         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
                         </svg>
@@ -104,7 +128,7 @@
 
                     <!-- 4. Laporan Penjualan -->
                     <a href="{{ route('kasir.laporan') }}"
-                       class="flex items-center gap-3 px-3.5 py-3 rounded-none border text-xs font-mono tracking-wider uppercase transition-colors {{ request()->routeIs('kasir.laporan') ? 'bg-[#D9973E] text-[#1F1812] border-[#D9973E] font-bold shadow-md' : 'text-[#A89A85] border-transparent hover:bg-[#2A211A] hover:border-[#3A3026] hover:text-[#F7F3EC]' }}">
+                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.laporan') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
                         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
                         </svg>
@@ -113,7 +137,7 @@
 
                     <!-- 5. Kitchen Display System (KDS) -->
                     <a href="{{ route('kasir.kitchen.index') }}"
-                       class="flex items-center justify-between px-3.5 py-3 rounded-none border text-xs font-mono tracking-wider uppercase transition-colors {{ request()->routeIs('kasir.kitchen.*') ? 'bg-[#D9973E] text-[#1F1812] border-[#D9973E] font-bold shadow-md' : 'text-[#A89A85] border-transparent hover:bg-[#2A211A] hover:border-[#3A3026] hover:text-[#F7F3EC]' }}">
+                       class="flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.kitchen.*') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
                         <div class="flex items-center gap-3">
                             <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
@@ -121,39 +145,41 @@
                             <span>Layar Dapur (KDS)</span>
                         </div>
                         <template x-if="kdsCount > 0">
-                            <span class="px-1.5 py-0.5 text-[9px] font-bold bg-[#5F7F42] text-white rounded-full animate-pulse transition-all shadow-sm"
+                            <span class="px-2 py-0.5 text-[10px] font-bold bg-[#5F7F42] text-white rounded-full animate-pulse shadow-sm"
                                   x-text="kdsCount"></span>
                         </template>
                     </a>
 
                     <!-- 6. Sound Station (Musik Kafe) -->
-                    <div class="border border-transparent hover:border-[#3A3026] transition">
-                        <a href="{{ route('kasir.music.index') }}"
-                           class="flex items-center justify-between px-3.5 py-2.5 rounded-none text-xs font-mono tracking-wider uppercase transition-colors {{ request()->routeIs('kasir.music.index') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md' : 'text-[#A89A85] hover:bg-[#2A211A] hover:text-[#F7F3EC]' }}">
-                            <div class="flex items-center gap-3">
-                                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
-                                </svg>
-                                <span>Sound Station</span>
-                            </div>
-                            <template x-if="musicQueueCount > 0">
-                                <span class="px-1.5 py-0.5 text-[9px] font-bold bg-[#D9973E] text-[#1F1812] rounded-full animate-pulse transition-all shadow-sm"
-                                      x-text="musicQueueCount"></span>
-                            </template>
-                        </a>
-                        <!-- TOMBOL BUKA POP-UP MINI WINDOW -->
-                        <button type="button"
-                                onclick="window.open('{{ route('kasir.music.mini') }}', 'SoundStationMini', 'width=380,height=520,resizable=yes')"
-                                title="Buka pemutar di jendela mini terpisah agar musik tidak mati saat kasir input transaksi di POS"
-                                class="w-full text-left px-3.5 py-1.5 bg-[#140E0A] hover:bg-[#2A211A] border-t border-[#3A3026] text-[10px] font-mono text-[#D9973E] flex items-center justify-between transition">
-                            <span>⧉ Mini Player (Pop-up)</span>
-                            <span class="text-[9px] text-[#A89A85]">Anti-Mati ↗</span>
-                        </button>
+                    <div class="rounded-xl overflow-hidden border border-transparent hover:border-[#3A2D22] transition-colors {{ request()->routeIs('kasir.music.index') ? 'bg-[#261D16] border-[#3A2D22]' : '' }}">
+                        <div class="flex items-center justify-between">
+                            <a href="{{ route('kasir.music.index') }}"
+                               class="flex-1 flex items-center justify-between px-3 py-2.5 text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.music.index') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20 rounded-xl' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16] rounded-l-xl' }}">
+                                <div class="flex items-center gap-3">
+                                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
+                                    </svg>
+                                    <span>Sound Station</span>
+                                </div>
+                                <template x-if="musicQueueCount > 0">
+                                    <span class="px-2 py-0.5 text-[10px] font-bold bg-[#D9973E] text-[#1F1812] rounded-full animate-pulse shadow-sm"
+                                          x-text="musicQueueCount"></span>
+                                </template>
+                            </a>
+                            <!-- Pop-up Mini Player Button -->
+                            <button type="button"
+                                    onclick="window.open('{{ route('kasir.music.mini') }}', 'SoundStationMini', 'width=380,height=520,resizable=yes')"
+                                    title="Buka pemutar mini terpisah (Anti-Mati)"
+                                    class="p-2.5 text-[#A89A85] hover:text-[#D9973E] hover:bg-[#261D16] rounded-r-xl transition shrink-0 cursor-pointer"
+                                    :class="request()->routeIs('kasir.music.index') ? 'text-[#FAF7F2]' : ''">
+                                <span class="text-xs">⧉</span>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- 7. Pengaturan Suara Announcer -->
                     <a href="{{ route('kasir.announcer.settings') }}"
-                       class="flex items-center gap-3 px-3.5 py-2.5 rounded-none border text-xs font-mono tracking-wider uppercase transition-colors {{ request()->routeIs('kasir.announcer.*') ? 'bg-[#D9973E] text-[#1F1812] border-[#D9973E] font-bold shadow-md' : 'text-[#A89A85] border-transparent hover:bg-[#2A211A] hover:border-[#3A3026] hover:text-[#F7F3EC]' }}">
+                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.announcer.*') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
                         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z"/>
                         </svg>
@@ -161,11 +187,14 @@
                     </a>
 
                     <!-- INVENTARIS & KEUANGAN TOKO -->
-                    <div class="px-3 pt-3 pb-1 font-mono text-[9px] uppercase tracking-[0.25em] text-[#A89A85]">INVENTARIS & BIAYA</div>
+                    <div class="px-2 pt-3 pb-1.5 flex items-center gap-2">
+                        <span class="font-mono text-[9px] uppercase tracking-[0.25em] text-[#8A7B66] font-semibold">Inventaris & Biaya</span>
+                        <span class="flex-1 h-px bg-[#32261C]"></span>
+                    </div>
 
                     <!-- 8. Stok Bahan Baku -->
                     <a href="{{ route('kasir.inventory.index') }}"
-                       class="flex items-center gap-3 px-3.5 py-2.5 rounded-none border text-xs font-mono tracking-wider uppercase transition-colors {{ request()->routeIs('kasir.inventory.index') ? 'bg-[#D9973E] text-[#1F1812] border-[#D9973E] font-bold shadow-md' : 'text-[#A89A85] border-transparent hover:bg-[#2A211A] hover:border-[#3A3026] hover:text-[#F7F3EC]' }}">
+                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.inventory.index') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
                         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
                         </svg>
@@ -174,7 +203,7 @@
 
                     <!-- 9. Resep Menu (BOM) -->
                     <a href="{{ route('kasir.inventory.recipes') }}"
-                       class="flex items-center gap-3 px-3.5 py-2.5 rounded-none border text-xs font-mono tracking-wider uppercase transition-colors {{ request()->routeIs('kasir.inventory.recipes') ? 'bg-[#D9973E] text-[#1F1812] border-[#D9973E] font-bold shadow-md' : 'text-[#A89A85] border-transparent hover:bg-[#2A211A] hover:border-[#3A3026] hover:text-[#F7F3EC]' }}">
+                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.inventory.recipes') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
                         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                         </svg>
@@ -183,7 +212,7 @@
 
                     <!-- 10. Mutasi Stok / Ledger -->
                     <a href="{{ route('kasir.inventory.history') }}"
-                       class="flex items-center gap-3 px-3.5 py-2.5 rounded-none border text-xs font-mono tracking-wider uppercase transition-colors {{ request()->routeIs('kasir.inventory.history') ? 'bg-[#D9973E] text-[#1F1812] border-[#D9973E] font-bold shadow-md' : 'text-[#A89A85] border-transparent hover:bg-[#2A211A] hover:border-[#3A3026] hover:text-[#F7F3EC]' }}">
+                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.inventory.history') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
                         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                         </svg>
@@ -192,16 +221,17 @@
 
                     <!-- 11. Pengeluaran Toko -->
                     <a href="{{ route('kasir.expenses.index') }}"
-                       class="flex items-center gap-3 px-3.5 py-2.5 rounded-none border text-xs font-mono tracking-wider uppercase transition-colors {{ request()->routeIs('kasir.expenses.*') ? 'bg-[#D9973E] text-[#1F1812] border-[#D9973E] font-bold shadow-md' : 'text-[#A89A85] border-transparent hover:bg-[#2A211A] hover:border-[#3A3026] hover:text-[#F7F3EC]' }}">
+                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.expenses.*') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
                         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>
                         </svg>
                         <span>Pengeluaran Toko</span>
                     </a>
 
-                    <div class="pt-3 pb-1 border-t border-[#3A3026]/70 mt-3">
+                    <!-- External Public Link -->
+                    <div class="pt-2">
                         <a href="{{ route('landing') }}" target="_blank"
-                           class="flex items-center justify-between px-3.5 py-2.5 text-[11px] font-mono tracking-wider uppercase text-[#A89A85] hover:text-[#D9973E] hover:bg-[#2A211A] transition-colors">
+                           class="flex items-center justify-between px-3 py-2 rounded-xl text-[11px] font-mono tracking-wider uppercase text-[#8A7B66] hover:text-[#D9973E] hover:bg-[#261D16] transition-colors">
                             <span class="flex items-center gap-2">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
@@ -218,15 +248,15 @@
             @include('components.navbar-music-widget')
 
             <!-- Bagian Bawah: Info Kasir & Tombol Logout -->
-            <div class="p-4 border-t border-[#3A3026] bg-[#19130E] shrink-0">
-                <div class="flex items-center gap-3 mb-3">
-                    <div class="w-9 h-9 rounded-full bg-[#D9973E] text-[#1F1812] flex items-center justify-center font-bold text-sm shrink-0 shadow">
+            <div class="p-3.5 border-t border-[#32261C] bg-[#140E0A] shrink-0">
+                <div class="flex items-center gap-3 mb-2.5">
+                    <div class="w-8 h-8 rounded-xl bg-[#D9973E] text-[#1F1812] flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
                         {{ strtoupper(substr(auth()->user()->name ?? 'K', 0, 1)) }}
                     </div>
                     <div class="min-w-0 flex-1">
-                        <div class="text-xs font-medium text-[#F7F3EC] truncate">{{ auth()->user()->name ?? 'Kasir' }}</div>
-                        <div class="font-mono text-[10px] text-[#5F7F42] flex items-center gap-1">
-                            <span class="w-1.5 h-1.5 rounded-full bg-[#5F7F42]"></span>
+                        <div class="text-xs font-semibold text-[#FAF7F2] truncate">{{ auth()->user()->name ?? 'Kasir' }}</div>
+                        <div class="font-mono text-[10px] text-[#5F7F42] flex items-center gap-1.5 mt-0.5">
+                            <span class="w-1.5 h-1.5 rounded-full bg-[#5F7F42] animate-pulse"></span>
                             Shift Aktif
                         </div>
                     </div>
@@ -235,7 +265,7 @@
                 <form method="POST" action="{{ route('kasir.logout') }}">
                     @csrf
                     <button type="submit"
-                            class="w-full flex items-center justify-center gap-2 px-3 py-2 bg-[#2A211A] hover:bg-[#C4553D] text-[#A89A85] hover:text-white text-xs font-mono uppercase tracking-wider transition-colors border border-[#3A3026]">
+                            class="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-[#261D16] hover:bg-[#C4553D] hover:text-white text-[#A89A85] text-xs font-mono uppercase tracking-wider transition-all border border-[#3A2D22] hover:border-[#C4553D] shadow-2xs cursor-pointer">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
                         </svg>
@@ -245,10 +275,12 @@
             </div>
         </aside>
 
-        <!-- Overlay backdrop untuk mobile drawer -->
-        <div x-show="mobileNavOpen"
-             @click="mobileNavOpen = false"
-             class="fixed inset-0 bg-black/60 z-30 md:hidden backdrop-blur-sm"
+        <!-- Backdrop overlay untuk drawer (di terminal POS atau mobile) -->
+        <div x-show="isTerminalPage ? terminalSidebarOpen : mobileNavOpen"
+             x-cloak
+             @click="isTerminalPage ? (terminalSidebarOpen = false) : (mobileNavOpen = false)"
+             :class="isTerminalPage ? 'z-40' : 'z-30 md:hidden'"
+             class="fixed inset-0 bg-black/60 backdrop-blur-xs"
              x-transition:enter="transition-opacity ease-linear duration-200"
              x-transition:enter-start="opacity-0"
              x-transition:enter-end="opacity-100"
@@ -281,8 +313,15 @@
     <!-- SEAMLESS POS PAGE SWAPPER (MUSIK TIDAK MATI SAAT BERPINDAH MENU/TAB POS) -->
     <script>
         function kasirAppShell() {
+            const checkIsTerminal = (pathname) => {
+                const p = pathname || window.location.pathname;
+                return (p === '/kasir' || p === '/kasir/' || p === '/kasir/terminal');
+            };
+
             return {
                 mobileNavOpen: false,
+                terminalSidebarOpen: false,
+                isTerminalPage: checkIsTerminal(),
                 currentTime: '',
                 kdsCount: {{ \App\Models\Order::prepActive()->count() }},
                 musicQueueCount: {{ \App\Models\MusicRequest::queued()->count() }},
@@ -295,12 +334,41 @@
                     updateClock();
                     setInterval(updateClock, 1000);
 
-                    // Polling realtime counts untuk sidebar badge (hanya saat tab aktif)
+                    // Sinkronisasi saat URL berpindah via seamless page swapper
+                    window.addEventListener('kasir:route-changed', (e) => {
+                        const path = e.detail && e.detail.pathname ? e.detail.pathname : window.location.pathname;
+                        this.isTerminalPage = checkIsTerminal(path);
+                        this.terminalSidebarOpen = false;
+                        this.mobileNavOpen = false;
+                    });
+
+                    // Listen ke custom event toggle-terminal-sidebar
+                    window.addEventListener('toggle-terminal-sidebar', () => {
+                        this.terminalSidebarOpen = !this.terminalSidebarOpen;
+                    });
+
+                    // Keyboard shortcuts: Esc untuk tutup sidebar kasir, Alt+M untuk toggle
+                    window.addEventListener('keydown', (e) => {
+                        if (e.key === 'Escape') {
+                            if (this.terminalSidebarOpen) this.terminalSidebarOpen = false;
+                            if (this.mobileNavOpen) this.mobileNavOpen = false;
+                        }
+                        if (e.altKey && (e.key === 'm' || e.key === 'M')) {
+                            e.preventDefault();
+                            if (this.isTerminalPage) {
+                                this.terminalSidebarOpen = !this.terminalSidebarOpen;
+                            } else {
+                                this.mobileNavOpen = !this.mobileNavOpen;
+                            }
+                        }
+                    });
+
+                    // Polling realtime counts untuk sidebar badge (hanya saat tab aktif & tidak sedang navigasi)
                     setInterval(() => {
-                        if (!document.hidden) {
+                        if (!document.hidden && !window._isNavigatingKasirPage) {
                             this.fetchCounts();
                         }
-                    }, 9000);
+                    }, 15000);
 
                     // Listen ke event SoundStation sync / KDS update untuk update instan
                     window.addEventListener('soundstation:sync', (e) => {
@@ -386,9 +454,12 @@
                 return;
             }
 
+            // Kunci background polling agar seluruh kapasitas Apache difokuskan ke halaman ini
+            window._isNavigatingKasirPage = true;
+
             try {
-                mainEl.style.transition = 'opacity 0.15s ease';
-                mainEl.style.opacity = '0.6';
+                mainEl.style.transition = 'opacity 0.12s ease';
+                mainEl.style.opacity = '0.5';
                 mainEl.style.pointerEvents = 'none';
 
                 const res = await fetch(url, {
@@ -417,6 +488,12 @@
                 if (pushState) {
                     window.history.pushState({}, '', url);
                 }
+
+                // Beritahukan shell bahwa rute kasir telah berpindah
+                const newPath = new URL(url, window.location.origin).pathname;
+                window.dispatchEvent(new CustomEvent('kasir:route-changed', {
+                    detail: { url, pathname: newPath }
+                }));
 
                 // Bersihkan Alpine trees lama jika ada
                 if (window.Alpine && window.Alpine.destroyTree) {
@@ -451,6 +528,8 @@
             } catch (err) {
                 console.warn('Seamless swap failed, standard reload:', err);
                 window.location.href = url;
+            } finally {
+                window._isNavigatingKasirPage = false;
             }
         }
 
@@ -470,11 +549,11 @@
                 }
 
                 if (isActive) {
-                    link.classList.add('bg-[#D9973E]', 'text-[#1F1812]', 'border-[#D9973E]', 'font-bold', 'shadow-md');
-                    link.classList.remove('text-[#A89A85]', 'border-transparent', 'text-[#F7F3EC]');
+                    link.classList.add('bg-[#D9973E]', 'text-[#1F1812]', 'font-bold', 'shadow-md', 'shadow-[#D9973E]/20');
+                    link.classList.remove('text-[#A89A85]', 'hover:text-[#FAF7F2]', 'hover:bg-[#261D16]');
                 } else {
-                    link.classList.remove('bg-[#D9973E]', 'text-[#1F1812]', 'border-[#D9973E]', 'font-bold', 'shadow-md');
-                    link.classList.add('text-[#A89A85]', 'border-transparent');
+                    link.classList.remove('bg-[#D9973E]', 'text-[#1F1812]', 'font-bold', 'shadow-md', 'shadow-[#D9973E]/20');
+                    link.classList.add('text-[#A89A85]', 'hover:text-[#FAF7F2]', 'hover:bg-[#261D16]');
                 }
             });
         }

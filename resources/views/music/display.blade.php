@@ -38,11 +38,11 @@
             to { transform: rotate(360deg); }
         }
         .animate-spin-slow {
-            animation: spinSlow 22s linear infinite;
+            animation: spinSlow 20s linear infinite;
         }
         @keyframes pulseGlow {
-            0%, 100% { opacity: 0.3; transform: scale(1); }
-            50% { opacity: 0.6; transform: scale(1.08); }
+            0%, 100% { opacity: 0.35; transform: scale(1); }
+            50% { opacity: 0.65; transform: scale(1.08); }
         }
         .animate-pulse-glow {
             animation: pulseGlow 8s ease-in-out infinite;
@@ -52,22 +52,15 @@
             100% { transform: rotate(360deg); }
         }
         .shine-reflection {
-            background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.12) 50%, transparent 60%);
-            animation: shineSweep 12s linear infinite;
-        }
-        @keyframes slideInDown {
-            from { opacity: 0; transform: translateY(-30px) scale(0.95); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        .animate-slide-down {
-            animation: slideInDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            background: linear-gradient(135deg, transparent 38%, rgba(255,255,255,0.15) 50%, transparent 62%);
+            animation: shineSweep 10s linear infinite;
         }
         @keyframes eqBarBounce {
-            0%, 100% { height: 15%; }
-            50% { height: 95%; }
+            0%, 100% { height: 12%; }
+            50% { height: 98%; }
         }
         .eq-bar {
-            animation: eqBarBounce 1.2s ease-in-out infinite alternate;
+            animation: eqBarBounce 1.1s ease-in-out infinite alternate;
         }
         .no-scrollbar::-webkit-scrollbar {
             display: none !important;
@@ -102,13 +95,6 @@
         .animate-card-fly {
             animation: cardFlyIn 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
-        @keyframes cardFloat {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-6px); }
-        }
-        .animate-card-float {
-            animation: cardFloat 4.5s ease-in-out infinite;
-        }
         @keyframes cardGlowPulse {
             0%, 100% {
                 box-shadow: 0 10px 30px rgba(0,0,0,0.7), 0 0 18px rgba(95,127,66,0.3);
@@ -135,591 +121,598 @@
                 activeFlyingCards: [],
                 currentTime: '',
 
-        displayMode: localStorage.getItem('tv_display_mode') || 'visualizer', // 'visualizer' atau 'video'
-        isFullscreen: false,
-        tvSoundEnabled: localStorage.getItem('tv_sound_enabled') === 'true', // Default false (hening untuk mencegah dobel announcer)
+                displayMode: localStorage.getItem('tv_display_mode') || 'visualizer', // 'visualizer' atau 'video'
+                isFullscreen: false,
+                tvSoundEnabled: localStorage.getItem('tv_sound_enabled') === 'true', // Default false (hening untuk mencegah dobel announcer)
 
-        playbackCurrentTime: 0,
-        playbackDuration: 0,
-        playbackProgressPercent: 0,
-        playbackCurrentTimeFormatted: '00:00',
-        playbackDurationFormatted: '00:00',
-        isPlaying: false,
+                playbackCurrentTime: 0,
+                playbackDuration: 0,
+                playbackProgressPercent: 0,
+                playbackCurrentTimeFormatted: '00:00',
+                playbackDurationFormatted: '00:00',
+                isPlaying: false,
 
-        // YOUTUBE TV VIDEO PLAYER INSTANCE (100% SYNC DENGAN AUDIO KASIR)
-        tvPlayer: null,
-        tvPlayerReady: false,
-        currentTvVideoId: '',
-        _isManualPausing: false,
+                // YOUTUBE TV VIDEO PLAYER INSTANCE (100% SYNC DENGAN AUDIO KASIR)
+                tvPlayer: null,
+                tvPlayerReady: false,
+                currentTvVideoId: '',
+                _isManualPausing: false,
 
-        init() {
-            this.isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
-            const updateFs = () => {
-                this.isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
-            };
-            document.addEventListener('fullscreenchange', updateFs);
-            document.addEventListener('webkitfullscreenchange', updateFs);
-            document.addEventListener('msfullscreenchange', updateFs);
+                init() {
+                    this.isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+                    const updateFs = () => {
+                        this.isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+                    };
+                    document.addEventListener('fullscreenchange', updateFs);
+                    document.addEventListener('webkitfullscreenchange', updateFs);
+                    document.addEventListener('msfullscreenchange', updateFs);
 
-            const updateClock = () => {
-                const now = new Date();
-                this.currentTime = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-            };
-            updateClock();
-            setInterval(updateClock, 1000);
+                    const updateClock = () => {
+                        const now = new Date();
+                        this.currentTime = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                    };
+                    updateClock();
+                    setInterval(updateClock, 1000);
 
-            // Inisialisasi Kanvas Partikel Kopi Hangat
-            this.initParticles();
+                    // Inisialisasi Kanvas Partikel Kopi Hangat
+                    this.initParticles();
 
-            // Dengarkan sinkronisasi BroadcastChannel dari Sound Station utama
-            if (typeof BroadcastChannel !== 'undefined') {
-                const bc = new BroadcastChannel('cafe_soundstation_sync');
-                bc.onmessage = (e) => {
-                    const data = e.data;
-                    if (!data) return;
+                    // Dengarkan sinkronisasi BroadcastChannel dari Sound Station utama
+                    if (typeof BroadcastChannel !== 'undefined') {
+                        const bc = new BroadcastChannel('cafe_soundstation_sync');
+                        bc.onmessage = (e) => {
+                            const data = e.data;
+                            if (!data) return;
 
-                    if (data.type === 'TIME_SYNC' && data.data) {
-                        const t = data.data;
-                        const dur = Number(t.duration || 0) > 0 ? Number(t.duration) : (this.nowPlaying?.duration_seconds || this.playbackDuration);
-                        this.playbackDuration = dur;
-                        this.playbackCurrentTime = Number(t.currentTime || 0);
-                        this.playbackProgressPercent = Number(t.progressPercent || 0);
-                        this.playbackCurrentTimeFormatted = t.currentTimeFormatted || this.formatSeconds(this.playbackCurrentTime);
-                        this.playbackDurationFormatted = t.durationFormatted || this.formatSeconds(this.playbackDuration);
-                        if (typeof t.isPlaying !== 'undefined') {
-                            this.isPlaying = !!t.isPlaying;
-                        }
-                        this.syncTvPlayerState();
-                    } else if (data.type === 'STATE_UPDATE' && data.state) {
-                        const s = data.state;
-                        if (s.currentTrack) {
-                            this.nowPlaying = s.currentTrack;
-                            if (Array.isArray(this.queue)) {
-                                this.queue = this.queue.filter(item => item.id !== this.nowPlaying.id && item.id !== this.nowPlaying.request_id);
-                            }
-                        }
-                        if (typeof s.isPlaying !== 'undefined') this.isPlaying = !!s.isPlaying;
-                        if (typeof s.queueCount !== 'undefined') this.queueCount = s.queueCount;
-                        if (Array.isArray(s.queue)) {
-                            this.queue = s.queue.filter(item => !this.nowPlaying || (item.id !== this.nowPlaying.id && item.id !== this.nowPlaying.request_id));
-                        }
-                        this.syncTvPlayerState();
-                    } else if (data.type === 'SYNC_STATE') {
-                        this.applySyncData(data);
-                        this.syncTvPlayerState();
-                    } else if (data.type === 'TRACK_CHANGED') {
-                        this.nowPlaying = data.track;
-                        this.isPlaying = true;
-                        if (this.nowPlaying && Array.isArray(this.queue)) {
-                            this.queue = this.queue.filter(item => item.id !== this.nowPlaying.id && item.id !== this.nowPlaying.request_id);
-                        }
-                        this.syncTvPlayerState();
-                    } else if (data.type === 'QUEUE_UPDATED') {
-                        this.fetchStatus();
-                    } else if (data.type === 'ORDER_READY') {
-                        this.triggerNewReadyOrderNotification(data.orderId, data.isRecall);
-                    }
-                };
-            }
-
-            // Dengarkan event window kustom
-            window.addEventListener('soundstation:sync', (e) => {
-                this.applySyncData(e.detail);
-                this.syncTvPlayerState();
-            });
-            window.addEventListener('soundstation:timesync', (e) => {
-                if (e.detail) {
-                    const t = e.detail;
-                    const dur = Number(t.duration || 0) > 0 ? Number(t.duration) : (this.nowPlaying?.duration_seconds || this.playbackDuration);
-                    this.playbackDuration = dur;
-                    this.playbackCurrentTime = Number(t.currentTime || 0);
-                    this.playbackProgressPercent = Number(t.progressPercent || 0);
-                    this.playbackCurrentTimeFormatted = t.currentTimeFormatted || this.formatSeconds(this.playbackCurrentTime);
-                    this.playbackDurationFormatted = t.durationFormatted || this.formatSeconds(this.playbackDuration);
-                    if (typeof t.isPlaying !== 'undefined') this.isPlaying = !!t.isPlaying;
-                    this.syncTvPlayerState();
-                }
-            });
-
-            // Polling status lagu & pesanan siap setiap 3 detik
-            this.fetchStatus();
-            setInterval(() => this.fetchStatus(), 3000);
-
-            // Muat YouTube Iframe API untuk sinkronisasi Live Video Mode dengan Audio Kasir
-            this.loadYouTubeApi();
-
-            // Progress bar interpolator (60fps halus)
-            setInterval(() => {
-                if (this.isPlaying && this.playbackDuration > 0) {
-                    this.playbackCurrentTime = Math.min(this.playbackCurrentTime + 0.1, this.playbackDuration);
-                    this.playbackProgressPercent = Math.min(100, (this.playbackCurrentTime / this.playbackDuration) * 100);
-                    this.playbackCurrentTimeFormatted = this.formatSeconds(Math.floor(this.playbackCurrentTime));
-                }
-            }, 100);
-
-            // Sinkronisasi Video TV dengan status playback audio Kasir setiap 1 detik
-            setInterval(() => {
-                this.syncTvPlayerState();
-            }, 1000);
-        },
-
-        loadYouTubeApi() {
-            if (!window.YT) {
-                if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
-                    const tag = document.createElement('script');
-                    tag.src = 'https://www.youtube.com/iframe_api';
-                    const firstScriptTag = document.getElementsByTagName('script')[0];
-                    if (firstScriptTag && firstScriptTag.parentNode) {
-                        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-                    } else {
-                        document.head.appendChild(tag);
-                    }
-                }
-            }
-            if (window.YT && window.YT.Player) {
-                this.initTvPlayer();
-            } else {
-                const prevHandler = window.onYouTubeIframeAPIReady;
-                window.onYouTubeIframeAPIReady = () => {
-                    if (typeof prevHandler === 'function') {
-                        try { prevHandler(); } catch (e) {}
-                    }
-                    this.initTvPlayer();
-                };
-            }
-        },
-
-        initTvPlayer() {
-            if (this.tvPlayer) return;
-            const targetEl = document.getElementById('tv-yt-player');
-            if (!targetEl) return;
-
-            const initialVideoId = this.nowPlaying ? this.nowPlaying.youtube_id : '';
-            this.currentTvVideoId = initialVideoId;
-
-            try {
-                this.tvPlayer = new YT.Player('tv-yt-player', {
-                    height: '100%',
-                    width: '100%',
-                    videoId: initialVideoId || undefined,
-                    playerVars: {
-                        autoplay: 1,
-                        controls: 0,
-                        disablekb: 1,
-                        fs: 0,
-                        modestbranding: 1,
-                        rel: 0,
-                        playsinline: 1,
-                        mute: 1, // TV selalu hening secara default agar audio utama tetap diputar oleh tab Kasir
-                        origin: window.location.origin
-                    },
-                    events: {
-                        onReady: (event) => {
-                            this.tvPlayerReady = true;
-                            event.target.mute();
-
-                            if (this.nowPlaying && this.nowPlaying.youtube_id) {
-                                const startSec = Math.max(0, Math.floor(this.playbackCurrentTime || 0));
-                                if (startSec > 0 && startSec < 86400) {
-                                    event.target.loadVideoById({
-                                        videoId: this.nowPlaying.youtube_id,
-                                        startSeconds: startSec
-                                    });
-                                } else {
-                                    event.target.loadVideoById(this.nowPlaying.youtube_id);
+                            if (data.type === 'TIME_SYNC' && data.data) {
+                                const t = data.data;
+                                const dur = Number(t.duration || 0) > 0 ? Number(t.duration) : (this.nowPlaying?.duration_seconds || this.playbackDuration);
+                                this.playbackDuration = dur;
+                                this.playbackCurrentTime = Number(t.currentTime || 0);
+                                this.playbackProgressPercent = Number(t.progressPercent || 0);
+                                this.playbackCurrentTimeFormatted = t.currentTimeFormatted || this.formatSeconds(this.playbackCurrentTime);
+                                this.playbackDurationFormatted = t.durationFormatted || this.formatSeconds(this.playbackDuration);
+                                if (typeof t.isPlaying !== 'undefined') {
+                                    this.isPlaying = !!t.isPlaying;
                                 }
-                                if (this.isPlaying) {
-                                    event.target.playVideo();
-                                } else {
-                                    event.target.pauseVideo();
-                                }
-                            }
-                        },
-                        onStateChange: (event) => {
-                            // Jika video di-pause YouTube atau buffer tetapi musik kasir sedang jalan,
-                            // sinkronkan kembali tanpa desync
-                            if (event.data === YT.PlayerState.PAUSED && this.isPlaying && !this._isManualPausing) {
-                                setTimeout(() => {
-                                    if (this.isPlaying && this.tvPlayer && typeof this.tvPlayer.playVideo === 'function') {
-                                        this.syncTvPlayerState();
+                                this.syncTvPlayerState();
+                            } else if (data.type === 'STATE_UPDATE' && data.state) {
+                                const s = data.state;
+                                if (s.currentTrack) {
+                                    this.nowPlaying = s.currentTrack;
+                                    if (Array.isArray(this.queue)) {
+                                        this.queue = this.queue.filter(item => item.id !== this.nowPlaying.id && item.id !== this.nowPlaying.request_id);
                                     }
-                                }, 600);
+                                }
+                                if (typeof s.isPlaying !== 'undefined') this.isPlaying = !!s.isPlaying;
+                                if (typeof s.queueCount !== 'undefined') this.queueCount = s.queueCount;
+                                if (Array.isArray(s.queue)) {
+                                    this.queue = s.queue.filter(item => !this.nowPlaying || (item.id !== this.nowPlaying.id && item.id !== this.nowPlaying.request_id));
+                                }
+                                this.syncTvPlayerState();
+                            } else if (data.type === 'SYNC_STATE') {
+                                this.applySyncData(data);
+                                this.syncTvPlayerState();
+                            } else if (data.type === 'TRACK_CHANGED') {
+                                this.nowPlaying = data.track;
+                                this.isPlaying = true;
+                                if (this.nowPlaying && Array.isArray(this.queue)) {
+                                    this.queue = this.queue.filter(item => item.id !== this.nowPlaying.id && item.id !== this.nowPlaying.request_id);
+                                }
+                                this.syncTvPlayerState();
+                            } else if (data.type === 'QUEUE_UPDATED') {
+                                this.fetchStatus();
+                            } else if (data.type === 'ORDER_READY') {
+                                this.triggerNewReadyOrderNotification(data.orderId, data.isRecall);
+                            }
+                        };
+                    }
+
+                    // Dengarkan event window kustom
+                    window.addEventListener('soundstation:sync', (e) => {
+                        this.applySyncData(e.detail);
+                        this.syncTvPlayerState();
+                    });
+                    window.addEventListener('soundstation:timesync', (e) => {
+                        if (e.detail) {
+                            const t = e.detail;
+                            const dur = Number(t.duration || 0) > 0 ? Number(t.duration) : (this.nowPlaying?.duration_seconds || this.playbackDuration);
+                            this.playbackDuration = dur;
+                            this.playbackCurrentTime = Number(t.currentTime || 0);
+                            this.playbackProgressPercent = Number(t.progressPercent || 0);
+                            this.playbackCurrentTimeFormatted = t.currentTimeFormatted || this.formatSeconds(this.playbackCurrentTime);
+                            this.playbackDurationFormatted = t.durationFormatted || this.formatSeconds(this.playbackDuration);
+                            if (typeof t.isPlaying !== 'undefined') this.isPlaying = !!t.isPlaying;
+                            this.syncTvPlayerState();
+                        }
+                    });
+
+                    // Polling status lagu & pesanan siap setiap 3 detik
+                    this.fetchStatus();
+                    setInterval(() => this.fetchStatus(), 3000);
+
+                    // Muat YouTube Iframe API untuk sinkronisasi Live Video Mode dengan Audio Kasir
+                    this.loadYouTubeApi();
+
+                    // Progress bar interpolator (60fps halus)
+                    setInterval(() => {
+                        if (this.isPlaying && this.playbackDuration > 0) {
+                            this.playbackCurrentTime = Math.min(this.playbackCurrentTime + 0.1, this.playbackDuration);
+                            this.playbackProgressPercent = Math.min(100, (this.playbackCurrentTime / this.playbackDuration) * 100);
+                            this.playbackCurrentTimeFormatted = this.formatSeconds(Math.floor(this.playbackCurrentTime));
+                        }
+                    }, 100);
+
+                    // Sinkronisasi Video TV dengan status playback audio Kasir setiap 1 detik
+                    setInterval(() => {
+                        this.syncTvPlayerState();
+                    }, 1000);
+                },
+
+                loadYouTubeApi() {
+                    if (!window.YT) {
+                        if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
+                            const tag = document.createElement('script');
+                            tag.src = 'https://www.youtube.com/iframe_api';
+                            const firstScriptTag = document.getElementsByTagName('script')[0];
+                            if (firstScriptTag && firstScriptTag.parentNode) {
+                                firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+                            } else {
+                                document.head.appendChild(tag);
                             }
                         }
                     }
-                });
-            } catch (e) {
-                console.warn('[TV YouTube Init Error]', e);
-            }
-        },
-
-        syncTvPlayerState() {
-            if (!this.tvPlayer || !this.tvPlayerReady) {
-                if (!this.tvPlayer) this.loadYouTubeApi();
-                return;
-            }
-            if (!this.nowPlaying || !this.nowPlaying.youtube_id) return;
-
-            try {
-                // 1. Sinkronisasi ganti lagu jika videoId berbeda
-                if (this.currentTvVideoId !== this.nowPlaying.youtube_id) {
-                    this.currentTvVideoId = this.nowPlaying.youtube_id;
-                    const startSec = Math.max(0, Math.floor(this.playbackCurrentTime || 0));
-                    if (startSec > 0 && startSec < 86400) {
-                        this.tvPlayer.loadVideoById({
-                            videoId: this.nowPlaying.youtube_id,
-                            startSeconds: startSec
-                        });
+                    if (window.YT && window.YT.Player) {
+                        this.initTvPlayer();
                     } else {
-                        this.tvPlayer.loadVideoById(this.nowPlaying.youtube_id);
+                        const prevHandler = window.onYouTubeIframeAPIReady;
+                        window.onYouTubeIframeAPIReady = () => {
+                            if (typeof prevHandler === 'function') {
+                                try { prevHandler(); } catch (e) {}
+                            }
+                            this.initTvPlayer();
+                        };
                     }
-                }
+                },
 
-                // 2. Sinkronisasi Play / Pause state secara real-time
-                const state = (typeof this.tvPlayer.getPlayerState === 'function') ? this.tvPlayer.getPlayerState() : -1;
-                if (this.isPlaying) {
-                    if (state === YT.PlayerState.PAUSED || state === YT.PlayerState.CUED) {
-                        this.tvPlayer.playVideo();
+                initTvPlayer() {
+                    if (this.tvPlayer) return;
+                    const targetEl = document.getElementById('tv-yt-player');
+                    if (!targetEl) return;
+
+                    const initialVideoId = this.nowPlaying ? this.nowPlaying.youtube_id : '';
+                    this.currentTvVideoId = initialVideoId;
+
+                    try {
+                        this.tvPlayer = new YT.Player('tv-yt-player', {
+                            height: '100%',
+                            width: '100%',
+                            videoId: initialVideoId || undefined,
+                            playerVars: {
+                                autoplay: 1,
+                                controls: 0,
+                                disablekb: 1,
+                                fs: 0,
+                                modestbranding: 1,
+                                rel: 0,
+                                playsinline: 1,
+                                mute: 1, // TV selalu hening secara default agar audio utama tetap diputar oleh tab Kasir
+                                origin: window.location.origin,
+                                cc_load_policy: 0,
+                                iv_load_policy: 3,
+                                cc_lang_pref: 'none'
+                            },
+                            events: {
+                                onReady: (event) => {
+                                    this.tvPlayerReady = true;
+                                    event.target.mute();
+                                    try {
+                                        if (typeof event.target.unloadModule === 'function') {
+                                            event.target.unloadModule('captions');
+                                            event.target.unloadModule('cc');
+                                        }
+                                        if (typeof event.target.setOption === 'function') {
+                                            event.target.setOption('captions', 'track', {});
+                                            event.target.setOption('cc', 'track', {});
+                                        }
+                                    } catch (e) {}
+
+                                    if (this.nowPlaying && this.nowPlaying.youtube_id) {
+                                        const startSec = Math.max(0, Math.floor(this.playbackCurrentTime || 0));
+                                        if (startSec > 0 && startSec < 86400) {
+                                            event.target.loadVideoById({
+                                                videoId: this.nowPlaying.youtube_id,
+                                                startSeconds: startSec
+                                            });
+                                        } else {
+                                            event.target.loadVideoById(this.nowPlaying.youtube_id);
+                                        }
+                                        if (this.isPlaying) {
+                                            event.target.playVideo();
+                                        } else {
+                                            event.target.pauseVideo();
+                                        }
+                                    }
+                                },
+                                onStateChange: (event) => {
+                                    if (event.data === YT.PlayerState.PAUSED && this.isPlaying && !this._isManualPausing) {
+                                        setTimeout(() => {
+                                            if (this.isPlaying && this.tvPlayer && typeof this.tvPlayer.playVideo === 'function') {
+                                                this.syncTvPlayerState();
+                                            }
+                                        }, 600);
+                                    }
+                                }
+                            }
+                        });
+                    } catch (e) {
+                        console.warn('[TV YouTube Init Error]', e);
                     }
-                } else {
-                    if (state === YT.PlayerState.PLAYING || state === YT.PlayerState.BUFFERING) {
-                        this._isManualPausing = true;
-                        this.tvPlayer.pauseVideo();
-                        setTimeout(() => { this._isManualPausing = false; }, 400);
+                },
+
+                syncTvPlayerState() {
+                    if (!this.tvPlayer || !this.tvPlayerReady) {
+                        if (!this.tvPlayer) this.loadYouTubeApi();
+                        return;
                     }
-                }
+                    if (!this.nowPlaying || !this.nowPlaying.youtube_id) return;
 
-                // 3. Sinkronisasi Time Drift (apabila video TV ketinggalan atau mendahului > 2.5 detik)
-                if (this.isPlaying && typeof this.tvPlayer.getCurrentTime === 'function' && this.playbackDuration > 0 && this.playbackCurrentTime < 86400) {
-                    const tvCurTime = this.tvPlayer.getCurrentTime() || 0;
-                    const drift = Math.abs(tvCurTime - this.playbackCurrentTime);
-                    if (drift > 2.5) {
-                        this.tvPlayer.seekTo(this.playbackCurrentTime, true);
+                    try {
+                        if (this.currentTvVideoId !== this.nowPlaying.youtube_id) {
+                            this.currentTvVideoId = this.nowPlaying.youtube_id;
+                            const startSec = Math.max(0, Math.floor(this.playbackCurrentTime || 0));
+                            if (startSec > 0 && startSec < 86400) {
+                                this.tvPlayer.loadVideoById({
+                                    videoId: this.nowPlaying.youtube_id,
+                                    startSeconds: startSec
+                                });
+                            } else {
+                                this.tvPlayer.loadVideoById(this.nowPlaying.youtube_id);
+                            }
+                            try {
+                                if (typeof this.tvPlayer.unloadModule === 'function') {
+                                    this.tvPlayer.unloadModule('captions');
+                                    this.tvPlayer.unloadModule('cc');
+                                }
+                            } catch (e) {}
+                        }
+
+                        const state = (typeof this.tvPlayer.getPlayerState === 'function') ? this.tvPlayer.getPlayerState() : -1;
+                        if (this.isPlaying) {
+                            if (state === YT.PlayerState.PAUSED || state === YT.PlayerState.CUED) {
+                                this.tvPlayer.playVideo();
+                            }
+                        } else {
+                            if (state === YT.PlayerState.PLAYING || state === YT.PlayerState.BUFFERING) {
+                                this._isManualPausing = true;
+                                this.tvPlayer.pauseVideo();
+                                setTimeout(() => { this._isManualPausing = false; }, 400);
+                            }
+                        }
+
+                        if (this.isPlaying && typeof this.tvPlayer.getCurrentTime === 'function' && this.playbackDuration > 0 && this.playbackCurrentTime < 86400) {
+                            const tvCurTime = this.tvPlayer.getCurrentTime() || 0;
+                            const drift = Math.abs(tvCurTime - this.playbackCurrentTime);
+                            if (drift > 2.5) {
+                                this.tvPlayer.seekTo(this.playbackCurrentTime, true);
+                            }
+                        }
+                    } catch (e) {}
+                },
+
+                applySyncData(data) {
+                    if (data.nowPlaying !== undefined) this.nowPlaying = data.nowPlaying;
+                    if (data.isPlaying !== undefined) this.isPlaying = data.isPlaying;
+                    if (data.currentTime !== undefined) {
+                        this.playbackCurrentTime = Number(data.currentTime);
+                        this.playbackCurrentTimeFormatted = this.formatSeconds(Math.floor(this.playbackCurrentTime));
                     }
-                }
-            } catch (e) {}
-        },
-
-        applySyncData(data) {
-            if (data.nowPlaying !== undefined) this.nowPlaying = data.nowPlaying;
-            if (data.isPlaying !== undefined) this.isPlaying = data.isPlaying;
-            if (data.currentTime !== undefined) {
-                this.playbackCurrentTime = Number(data.currentTime);
-                this.playbackCurrentTimeFormatted = this.formatSeconds(Math.floor(this.playbackCurrentTime));
-            }
-            if (data.duration !== undefined) {
-                this.playbackDuration = Number(data.duration);
-                this.playbackDurationFormatted = this.formatSeconds(Math.floor(this.playbackDuration));
-            }
-            if (data.progressPercent !== undefined) {
-                this.playbackProgressPercent = Number(data.progressPercent);
-            }
-        },
-
-        async fetchStatus() {
-            try {
-                const res = await fetch('{{ route('music.status') }}', {
-                    headers: {
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
+                    if (data.duration !== undefined) {
+                        this.playbackDuration = Number(data.duration);
+                        this.playbackDurationFormatted = this.formatSeconds(Math.floor(this.playbackDuration));
                     }
-                });
-                if (!res.ok) {
-                    return;
-                }
-                const data = await res.json();
-                this.nowPlaying = data.now_playing;
-                const rawQueue = data.queue || [];
-                this.queue = rawQueue.filter(item => !this.nowPlaying || (item.id !== this.nowPlaying.id && item.id !== this.nowPlaying.request_id));
-                this.queueCount = data.queue_count || 0;
+                    if (data.progressPercent !== undefined) {
+                        this.playbackProgressPercent = Number(data.progressPercent);
+                    }
+                },
 
-                // Sync playback state (untuk TV eksternal / Smart TV tanpa BroadcastChannel)
-                let targetDuration = 0;
-                if (data.playback && Number(data.playback.duration || 0) > 0) {
-                    targetDuration = Number(data.playback.duration);
-                } else if (data.now_playing && Number(data.now_playing.duration_seconds || 0) > 0) {
-                    targetDuration = Number(data.now_playing.duration_seconds);
-                } else if (this.nowPlaying && Number(this.nowPlaying.duration_seconds || 0) > 0) {
-                    targetDuration = Number(this.nowPlaying.duration_seconds);
-                }
+                async fetchStatus() {
+                    try {
+                        const res = await fetch('{{ route('music.status') }}', {
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            }
+                        });
+                        if (!res.ok) return;
+                        const data = await res.json();
+                        this.nowPlaying = data.now_playing;
+                        const rawQueue = data.queue || [];
+                        this.queue = rawQueue.filter(item => !this.nowPlaying || (item.id !== this.nowPlaying.id && item.id !== this.nowPlaying.request_id));
+                        this.queueCount = data.queue_count || 0;
 
-                if (targetDuration > 0) {
-                    this.playbackDuration = targetDuration;
-                    this.playbackDurationFormatted = this.formatSeconds(this.playbackDuration);
-                }
+                        let targetDuration = 0;
+                        if (data.playback && Number(data.playback.duration || 0) > 0) {
+                            targetDuration = Number(data.playback.duration);
+                        } else if (data.now_playing && Number(data.now_playing.duration_seconds || 0) > 0) {
+                            targetDuration = Number(data.now_playing.duration_seconds);
+                        } else if (this.nowPlaying && Number(this.nowPlaying.duration_seconds || 0) > 0) {
+                            targetDuration = Number(this.nowPlaying.duration_seconds);
+                        }
 
-                if (data.playback) {
-                    this.isPlaying = typeof data.playback.is_playing !== 'undefined' ? !!data.playback.is_playing : true;
-                    let elapsed = 0;
-                    const serverUpdated = Number(data.playback.updated_at || 0);
-                    if (serverUpdated > 0) {
-                        const diffSec = (Date.now() - serverUpdated) / 1000;
-                        if (diffSec >= 0 && diffSec <= 15) {
-                            elapsed = diffSec;
+                        if (targetDuration > 0) {
+                            this.playbackDuration = targetDuration;
+                            this.playbackDurationFormatted = this.formatSeconds(this.playbackDuration);
+                        }
+
+                        if (data.playback) {
+                            this.isPlaying = typeof data.playback.is_playing !== 'undefined' ? !!data.playback.is_playing : true;
+                            let elapsed = 0;
+                            const serverUpdated = Number(data.playback.updated_at || 0);
+                            if (serverUpdated > 0) {
+                                const diffSec = (Date.now() - serverUpdated) / 1000;
+                                if (diffSec >= 0 && diffSec <= 15) {
+                                    elapsed = diffSec;
+                                }
+                            }
+
+                            let cur = Number(data.playback.current_time || 0) + (this.isPlaying ? elapsed : 0);
+                            if (this.playbackDuration > 0) {
+                                cur = Math.min(this.playbackDuration, Math.max(0, cur));
+                            }
+                            this.playbackCurrentTime = cur;
+                            this.playbackProgressPercent = this.playbackDuration > 0 ? (this.playbackCurrentTime / this.playbackDuration) * 100 : 0;
+                            this.playbackCurrentTimeFormatted = this.formatSeconds(this.playbackCurrentTime);
+                        } else if (data.now_playing) {
+                            this.isPlaying = true;
+                            if (!this.playbackCurrentTime || this.playbackCurrentTime === 0) {
+                                this.playbackCurrentTimeFormatted = '00:00';
+                            }
+                        }
+
+                        this.syncTvPlayerState();
+
+                        if (data.ready_orders) {
+                            this.checkNewReadyOrders(data.ready_orders);
+                        }
+                    } catch (e) {
+                        console.error('[TV Display] Sync Error:', e);
+                    }
+                },
+
+                checkNewReadyOrders(newOrders) {
+                    this.readyOrders = newOrders;
+                    newOrders.forEach(order => {
+                        if (!this.knownReadyIds.includes(order.id)) {
+                            this.knownReadyIds.push(order.id);
+                            this.spawnFlyingCard(order);
+                        }
+                    });
+                },
+
+                async triggerNewReadyOrderNotification(orderId, isRecall = false) {
+                    try {
+                        const res = await fetch('{{ route('music.status') }}', {
+                            headers: {
+                                'Accept': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest'
+                            }
+                        });
+                        if (!res.ok) return;
+                        const data = await res.json();
+                        this.readyOrders = data.ready_orders || [];
+                        const matched = this.readyOrders.find(o => o.id === orderId);
+                        if (matched) {
+                            this.spawnFlyingCard(matched, isRecall);
+                        }
+                    } catch (e) {}
+                },
+
+                spawnFlyingCard(order, isRecall = false) {
+                    this.activeFlyingCards = this.activeFlyingCards.filter(c => c.id !== order.id);
+                    const cardObj = {
+                        ...order,
+                        isRecall: isRecall,
+                        uniqueKey: Date.now() + '-' + order.id
+                    };
+                    this.activeFlyingCards.push(cardObj);
+
+                    this.playReadyChime();
+
+                    setTimeout(() => {
+                        this.activeFlyingCards = this.activeFlyingCards.filter(c => c.uniqueKey !== cardObj.uniqueKey);
+                    }, 18000);
+                },
+
+                dismissFlyingCard(cardKey) {
+                    this.activeFlyingCards = this.activeFlyingCards.filter(c => c.uniqueKey !== cardKey);
+                },
+
+                showAllReadyCards() {
+                    if (this.readyOrders.length === 0) return;
+                    this.activeFlyingCards = [];
+                    this.readyOrders.forEach((ro, idx) => {
+                        setTimeout(() => {
+                            this.spawnFlyingCard(ro);
+                        }, idx * 250);
+                    });
+                },
+
+                formatSeconds(sec) {
+                    const num = Math.max(0, Math.floor(Number(sec) || 0));
+                    if (num > 86400 * 7) return 'LIVE';
+                    const h = Math.floor(num / 3600);
+                    const m = Math.floor((num % 3600) / 60);
+                    const s = num % 60;
+                    if (h > 0) {
+                        return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+                    }
+                    return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+                },
+
+                playReadyChime() {
+                    if (!this.tvSoundEnabled) return;
+                    try {
+                        const AudioContext = window.AudioContext || window.webkitAudioContext;
+                        if (!AudioContext) return;
+                        const ctx = new AudioContext();
+                        const now = ctx.currentTime;
+
+                        const osc1 = ctx.createOscillator();
+                        const gain1 = ctx.createGain();
+                        osc1.type = 'sine';
+                        osc1.frequency.setValueAtTime(659.25, now);
+                        gain1.gain.setValueAtTime(0.3, now);
+                        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+                        osc1.connect(gain1);
+                        gain1.connect(ctx.destination);
+                        osc1.start(now);
+                        osc1.stop(now + 0.65);
+
+                        const osc2 = ctx.createOscillator();
+                        const gain2 = ctx.createGain();
+                        osc2.type = 'sine';
+                        osc2.frequency.setValueAtTime(523.25, now + 0.22);
+                        gain2.gain.setValueAtTime(0.35, now + 0.22);
+                        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.95);
+                        osc2.connect(gain2);
+                        gain2.connect(ctx.destination);
+                        osc2.start(now + 0.22);
+                        osc2.stop(now + 1.0);
+                    } catch (e) {}
+                },
+
+                toggleTvSound() {
+                    this.tvSoundEnabled = !this.tvSoundEnabled;
+                    try {
+                        localStorage.setItem('tv_sound_enabled', this.tvSoundEnabled ? 'true' : 'false');
+                    } catch (e) {}
+                },
+
+                initParticles() {
+                    const canvas = document.getElementById('steam-canvas');
+                    if (!canvas) return;
+                    const ctx = canvas.getContext('2d');
+
+                    const resize = () => {
+                        canvas.width = window.innerWidth;
+                        canvas.height = window.innerHeight;
+                    };
+                    resize();
+                    window.addEventListener('resize', resize);
+
+                    const particles = [];
+                    const particleCount = 30;
+
+                    for (let i = 0; i < particleCount; i++) {
+                        particles.push({
+                            x: Math.random() * window.innerWidth,
+                            y: Math.random() * window.innerHeight,
+                            radius: Math.random() * 2.5 + 1,
+                            speedY: Math.random() * 0.4 + 0.2,
+                            speedX: (Math.random() - 0.5) * 0.2,
+                            alpha: Math.random() * 0.4 + 0.1,
+                            grow: Math.random() > 0.5
+                        });
+                    }
+
+                    const draw = () => {
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                        for (let p of particles) {
+                            ctx.beginPath();
+                            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                            ctx.fillStyle = 'rgba(217, 151, 62, ' + p.alpha + ')';
+                            ctx.shadowBlur = 8;
+                            ctx.shadowColor = '#D9973E';
+                            ctx.fill();
+
+                            p.y -= p.speedY;
+                            p.x += p.speedX;
+
+                            if (p.grow) {
+                                p.alpha += 0.002;
+                                if (p.alpha > 0.45) p.grow = false;
+                            } else {
+                                p.alpha -= 0.002;
+                                if (p.alpha < 0.08) p.grow = true;
+                            }
+
+                            if (p.y < -10) {
+                                p.y = canvas.height + 10;
+                                p.x = Math.random() * canvas.width;
+                            }
+                        }
+
+                        requestAnimationFrame(draw);
+                    };
+
+                    draw();
+                },
+
+                toggleDisplayMode() {
+                    this.displayMode = this.displayMode === 'visualizer' ? 'video' : 'visualizer';
+                    try {
+                        localStorage.setItem('tv_display_mode', this.displayMode);
+                    } catch (e) {}
+                    if (this.displayMode === 'video') {
+                        this.$nextTick(() => {
+                            this.loadYouTubeApi();
+                            this.syncTvPlayerState();
+                        });
+                    }
+                },
+
+                toggleFullscreen() {
+                    if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
+                        const docElm = document.documentElement;
+                        if (docElm.requestFullscreen) {
+                            docElm.requestFullscreen().catch(() => {});
+                        } else if (docElm.webkitRequestFullscreen) {
+                            docElm.webkitRequestFullscreen();
+                        } else if (docElm.msRequestFullscreen) {
+                            docElm.msRequestFullscreen();
+                        }
+                    } else {
+                        if (document.exitFullscreen) {
+                            document.exitFullscreen().catch(() => {});
+                        } else if (document.webkitExitFullscreen) {
+                            document.webkitExitFullscreen();
+                        } else if (document.msExitFullscreen) {
+                            document.msExitFullscreen();
                         }
                     }
-
-                    let cur = Number(data.playback.current_time || 0) + (this.isPlaying ? elapsed : 0);
-                    if (this.playbackDuration > 0) {
-                        cur = Math.min(this.playbackDuration, Math.max(0, cur));
-                    }
-                    this.playbackCurrentTime = cur;
-                    this.playbackProgressPercent = this.playbackDuration > 0 ? (this.playbackCurrentTime / this.playbackDuration) * 100 : 0;
-                    this.playbackCurrentTimeFormatted = this.formatSeconds(this.playbackCurrentTime);
-                } else if (data.now_playing) {
-                    this.isPlaying = true;
-                    if (!this.playbackCurrentTime || this.playbackCurrentTime === 0) {
-                        this.playbackCurrentTimeFormatted = '00:00';
-                    }
                 }
-
-                // Segera sinkronkan video TV ke lagu baru jika ada pergantian lagu
-                this.syncTvPlayerState();
-
-                // Cek pesanan siap baru
-                if (data.ready_orders) {
-                    this.checkNewReadyOrders(data.ready_orders);
-                }
-            } catch (e) {
-                console.error('[TV Display] Sync Error:', e);
-            }
-        },
-
-        checkNewReadyOrders(newOrders) {
-            this.readyOrders = newOrders;
-            newOrders.forEach(order => {
-                if (!this.knownReadyIds.includes(order.id)) {
-                    this.knownReadyIds.push(order.id);
-                    this.spawnFlyingCard(order);
-                }
-            });
-        },
-
-        async triggerNewReadyOrderNotification(orderId, isRecall = false) {
-            try {
-                const res = await fetch('{{ route('music.status') }}', {
-                    headers: {
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                });
-                if (!res.ok) return;
-                const data = await res.json();
-                this.readyOrders = data.ready_orders || [];
-                const matched = this.readyOrders.find(o => o.id === orderId);
-                if (matched) {
-                    this.spawnFlyingCard(matched, isRecall);
-                }
-            } catch (e) {}
-        },
-
-        spawnFlyingCard(order, isRecall = false) {
-            this.activeFlyingCards = this.activeFlyingCards.filter(c => c.id !== order.id);
-            const cardObj = {
-                ...order,
-                isRecall: isRecall,
-                uniqueKey: Date.now() + '-' + order.id
             };
-            this.activeFlyingCards.push(cardObj);
-
-            this.playReadyChime();
-
-            setTimeout(() => {
-                this.activeFlyingCards = this.activeFlyingCards.filter(c => c.uniqueKey !== cardObj.uniqueKey);
-            }, 18000);
-        },
-
-        dismissFlyingCard(cardKey) {
-            this.activeFlyingCards = this.activeFlyingCards.filter(c => c.uniqueKey !== cardKey);
-        },
-
-        showAllReadyCards() {
-            if (this.readyOrders.length === 0) return;
-            this.activeFlyingCards = [];
-            this.readyOrders.forEach((ro, idx) => {
-                setTimeout(() => {
-                    this.spawnFlyingCard(ro);
-                }, idx * 250);
-            });
-        },
-
-        formatSeconds(sec) {
-            const num = Math.max(0, Math.floor(Number(sec) || 0));
-            if (num > 86400 * 7) return 'LIVE';
-            const h = Math.floor(num / 3600);
-            const m = Math.floor((num % 3600) / 60);
-            const s = num % 60;
-            if (h > 0) {
-                return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
-            }
-            return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
-        },
-
-        playReadyChime() {
-            if (!this.tvSoundEnabled) return; // Silent by default (mencegah tabrakan/dobel suara dengan Tab Kasir)
-            try {
-                const AudioContext = window.AudioContext || window.webkitAudioContext;
-                if (!AudioContext) return;
-                const ctx = new AudioContext();
-                const now = ctx.currentTime;
-
-                // Nada 1: E5 (659.25 Hz)
-                const osc1 = ctx.createOscillator();
-                const gain1 = ctx.createGain();
-                osc1.type = 'sine';
-                osc1.frequency.setValueAtTime(659.25, now);
-                gain1.gain.setValueAtTime(0.3, now);
-                gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
-                osc1.connect(gain1);
-                gain1.connect(ctx.destination);
-                osc1.start(now);
-                osc1.stop(now + 0.65);
-
-                // Nada 2: C5 (523.25 Hz)
-                const osc2 = ctx.createOscillator();
-                const gain2 = ctx.createGain();
-                osc2.type = 'sine';
-                osc2.frequency.setValueAtTime(523.25, now + 0.22);
-                gain2.gain.setValueAtTime(0.35, now + 0.22);
-                gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.95);
-                osc2.connect(gain2);
-                gain2.connect(ctx.destination);
-                osc2.start(now + 0.22);
-                osc2.stop(now + 1.0);
-            } catch (e) {}
-        },
-
-        toggleTvSound() {
-            this.tvSoundEnabled = !this.tvSoundEnabled;
-            try {
-                localStorage.setItem('tv_sound_enabled', this.tvSoundEnabled ? 'true' : 'false');
-            } catch (e) {}
-        },
-
-        initParticles() {
-            const canvas = document.getElementById('steam-canvas');
-            if (!canvas) return;
-            const ctx = canvas.getContext('2d');
-
-            const resize = () => {
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
-            };
-            resize();
-            window.addEventListener('resize', resize);
-
-            const particles = [];
-            const particleCount = 28;
-
-            for (let i = 0; i < particleCount; i++) {
-                particles.push({
-                    x: Math.random() * window.innerWidth,
-                    y: Math.random() * window.innerHeight,
-                    radius: Math.random() * 2.5 + 1,
-                    speedY: Math.random() * 0.4 + 0.2,
-                    speedX: (Math.random() - 0.5) * 0.2,
-                    alpha: Math.random() * 0.4 + 0.1,
-                    grow: Math.random() > 0.5
-                });
-            }
-
-            const draw = () => {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-                for (let p of particles) {
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-                    ctx.fillStyle = 'rgba(217, 151, 62, ' + p.alpha + ')';
-                    ctx.shadowBlur = 8;
-                    ctx.shadowColor = '#D9973E';
-                    ctx.fill();
-
-                    p.y -= p.speedY;
-                    p.x += p.speedX;
-
-                    if (p.grow) {
-                        p.alpha += 0.002;
-                        if (p.alpha > 0.45) p.grow = false;
-                    } else {
-                        p.alpha -= 0.002;
-                        if (p.alpha < 0.08) p.grow = true;
-                    }
-
-                    if (p.y < -10) {
-                        p.y = canvas.height + 10;
-                        p.x = Math.random() * canvas.width;
-                    }
-                }
-
-                requestAnimationFrame(draw);
-            };
-
-            draw();
-        },
-
-        toggleDisplayMode() {
-            this.displayMode = this.displayMode === 'visualizer' ? 'video' : 'visualizer';
-            try {
-                localStorage.setItem('tv_display_mode', this.displayMode);
-            } catch (e) {}
-            if (this.displayMode === 'video') {
-                this.$nextTick(() => {
-                    this.loadYouTubeApi();
-                    this.syncTvPlayerState();
-                });
-            }
-        },
-
-        toggleFullscreen() {
-            if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
-                const docElm = document.documentElement;
-                if (docElm.requestFullscreen) {
-                    docElm.requestFullscreen().catch(() => {});
-                } else if (docElm.webkitRequestFullscreen) {
-                    docElm.webkitRequestFullscreen();
-                } else if (docElm.msRequestFullscreen) {
-                    docElm.msRequestFullscreen();
-                }
-            } else {
-                if (document.exitFullscreen) {
-                    document.exitFullscreen().catch(() => {});
-                } else if (document.webkitExitFullscreen) {
-                    document.webkitExitFullscreen();
-                } else if (document.msExitFullscreen) {
-                    document.msExitFullscreen();
-                }
-            }
         }
-    };
-}
     </script>
 </head>
-<body class="bg-[#0E0906] text-[#F7F3EC] w-screen h-screen min-w-full min-h-screen overflow-hidden antialiased font-sans select-none relative m-0 p-0"
+<body class="bg-[#0E0906] text-[#FAF7F2] w-screen h-screen min-w-full min-h-screen overflow-hidden antialiased font-sans select-none relative m-0 p-0"
       x-data="tvDisplayApp()"
       x-cloak>
 
-    <!-- BACKGROUND AMBIENT LAYERS (Strictly contained, no overflow on right/bottom) -->
+    <!-- BACKGROUND AMBIENT LAYERS -->
     <div class="fixed inset-0 w-full h-full overflow-hidden pointer-events-none z-0" style="contain: strict;">
         <!-- LAYER 1: DYNAMIC BLURRED ALBUM ARTWORK WALLPAPER -->
-        <div class="absolute inset-0 bg-cover bg-center filter blur-3xl opacity-30 scale-105 transition-all duration-1000"
+        <div class="absolute inset-0 bg-cover bg-center filter blur-3xl opacity-35 scale-110 transition-all duration-1000"
              :style="nowPlaying && nowPlaying.thumbnail_url ? 'background-image: url(' + nowPlaying.thumbnail_url + ');' : ''">
         </div>
 
         <!-- LAYER 2: DEEP AMBIENT RADIAL VIGNETTE -->
-        <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(20,14,10,0.65)_0%,rgba(10,7,5,0.96)_100%)]"></div>
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(20,14,10,0.6)_0%,rgba(10,7,5,0.97)_100%)]"></div>
 
         <!-- LAYER 3: FLOATING GOLDEN COFFEE STEAM PARTICLES -->
         <canvas id="steam-canvas" class="absolute inset-0 w-full h-full block"></canvas>
 
         <!-- LAYER 4: AMBIENT PULSING GLOW ORBS -->
-        <div class="absolute -top-24 -left-24 w-80 h-80 bg-[#D9973E]/15 rounded-full blur-[100px] animate-pulse-glow"></div>
-        <div class="absolute -bottom-24 -right-24 w-80 h-80 bg-[#5F7F42]/15 rounded-full blur-[100px] animate-pulse-glow" style="animation-delay: 4s;"></div>
+        <div class="absolute -top-24 -left-24 w-96 h-96 bg-[#D9973E]/15 rounded-full blur-[120px] animate-pulse-glow"></div>
+        <div class="absolute -bottom-24 -right-24 w-96 h-96 bg-[#5F7F42]/15 rounded-full blur-[120px] animate-pulse-glow" style="animation-delay: 4s;"></div>
     </div>
 
     <!-- CARD FLY: FLOATING READY ORDERS NOTIFICATION OVERLAY -->
     <div class="fixed bottom-6 sm:bottom-8 right-6 sm:right-8 z-50 flex flex-col gap-3 max-w-sm sm:max-w-md w-[calc(100%-3rem)] pointer-events-none">
         <template x-for="(order, idx) in activeFlyingCards" :key="order.id">
-            <div class="pointer-events-auto bg-gradient-to-r from-[#172211]/95 via-[#1E2E17]/95 to-[#172211]/95 border-2 border-[#5F7F42] rounded-2xl p-4 sm:p-5 text-[#F7F3EC] shadow-2xl backdrop-blur-xl animate-card-fly card-fly-glow relative overflow-hidden transition-all duration-300"
+            <div class="pointer-events-auto bg-gradient-to-r from-[#172211]/95 via-[#1E2E17]/95 to-[#172211]/95 border-2 border-[#5F7F42] rounded-2xl p-4 sm:p-5 text-[#FAF7F2] shadow-2xl backdrop-blur-xl animate-card-fly card-fly-glow relative overflow-hidden transition-all duration-300"
                  :style="'animation-delay: ' + (idx * 120) + 'ms;'">
 
                 <!-- Top Animated Accent Bar -->
@@ -727,7 +720,6 @@
 
                 <div class="flex items-start justify-between gap-3">
                     <div class="flex items-center gap-3.5 min-w-0">
-                        <!-- Icon Ping -->
                         <div class="w-12 h-12 rounded-xl bg-[#5F7F42]/25 border border-[#5F7F42] flex items-center justify-center shrink-0 relative shadow-inner">
                             <span class="w-2.5 h-2.5 rounded-full bg-[#5F7F42] absolute -top-1 -right-1 animate-ping"></span>
                             <span class="text-2xl animate-bounce">🔔</span>
@@ -735,7 +727,7 @@
 
                         <div class="min-w-0">
                             <div class="flex items-center gap-2">
-                                <span class="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded bg-[#5F7F42] text-[#140E0A] font-bold"
+                                <span class="font-mono text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-md bg-[#5F7F42] text-[#140E0A] font-bold"
                                       x-text="order.isRecall ? 'PANGGILAN ULANG' : 'PESANAN SUDAH SIAP'"></span>
                                 <span class="text-[10px] font-mono text-[#A89A85]" x-text="order.elapsed_minutes ? (order.elapsed_minutes + ' mnt') : 'Baru saja'"></span>
                             </div>
@@ -743,86 +735,86 @@
                             <h4 class="text-lg sm:text-xl font-bold font-serif text-white mt-1 leading-snug truncate"
                                 x-text="order.customer_name ? ('Kak ' + order.customer_name) : 'Pelanggan'"></h4>
 
-                            <div class="text-xs text-[#5F7F42] font-mono font-bold mt-0.5">
-                                Kode Tiket: <span class="text-[#D9973E] tracking-wider" x-text="order.code"></span>
+                            <div class="text-xs text-[#85BF5C] font-mono font-bold mt-0.5">
+                                Kode Tiket: <span class="text-[#D9973E] tracking-wider font-bold" x-text="order.code"></span>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Close Button -->
                     <button type="button" @click="dismissFlyingCard(order.uniqueKey)"
-                            class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-[#A89A85] hover:text-white flex items-center justify-center text-sm transition shrink-0">
+                            class="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-[#A89A85] hover:text-white flex items-center justify-center text-sm transition shrink-0 cursor-pointer">
                         ✕
                     </button>
                 </div>
 
-                <!-- Callout Subtext -->
-                <div class="mt-3 pt-2.5 border-t border-[#3A3026]/80 flex items-center justify-between text-xs text-[#C4B6A3]">
+                <div class="mt-3 pt-2.5 border-t border-[#3A3026]/80 flex items-center justify-between text-xs text-[#E4DCCC]">
                     <span class="flex items-center gap-1.5 font-medium">
                         <span>☕</span>
                         <span>Silakan ambil di <strong>Meja Kasir</strong> sekarang</span>
                     </span>
-                    <span class="text-[10px] text-[#A89A85] font-mono uppercase">Terima Kasih</span>
+                    <span class="text-[10px] text-[#A89A85] font-mono uppercase font-bold">Terima Kasih</span>
                 </div>
             </div>
         </template>
     </div>
 
-    <!-- CONTENT WRAPPER (Fills full viewport without dead space) -->
-    <div class="w-full h-full min-h-screen max-h-screen flex flex-col justify-between p-4 sm:p-6 lg:p-8 xl:p-10 relative z-10 box-border overflow-hidden"
+    <!-- CONTENT WRAPPER -->
+    <div class="w-full h-full min-h-screen max-h-screen flex flex-col justify-between p-4 sm:p-6 lg:p-7 xl:p-8 relative z-10 box-border overflow-hidden"
          @dblclick="toggleFullscreen()"
          title="Klik dua kali untuk beralih Layar Penuh">
 
-        <!-- TOP BAR: BRANDING, CLOCK, READY TICKER & MODE TOGGLE -->
-        <header class="w-full flex items-center justify-between border-b border-[#3A3026]/80 pb-4 shrink-0">
-            <!-- Brand & Tagline -->
+        <!-- 1. TOP BAR -->
+        <header class="w-full flex items-center justify-between border-b border-[#32261C] pb-3.5 shrink-0">
+            <!-- Brand & Status -->
             <div class="flex items-center gap-3">
-                <img src="{{ asset('images/logo-light.svg') }}" alt="{{ config('cafe.name') }}" class="h-9 w-auto">
-                <div class="border-l border-[#3A3026] pl-3">
-                    <div class="font-mono text-xs uppercase tracking-[0.25em] text-[#D9973E] flex items-center gap-1.5 font-bold">
-                        <span>LIVE CAFE SOUNDSTATION</span>
+                <div class="w-10 h-10 rounded-xl bg-[#261D16] border border-[#3A2D22] flex items-center justify-center p-2 shrink-0 shadow-xs">
+                    <img src="{{ asset('images/logo-light.svg') }}" alt="{{ config('cafe.name') }}" class="h-6 w-auto">
+                </div>
+                <div class="border-l border-[#32261C] pl-3">
+                    <div class="font-mono text-xs uppercase tracking-[0.22em] text-[#D9973E] flex items-center gap-2 font-bold">
+                        <span>{{ config('cafe.name') }} SOUNDSTATION</span>
                         <span class="w-2 h-2 rounded-full bg-[#5F7F42] animate-pulse"></span>
                     </div>
-                    <div class="text-[11px] text-[#A89A85]">{{ config('cafe.tagline') }}</div>
+                    <div class="text-[11px] text-[#A89A85] font-sans">{{ config('cafe.tagline') }}</div>
                 </div>
             </div>
 
-            <!-- Ready Orders Quick Pill Banner (Card Fly Trigger) -->
+            <!-- Ready Orders Quick Pill Banner -->
             <template x-if="readyOrders.length > 0">
                 <button type="button" @click="showAllReadyCards()"
-                        class="hidden md:flex items-center gap-2 px-3.5 py-1.5 bg-[#5F7F42]/15 border border-[#5F7F42]/40 rounded-full cursor-pointer transition hover:bg-[#5F7F42]/25 shadow-sm active:scale-95"
+                        class="hidden md:flex items-center gap-2 px-4 py-1.5 bg-[#5F7F42]/15 border border-[#5F7F42]/40 rounded-full cursor-pointer transition hover:bg-[#5F7F42]/25 shadow-sm active:scale-95"
                         title="Klik untuk memunculkan Card Fly pesanan siap">
                     <span class="w-2 h-2 rounded-full bg-[#5F7F42] animate-ping"></span>
-                    <span class="font-mono text-xs text-[#5F7F42] font-bold" x-text="readyOrders.length + ' Pesanan Siap (Card Fly) ↗'"></span>
+                    <span class="font-mono text-xs text-[#85BF5C] font-bold" x-text="readyOrders.length + ' Pesanan Siap Diambil ↗'"></span>
                 </button>
             </template>
 
             <!-- Mode Switcher, Sound Toggle, Fullscreen & Real-time Clock -->
-            <div class="flex items-center gap-3 sm:gap-4">
+            <div class="flex items-center gap-2.5 sm:gap-3">
                 <!-- Toggle Mode: Visualizer vs Video -->
                 <button type="button" @click="toggleDisplayMode()"
-                        class="px-2.5 py-1.5 bg-[#1F1812] hover:bg-[#2A2018] border border-[#3A3026] hover:border-[#D9973E] text-[#D9973E] font-mono text-xs uppercase tracking-wider transition rounded flex items-center gap-1.5 shadow-sm active:scale-95"
+                        class="px-3 py-1.5 bg-[#261D16] hover:bg-[#32261C] border border-[#3A2D22] hover:border-[#D9973E] text-[#D9973E] font-mono text-xs uppercase tracking-wider transition rounded-xl flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer"
                         :title="displayMode === 'visualizer' ? 'Beralih ke Tampilan Video YouTube' : 'Beralih ke Tampilan Vinyl Visualizer'">
-                    <span x-show="displayMode === 'visualizer'" class="flex items-center gap-1">
+                    <span x-show="displayMode === 'visualizer'" class="flex items-center gap-1.5">
                         <span>🎬</span>
-                        <span class="hidden sm:inline">Video</span>
+                        <span class="hidden sm:inline font-bold">Video</span>
                     </span>
-                    <span x-show="displayMode === 'video'" class="flex items-center gap-1">
+                    <span x-show="displayMode === 'video'" class="flex items-center gap-1.5">
                         <span>🎨</span>
-                        <span class="hidden sm:inline">Visualizer</span>
+                        <span class="hidden sm:inline font-bold">Vinyl</span>
                     </span>
                 </button>
 
-                <!-- Toggle Suara Notifikasi TV (Mute untuk cegah dobel suara dengan Kasir) -->
+                <!-- Toggle Suara Notifikasi TV -->
                 <button type="button" @click="toggleTvSound()"
-                        class="w-9 h-9 flex items-center justify-center rounded bg-[#1F1812] hover:bg-[#2A2018] border border-[#3A3026] hover:border-[#D9973E] text-[#D9973E] transition shadow-sm active:scale-95"
+                        class="w-9 h-9 flex items-center justify-center rounded-xl bg-[#261D16] hover:bg-[#32261C] border border-[#3A2D22] hover:border-[#D9973E] text-[#D9973E] transition shadow-sm active:scale-95 cursor-pointer"
                         :title="tvSoundEnabled ? 'Suara Notifikasi TV: AKTIF (Klik untuk Heningkan)' : 'Suara Notifikasi TV: HENING (Klik untuk Aktifkan)'">
                     <span class="text-sm" x-text="tvSoundEnabled ? '🔔' : '🔕'"></span>
                 </button>
 
-                <!-- Toggle Fullscreen Simpel & Elegan (Icon Only) -->
+                <!-- Toggle Fullscreen -->
                 <button type="button" @click="toggleFullscreen()"
-                        class="w-9 h-9 flex items-center justify-center rounded bg-[#1F1812] hover:bg-[#2A2018] border border-[#3A3026] hover:border-[#D9973E] text-[#D9973E] transition shadow-sm active:scale-95"
+                        class="w-9 h-9 flex items-center justify-center rounded-xl bg-[#261D16] hover:bg-[#32261C] border border-[#3A2D22] hover:border-[#D9973E] text-[#D9973E] transition shadow-sm active:scale-95 cursor-pointer"
                         :title="isFullscreen ? 'Keluar Layar Penuh (Esc)' : 'Layar Penuh (F11)'">
                     <svg x-show="!isFullscreen" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
@@ -832,34 +824,38 @@
                     </svg>
                 </button>
 
-                <div class="font-mono text-2xl sm:text-3xl font-bold text-[#F7F3EC] tracking-wider ml-1" x-text="currentTime"></div>
+                <!-- Real-time Clock -->
+                <div class="font-mono text-2xl sm:text-3xl font-bold text-[#FAF7F2] tracking-wider ml-1" x-text="currentTime"></div>
             </div>
         </header>
 
-        <!-- MAIN STAGE: NOW PLAYING & RIGHT COLUMN (Dynamically fills vertical space) -->
-        <main class="w-full flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 xl:gap-10 items-center my-auto py-2 sm:py-3">
+        <!-- 2. MAIN STAGE -->
+        <main class="w-full flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center my-auto py-3">
 
-            <!-- LEFT COL: NOW PLAYING HERO (shifted right on desktop to balance spacing) -->
-            <div class="lg:col-span-8 xl:col-span-8 2xl:col-span-8 flex flex-col justify-center lg:pl-10 xl:pl-20 2xl:pl-28">
+            <!-- LEFT COL: NOW PLAYING HERO (7 COLS) -->
+            <div class="lg:col-span-7 xl:col-span-8 flex flex-col justify-center">
 
                 <!-- 1. MODE VISUALIZER: 3D VINYL TURNTABLE & SPECTRUM EQUALIZER -->
-                <div x-show="displayMode === 'visualizer'" class="flex flex-col sm:flex-row items-center gap-6 sm:gap-8 xl:gap-10">
-                    <!-- VINYL RECORD TURNTABLE -->
+                <div x-show="displayMode === 'visualizer'" class="flex flex-col sm:flex-row items-center gap-6 sm:gap-8 lg:gap-10">
+                    <!-- VINYL RECORD TURNTABLE WITH TONEARM -->
                     <div class="relative shrink-0 w-56 h-56 sm:w-64 sm:h-64 md:w-72 md:h-72 lg:w-80 lg:h-80 xl:w-96 xl:h-96">
-                        <div class="w-full h-full rounded-full bg-gradient-to-tr from-[#120D09] via-[#221711] to-[#120D09] border-4 border-[#3A3026] shadow-[0_20px_60px_rgba(0,0,0,0.8)] flex items-center justify-center p-3 relative overflow-hidden"
+                        <!-- Vinyl Turntable Base Shadow & Ring -->
+                        <div class="w-full h-full rounded-full bg-gradient-to-tr from-[#120D09] via-[#221711] to-[#120D09] border-4 border-[#3A2D22] shadow-[0_20px_60px_rgba(0,0,0,0.85)] flex items-center justify-center p-3 relative overflow-hidden"
                              :class="isPlaying ? 'animate-spin-slow' : ''">
 
-                            <!-- VINYL GROOVES -->
-                            <div class="w-full h-full rounded-full border border-dashed border-[#443527] flex items-center justify-center p-4 sm:p-5">
-                                <div class="w-full h-full rounded-full border border-dashed border-[#554637] flex items-center justify-center p-5 sm:p-6">
-                                    <!-- CENTER ALBUM COVER LABEL -->
-                                    <div class="w-full h-full rounded-full border-2 border-[#D9973E]/40 overflow-hidden flex items-center justify-center bg-[#140E0A] shadow-inner relative">
-                                        <template x-if="nowPlaying && nowPlaying.thumbnail_url">
-                                            <img :src="nowPlaying.thumbnail_url" alt="Cover" class="w-full h-full object-cover">
-                                        </template>
-                                        <template x-if="!nowPlaying || !nowPlaying.thumbnail_url">
-                                            <div class="text-3xl font-serif text-[#D9973E]">☕</div>
-                                        </template>
+                            <!-- VINYL GROOVES (CONCENTRIC CIRCLES) -->
+                            <div class="w-full h-full rounded-full border border-dashed border-[#443527]/80 flex items-center justify-center p-3.5 sm:p-4">
+                                <div class="w-full h-full rounded-full border border-[#3A2D22] flex items-center justify-center p-3.5 sm:p-4">
+                                    <div class="w-full h-full rounded-full border border-dashed border-[#554637]/70 flex items-center justify-center p-4 sm:p-5">
+                                        <!-- CENTER ALBUM COVER LABEL -->
+                                        <div class="w-full h-full rounded-full border-2 border-[#D9973E]/60 overflow-hidden flex items-center justify-center bg-[#140E0A] shadow-inner relative">
+                                            <template x-if="nowPlaying && nowPlaying.thumbnail_url">
+                                                <img :src="nowPlaying.thumbnail_url" alt="Cover" class="w-full h-full object-cover">
+                                            </template>
+                                            <template x-if="!nowPlaying || !nowPlaying.thumbnail_url">
+                                                <div class="text-3xl font-serif text-[#D9973E]">☕</div>
+                                            </template>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -869,34 +865,47 @@
                         </div>
 
                         <!-- CENTER METALLIC PIN -->
-                        <div class="absolute inset-0 m-auto w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-tr from-[#D9973E] to-[#F7F3EC] border-2 border-[#140E0A] shadow-md"></div>
+                        <div class="absolute inset-0 m-auto w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-tr from-[#D9973E] via-white to-[#D9973E] border-2 border-[#140E0A] shadow-md pointer-events-none z-10"></div>
+
+                        <!-- STYLISH TONEARM (METALLIC NEEDLE ARM RESTING ON RECORD) -->
+                        <div class="absolute top-2 right-2 sm:top-3 sm:right-3 w-20 sm:w-24 h-36 sm:h-44 pointer-events-none z-20 transition-transform duration-700 ease-out origin-top-right"
+                             :class="isPlaying ? 'rotate-[22deg]' : 'rotate-[0deg]'">
+                            <!-- Pivot Base -->
+                            <div class="absolute top-0 right-0 w-6 h-6 rounded-full bg-gradient-to-tr from-[#3A2D22] via-[#8A7B66] to-[#E4DCCC] border border-[#140E0A] shadow-md"></div>
+                            <!-- Arm Bar -->
+                            <div class="absolute top-4 right-2.5 w-1 h-28 sm:h-32 bg-gradient-to-b from-[#8A7B66] via-[#D9973E] to-[#A89A85] rounded-full shadow-sm"></div>
+                            <!-- Cartridge Head & Stylus -->
+                            <div class="absolute bottom-2 sm:bottom-4 right-0 w-4 h-7 bg-[#1F1812] border border-[#D9973E] rounded-xs shadow-md rotate-[-15deg] flex items-center justify-center">
+                                <span class="w-1 h-2 bg-[#D9973E] rounded-full"></span>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- NOW PLAYING METADATA -->
-                    <div class="min-w-0 text-center sm:text-left flex-1 w-full max-w-xl xl:max-w-2xl 2xl:max-w-3xl">
-                        <div class="inline-flex items-center gap-2 px-3 py-1 bg-[#D9973E]/15 border border-[#D9973E]/40 text-[#D9973E] font-mono text-xs uppercase tracking-[0.2em] mb-3 rounded-full">
+                    <div class="min-w-0 text-center sm:text-left flex-1 w-full max-w-xl xl:max-w-2xl">
+                        <div class="inline-flex items-center gap-2 px-3 py-1 bg-[#D9973E]/15 border border-[#D9973E]/40 text-[#D9973E] font-mono text-xs uppercase tracking-[0.2em] mb-2.5 rounded-full font-bold">
                             <span class="w-1.5 h-1.5 rounded-full bg-[#D9973E] animate-ping"></span>
-                            <span x-text="isPlaying ? 'NOW PLAYING' : 'AUDIO PAUSED'"></span>
+                            <span x-text="isPlaying ? 'SEDANG MEMUTAR' : 'AUDIO TERJEDA'"></span>
                         </div>
 
-                        <h2 class="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-serif font-bold text-[#F7F3EC] leading-tight tracking-tight line-clamp-2 drop-shadow-md"
-                            x-text="nowPlaying ? (nowPlaying.song_title || nowPlaying.title) : 'Playlist Bawaan KopiKita'">
+                        <h2 class="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-serif font-bold text-[#FAF7F2] leading-tight tracking-tight line-clamp-2 drop-shadow-md"
+                            x-text="nowPlaying ? (nowPlaying.song_title || nowPlaying.title) : 'Playlist Kafe KopiKita'">
                         </h2>
 
-                        <p class="text-base sm:text-lg lg:text-xl text-[#D5CCC0] mt-1.5 font-mono truncate"
-                           x-text="nowPlaying ? (nowPlaying.artist || 'Artis Musik') : 'Chill Lo-Fi / Jazz Cafe Vibes'">
+                        <p class="text-base sm:text-lg lg:text-xl text-[#D9973E] mt-1.5 font-mono font-medium truncate"
+                           x-text="nowPlaying ? (nowPlaying.artist || 'Artis Musik') : 'Chill Lo-Fi & Jazz Vibes'">
                         </p>
 
                         <!-- TIMELINE PROGRESS BAR -->
                         <div class="mt-4 w-full">
-                            <div class="w-full bg-[#2A211A] h-2.5 rounded-full overflow-hidden border border-[#3A3026]">
+                            <div class="w-full bg-[#261D16] h-2.5 rounded-full overflow-hidden border border-[#3A2D22]">
                                 <div class="bg-gradient-to-r from-[#D9973E] via-[#E5A955] to-[#5F7F42] h-full transition-all duration-300 rounded-full shadow-[0_0_12px_rgba(217,151,62,0.6)]"
                                      :style="'width: ' + playbackProgressPercent + '%'"></div>
                             </div>
                             <div class="mt-1.5 flex items-center justify-between font-mono text-xs text-[#A89A85]">
-                                <span class="text-[#D9973E] font-semibold" x-text="playbackCurrentTimeFormatted">00:00</span>
-                                <span class="text-[10px] text-[#7A6A58] uppercase tracking-wider">// Sync Live Player</span>
-                                <span x-text="playbackDurationFormatted">00:00</span>
+                                <span class="text-[#D9973E] font-bold" x-text="playbackCurrentTimeFormatted">00:00</span>
+                                <span class="text-[10px] text-[#8A7B66] uppercase tracking-wider font-semibold">// Live Sync Player</span>
+                                <span class="text-[#FAF7F2] font-semibold" x-text="playbackDurationFormatted">00:00</span>
                             </div>
                         </div>
 
@@ -912,18 +921,17 @@
 
                         <!-- REQUESTED BY BADGE -->
                         <template x-if="nowPlaying && nowPlaying.customer_name">
-                            <div class="mt-3.5 inline-flex items-center gap-2 px-3.5 py-1.5 bg-[#2A211A]/90 border border-[#D9973E]/40 rounded shadow-sm">
-                                <span class="font-mono text-xs text-[#A89A85] uppercase tracking-wider">Requested by:</span>
-                                <span class="font-mono text-sm font-bold text-[#D9973E]" x-text="'★ ' + nowPlaying.customer_name"></span>
+                            <div class="mt-3.5 inline-flex items-center gap-2 px-3.5 py-1.5 bg-[#261D16] border border-[#D9973E]/40 rounded-xl shadow-xs">
+                                <span class="font-mono text-xs text-[#A89A85] uppercase tracking-wider">Direquest oleh:</span>
+                                <span class="font-mono text-sm font-bold text-[#D9973E]" x-text="'★ Kak ' + nowPlaying.customer_name"></span>
                             </div>
                         </template>
                     </div>
                 </div>
 
-                <!-- 2. MODE VIDEO: CINEMATIC YOUTUBE PLAYER SCREEN (100% SYNC DENGAN AUDIO KASIR) -->
-                <div x-show="displayMode === 'video'" class="space-y-4 w-full">
-                    <div class="w-full aspect-video rounded-2xl overflow-hidden border-2 border-[#3A3026] shadow-[0_20px_60px_rgba(0,0,0,0.9)] bg-black relative group">
-                        <!-- YOUTUBE VIDEO HOST (POINTER-EVENTS-NONE AGAR TIDAK BISA DI-PAUSE SECARA MANUAL DI LAYAR TV) -->
+                <!-- 2. MODE VIDEO: CINEMATIC YOUTUBE PLAYER SCREEN -->
+                <div x-show="displayMode === 'video'" class="space-y-3.5 w-full">
+                    <div class="w-full aspect-video rounded-2xl overflow-hidden border-2 border-[#3A2D22] shadow-[0_20px_60px_rgba(0,0,0,0.9)] bg-black relative group">
                         <div class="w-full h-full relative">
                             <div id="tv-player-wrap" class="w-full h-full pointer-events-none" x-show="nowPlaying && nowPlaying.youtube_id">
                                 <div id="tv-yt-player" class="w-full h-full"></div>
@@ -945,18 +953,12 @@
                                 </div>
                             </div>
                         </div>
-
-                        <!-- Video Overlay Badge -->
-                        <div class="absolute top-3 left-3 px-3 py-1 bg-black/70 border border-white/10 rounded-full font-mono text-[10px] text-[#D9973E] uppercase tracking-widest backdrop-blur-md pointer-events-none flex items-center gap-1.5">
-                            <span class="w-1.5 h-1.5 rounded-full bg-[#D9973E] animate-pulse"></span>
-                            <span>LIVE CINEMATIC SYNC</span>
-                        </div>
                     </div>
 
                     <!-- Video Track Info Bar -->
-                    <div class="flex items-center justify-between gap-4 p-3 bg-[#1F1812]/80 border border-[#3A3026] rounded-xl backdrop-blur w-full">
+                    <div class="flex items-center justify-between gap-4 p-3 bg-[#1C1611]/90 border border-[#32261C] rounded-xl backdrop-blur w-full">
                         <div class="min-w-0">
-                            <h3 class="font-serif font-bold text-base text-[#F7F3EC] truncate"
+                            <h3 class="font-serif font-bold text-base text-[#FAF7F2] truncate"
                                 x-text="nowPlaying ? (nowPlaying.song_title || nowPlaying.title) : 'Lagu Kafe'"></h3>
                             <div class="text-xs text-[#A89A85] font-mono truncate"
                                  x-text="nowPlaying ? (nowPlaying.artist || 'Artis') : '-'"></div>
@@ -967,96 +969,112 @@
 
             </div>
 
-            <!-- RIGHT COL: LIVE READY ORDERS & UP NEXT QUEUE (Slim & compact width: 4 cols, max 350px) -->
-            <div class="lg:col-span-4 xl:col-span-4 2xl:col-span-4 max-w-[310px] sm:max-w-[330px] xl:max-w-[350px] w-full ml-auto bg-[#17110C]/90 border border-[#3A3026] rounded-2xl p-4 sm:p-5 shadow-2xl backdrop-blur-xl flex flex-col h-full min-h-[400px] max-h-[560px] xl:max-h-[620px] justify-between">
+            <!-- RIGHT COL: LIVE READY ORDERS & UP NEXT QUEUE (5 COLS) -->
+            <div class="lg:col-span-5 xl:col-span-4 w-full bg-[#1C1611]/95 border border-[#32261C] rounded-2xl p-5 shadow-2xl backdrop-blur-xl flex flex-col h-full min-h-[380px] justify-between">
 
-                <!-- TOP SECTION: PESANAN SIAP (TAMPIL DI ATAS JIKA ADA PESANAN SIAP) -->
+                <!-- TOP SECTION: PESANAN SIAP (TAMPIL JIKA ADA PESANAN SIAP) -->
                 <template x-if="readyOrders.length > 0">
-                    <div class="mb-3 bg-gradient-to-r from-[#1E2E17] to-[#142010] border-2 border-[#5F7F42] rounded-xl p-2.5 sm:p-3 shadow-md shrink-0">
-                        <div class="flex items-center justify-between mb-2">
+                    <div class="mb-4 bg-gradient-to-r from-[#1E2E17] to-[#142010] border-2 border-[#5F7F42] rounded-xl p-3.5 shadow-md shrink-0">
+                        <div class="flex items-center justify-between mb-2.5">
                             <div class="flex items-center gap-2">
-                                <span class="w-2.5 h-2.5 rounded-full bg-[#5F7F42] animate-ping"></span>
-                                <span class="font-mono text-xs font-bold text-[#5F7F42] uppercase tracking-wider">🔔 Pesanan Siap</span>
+                                <span class="w-2.5 h-2.5 rounded-full bg-[#85BF5C] animate-ping"></span>
+                                <span class="font-mono text-xs font-bold text-[#85BF5C] uppercase tracking-wider">🔔 Pesanan Siap Di Meja</span>
                             </div>
-                            <span class="font-mono text-[10px] font-bold text-[#F7F3EC] bg-[#5F7F42]/30 px-2 py-0.5 rounded-full" x-text="readyOrders.length + ' Pesanan'"></span>
+                            <span class="font-mono text-[10px] font-bold text-[#FAF7F2] bg-[#5F7F42]/40 px-2.5 py-0.5 rounded-full" x-text="readyOrders.length + ' Pesanan'"></span>
                         </div>
-                        <div class="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto no-scrollbar">
+                        <div class="flex flex-wrap gap-2 max-h-24 overflow-y-auto no-scrollbar">
                             <template x-for="ro in readyOrders" :key="ro.id">
-                                <div class="px-2.5 py-1 bg-[#25391C] border border-[#5F7F42]/60 rounded text-xs font-mono text-white flex items-center gap-1.5 shadow-sm">
-                                    <span class="font-bold text-[#D9973E]" x-text="ro.code"></span>
-                                    <span class="text-white/80 text-[10px]" x-text="ro.customer_name ? ('(' + ro.customer_name + ')') : ''"></span>
+                                <div class="px-3 py-1.5 bg-[#25391C] border border-[#5F7F42]/80 rounded-lg text-xs font-mono text-white flex items-center gap-2 shadow-sm">
+                                    <span class="font-bold text-[#D9973E] text-sm" x-text="ro.code"></span>
+                                    <span class="text-white/90 font-medium" x-text="ro.customer_name ? ('(' + ro.customer_name + ')') : ''"></span>
                                 </div>
                             </template>
                         </div>
                     </div>
                 </template>
 
-                <!-- QUEUE SECTION HEADER (Header text tetap jelas & terbaca) -->
-                <div class="flex items-center justify-between border-b border-[#3A3026] pb-3 mb-3 shrink-0">
+                <!-- QUEUE SECTION HEADER -->
+                <div class="flex items-center justify-between border-b border-[#32261C] pb-3 mb-3 shrink-0">
                     <div class="flex items-center gap-2 min-w-0">
                         <span class="w-2.5 h-2.5 rounded-full bg-[#D9973E] animate-pulse shrink-0"></span>
-                        <h3 class="font-mono text-xs sm:text-sm uppercase tracking-[0.12em] font-bold text-[#F7F3EC] truncate">Antrean Lagu Berikutnya</h3>
+                        <h3 class="font-mono text-xs sm:text-sm uppercase tracking-[0.15em] font-bold text-[#FAF7F2] truncate">Antrean Lagu Berikutnya</h3>
                     </div>
 
-                    <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#D9973E]/15 border border-[#D9973E]/30 text-[#D9973E] shrink-0 ml-2"
+                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#D9973E]/15 border border-[#D9973E]/30 text-[#D9973E] shrink-0 ml-2"
                           x-text="queue.length + ' Lagu'"></span>
                 </div>
 
-                <!-- QUEUE LIST (FLEX-1 EXPANDABLE, INVISIBLE SCROLL) -->
-                <div class="space-y-1.5 overflow-y-auto pr-0 flex-1 min-h-[140px] no-scrollbar">
+                <!-- QUEUE LIST (EXPANDABLE SCROLLABLE AREA) -->
+                <div class="space-y-2 overflow-y-auto pr-0 flex-1 min-h-[140px] no-scrollbar">
                     <template x-if="queue.length === 0">
-                        <div class="h-full flex flex-col items-center justify-center text-center py-8 text-[#7A6A58] font-mono text-xs">
-                            <span class="text-3xl mb-2 opacity-50">☕</span>
-                            <span>Antrean request lagu sedang kosong.</span>
-                            <span class="text-[10px] mt-1 text-[#554637]">Scan QR di bawah untuk me-request lagu pertamamu!</span>
+                        <div class="h-full flex flex-col items-center justify-center text-center py-8 text-[#A89A85] font-mono text-xs">
+                            <span class="text-3xl mb-2 opacity-60">☕</span>
+                            <span class="font-semibold text-[#FAF7F2]">Antrean request lagu sedang kosong.</span>
+                            <span class="text-[11px] mt-1 text-[#8A7B66]">Scan QR di bawah untuk me-request lagu pertamamu!</span>
                         </div>
                     </template>
 
-                    <template x-for="(item, index) in queue" :key="item.id">
-                        <div class="flex items-center justify-between py-1.5 px-2.5 bg-[#1F1711] border border-[#3A3026]/70 rounded hover:border-[#D9973E]/50 transition group">
-                            <div class="flex items-center gap-2 min-w-0 flex-1">
-                                <span class="font-mono font-bold text-[#D9973E] text-[10px] w-3.5 text-center shrink-0" x-text="'#' + (index + 1)"></span>
+                    <template x-for="(item, index) in queue" :key="item.id + '_' + (item.type || 'req')">
+                        <div class="flex items-center justify-between py-2 px-3 bg-[#261D16]/90 border border-[#3A2D22] rounded-xl hover:border-[#D9973E]/50 transition group">
+                            <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                                <span class="font-mono font-bold text-[#D9973E] text-xs w-4 text-center shrink-0" x-text="'#' + (index + 1)"></span>
                                 <div class="min-w-0 flex-1">
-                                    <div class="text-[11px] font-medium text-[#F7F3EC] truncate leading-tight group-hover:text-[#D9973E] transition-colors" x-text="item.song_title"></div>
-                                    <div class="text-[9px] text-[#8C7D6B] truncate leading-tight mt-0.5 flex items-center gap-1.5">
+                                    <div class="text-xs font-semibold text-[#FAF7F2] truncate leading-tight group-hover:text-[#D9973E] transition-colors" x-text="item.song_title || item.title"></div>
+                                    <div class="text-[10px] text-[#A89A85] truncate leading-tight mt-0.5 flex items-center gap-1.5 font-mono">
                                         <span x-text="item.artist || 'Artis YouTube'"></span>
-                                        <span class="text-[#554637]">&bull;</span>
-                                        <span class="text-[#D9973E]/90" x-text="'Req: ' + (item.customer_name || 'Pelanggan')"></span>
+                                        <template x-if="item.customer_name">
+                                            <span class="flex items-center gap-1">
+                                                <span class="text-[#8A7B66]">&bull;</span>
+                                                <span class="text-[#D9973E] font-semibold truncate" x-text="'Req: ' + item.customer_name"></span>
+                                            </span>
+                                        </template>
+                                        <template x-if="!item.customer_name && (item.type === 'default' || !item.is_request)">
+                                            <span class="flex items-center gap-1">
+                                                <span class="text-[#8A7B66]">&bull;</span>
+                                                <span class="text-[#85BF5C]">Playlist Kafe</span>
+                                            </span>
+                                        </template>
                                     </div>
                                 </div>
                             </div>
-                            <span class="font-mono text-[7.5px] uppercase tracking-wider text-[#5F7F42] bg-[#5F7F42]/10 px-1.5 py-0.5 rounded border border-[#5F7F42]/20 shrink-0 ml-2">Next</span>
+                            <!-- BADGE: REQUEST vs BAWAAN -->
+                            <template x-if="item.type === 'request' || item.is_request">
+                                <span class="font-mono text-[9px] uppercase tracking-wider text-[#D9973E] bg-[#D9973E]/15 px-2 py-0.5 rounded-full border border-[#D9973E]/40 font-bold shrink-0 ml-2">Request</span>
+                            </template>
+                            <template x-if="item.type === 'default' || !item.is_request">
+                                <span class="font-mono text-[9px] uppercase tracking-wider text-[#85BF5C] bg-[#5F7F42]/20 px-2 py-0.5 rounded-full border border-[#5F7F42]/40 font-bold shrink-0 ml-2">Bawaan</span>
+                            </template>
                         </div>
                     </template>
                 </div>
 
                 <!-- SUBTLE CARD FOOTNOTE -->
-                <div class="mt-3 pt-2 border-t border-[#3A3026]/60 flex items-center justify-between text-[10px] font-mono text-[#7A6A58] shrink-0">
-                    <span>* Putar bergilir</span>
-                    <span class="text-[#D9973E]/80">Auto-skip jika video diblokir</span>
+                <div class="mt-3.5 pt-2.5 border-t border-[#32261C] flex items-center justify-between text-[11px] font-mono text-[#8A7B66] shrink-0">
+                    <span>* Putar bergilir otomatis</span>
+                    <span class="text-[#D9973E] font-semibold">Auto-skip jika diblokir</span>
                 </div>
 
             </div>
 
         </main>
 
-        <!-- FOOTER: QR CODE TO REQUEST MUSIC & BRANDING -->
-        <footer class="w-full border-t border-[#3A3026]/80 pt-3 sm:pt-4 flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6 shrink-0">
-            <div class="flex items-center gap-4 sm:gap-5">
-                <div class="p-2 bg-white border border-[#3A3026] rounded-lg shrink-0 shadow-lg">
-                    <img src="{{ \App\Support\QrCode::dataUri(route('music.request'), 130) }}" width="64" height="64" alt="QR Request Musik">
+        <!-- 3. FOOTER -->
+        <footer class="w-full border-t border-[#32261C] pt-3.5 flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6 shrink-0">
+            <div class="flex items-center gap-4">
+                <div class="p-2 bg-white border border-[#E4DCCC] rounded-xl shrink-0 shadow-lg">
+                    <img src="{{ \App\Support\QrCode::dataUri(route('music.request'), 150) }}" width="68" height="68" alt="QR Request Musik">
                 </div>
                 <div>
-                    <div class="font-serif font-bold text-base sm:text-lg text-[#F7F3EC]">Punya Struk Belanja?</div>
+                    <div class="font-serif font-bold text-base sm:text-lg text-[#FAF7F2]">Punya Struk Belanja?</div>
                     <div class="text-xs text-[#A89A85] max-w-sm mt-0.5">
-                        Scan QR di samping untuk me-request lagu favoritmu langsung dari meja. Lagu diputar setelah lagu saat ini selesai!
+                        Scan QR di samping untuk me-request lagu favoritmu langsung dari meja. Lagu akan diputar otomatis setelah lagu saat ini selesai!
                     </div>
                 </div>
             </div>
 
             <div class="font-mono text-xs text-[#A89A85] uppercase tracking-widest text-right">
-                <div class="text-[#D9973E] font-bold">{{ config('cafe.name') }} AUDIO & KDS STREAM</div>
-                <div class="text-[10px] text-[#554637] mt-0.5">Precision Jukebox & Kitchen Announcer Engine</div>
+                <div class="text-[#D9973E] font-bold">{{ config('cafe.name') }} AUDIO & ORDER STREAM</div>
+                <div class="text-[10px] text-[#8A7B66] mt-0.5">Precision Jukebox & Kitchen Announcer Engine</div>
             </div>
         </footer>
 

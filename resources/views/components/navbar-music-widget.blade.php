@@ -2,7 +2,7 @@
 {{-- Persistent audio player: Musik tidak mati saat berpindah menu/tab --}}
 <div x-data="navbarMusicWidget()"
      x-init="initWidget()"
-     class="border-t border-[#3A3026] bg-[#140E0A] p-3 text-[#F7F3EC] select-none shrink-0 relative">
+     class="border-t border-[#32261C] bg-[#140E0A] p-3 text-[#FAF7F2] select-none shrink-0 relative">
 
     <!-- HEADER WIDGET: STATUS & EQUALIZER -->
     <div class="flex items-center justify-between mb-1.5">
@@ -30,7 +30,7 @@
                       x-text="queueCount + ' Req'"></span>
             </template>
             <template x-if="queueCount === 0">
-                <span class="px-1.5 py-0.2 font-mono text-[8px] bg-[#2A211A] text-[#8A7B66] border border-[#3A3026]">
+                <span class="px-1.5 py-0.2 font-mono text-[8px] bg-[#2A211A] text-[#8A7B66] border border-[#3A3026] rounded-md">
                     Playlist
                 </span>
             </template>
@@ -47,7 +47,7 @@
     <div class="mb-2">
         <!-- 1. Tab Ini adalah Host di Halaman Dedicated Sound Station -->
         <template x-if="isMasterHost && isDedicatedPage">
-            <div class="flex items-center justify-between text-[8px] font-mono text-[#5F7F42] bg-[#5F7F42]/10 border border-[#5F7F42]/30 px-2 py-0.5 rounded">
+            <div class="flex items-center justify-between text-[8px] font-mono text-[#5F7F42] bg-[#5F7F42]/10 border border-[#5F7F42]/30 px-2 py-0.5 rounded-lg">
                 <span class="flex items-center gap-1.5 font-bold truncate">
                     <span class="w-1.5 h-1.5 rounded-full bg-[#5F7F42] animate-pulse shrink-0"></span>
                     <span class="truncate" x-text="'Host: ' + deviceName + ' (Anti-Mati)'">Host Pemutar Kafe</span>
@@ -58,7 +58,7 @@
 
         <!-- 2. Tab Ini adalah Host di Halaman POS Biasa (Kasir, KDS, Orders) -->
         <template x-if="isMasterHost && !isDedicatedPage">
-            <div class="flex items-center justify-between text-[8px] font-mono text-[#5F7F42] bg-[#5F7F42]/10 border border-[#5F7F42]/30 px-2 py-0.5 rounded">
+            <div class="flex items-center justify-between text-[8px] font-mono text-[#5F7F42] bg-[#5F7F42]/10 border border-[#5F7F42]/30 px-2 py-0.5 rounded-lg">
                 <span class="flex items-center gap-1.5 font-bold truncate">
                     <span class="w-1.5 h-1.5 rounded-full bg-[#5F7F42] animate-pulse shrink-0"></span>
                     <span class="truncate" x-text="'Host: ' + deviceName">Pemutar Aktif di Tab Ini</span>
@@ -69,10 +69,10 @@
 
         <!-- 3. Tab/Perangkat Lain adalah Host (Tab Ini adalah Remote Controller) -->
         <template x-if="!isMasterHost && hasActiveHost">
-            <div class="flex items-center justify-between text-[8px] font-mono text-[#A89A85] bg-[#1F1812] border border-[#2A211A] px-2 py-0.5 rounded">
+            <div class="flex items-center justify-between text-[8px] font-mono text-[#A89A85] bg-[#1C1611] border border-[#2A211A] px-2 py-0.5 rounded-lg">
                 <span class="flex items-center gap-1.5 min-w-0 mr-1.5">
                     <span class="w-1.5 h-1.5 rounded-full bg-[#5F7F42] shrink-0 animate-pulse"></span>
-                    <span class="truncate">Host: <strong class="text-[#F7F3EC]" x-text="activeHostPageTitle || 'Perangkat Lain'"></strong></span>
+                    <span class="truncate">Host: <strong class="text-[#FAF7F2]" x-text="activeHostPageTitle || 'Perangkat Lain'"></strong></span>
                 </span>
                 <div class="flex items-center gap-1.5 shrink-0">
                     <span class="text-[#D9973E] font-semibold">📡 Remote</span>
@@ -87,7 +87,7 @@
 
         <!-- 4. Sedang Menghubungkan / Tidak Ada Host Aktif -->
         <template x-if="!isMasterHost && !hasActiveHost">
-            <div class="flex items-center justify-between text-[8px] font-mono text-[#A89A85] bg-[#1F1812] border border-[#2A211A] px-2 py-0.5 rounded">
+            <div class="flex items-center justify-between text-[8px] font-mono text-[#A89A85] bg-[#1C1611] border border-[#2A211A] px-2 py-0.5 rounded-lg">
                 <span class="flex items-center gap-1.5">
                     <span class="w-1.5 h-1.5 rounded-full bg-[#D9973E] animate-ping"></span>
                     <span>Menghubungkan Pemutar...</span>
@@ -101,9 +101,9 @@
     </div>
 
     <!-- NOW PLAYING TRACK INFO -->
-    <div class="flex items-center gap-2.5 mb-2 bg-[#1F1812] border border-[#2A211A] p-2">
+    <div class="flex items-center gap-2.5 mb-2 bg-[#1C1611] border border-[#2A211A] p-2 rounded-xl">
         <!-- Thumbnail / Disc Icon -->
-        <div class="w-8 h-8 rounded shrink-0 overflow-hidden bg-[#2A211A] border border-[#3A3026] flex items-center justify-center relative">
+        <div class="w-8 h-8 rounded-lg shrink-0 overflow-hidden bg-[#261D16] border border-[#3A2D22] flex items-center justify-center relative">
             <template x-if="currentTrack && currentTrack.thumbnail_url">
                 <img :src="currentTrack.thumbnail_url" alt="Thumb" class="w-full h-full object-cover">
             </template>
@@ -114,7 +114,7 @@
 
         <!-- Title & Requester -->
         <div class="min-w-0 flex-1">
-            <div class="text-[11px] font-bold text-[#F7F3EC] truncate leading-tight"
+            <div class="text-[11px] font-bold text-[#FAF7F2] truncate leading-tight"
                  x-text="currentTrack ? currentTrack.title : 'Memuat Musik Kafe...'"></div>
             <div class="flex items-center gap-1 mt-0.5">
                 <template x-if="currentTrack && currentTrack.type === 'customer_request'">
@@ -548,7 +548,7 @@ function navbarMusicWidget() {
         },
 
         async pollServerStatus() {
-            if (this.isMasterHost) return;
+            if (this.isMasterHost || document.hidden || window._isNavigatingKasirPage) return;
             try {
                 const res = await fetch('{{ route('kasir.music.master.status') }}');
                 if (!res.ok) return;
@@ -651,7 +651,7 @@ function navbarMusicWidget() {
 
             if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
             this.broadcastHostHeartbeat();
-            this.heartbeatTimer = setInterval(() => this.broadcastHostHeartbeat(), 1500);
+            this.heartbeatTimer = setInterval(() => this.broadcastHostHeartbeat(), 7000);
 
             this.loadYouTubeApi();
 
@@ -746,6 +746,14 @@ function navbarMusicWidget() {
                     window.SoundStationHub.channel.postMessage(hostData);
                 } catch (e) {}
             }
+
+            // Jangan kirim HTTP request ke server jika tab sedang disembunyikan atau sedang navigasi halaman
+            if (document.hidden || window._isNavigatingKasirPage) return;
+
+            // Batasi request HTTP heartbeat ke server minimal berselang 6 detik
+            const now = Date.now();
+            if (this._lastHttpHeartbeat && (now - this._lastHttpHeartbeat < 6000)) return;
+            this._lastHttpHeartbeat = now;
 
             // Kirim heartbeat ke server untuk sinkronisasi multi-device & deteksi preemption
             fetch('{{ route('kasir.music.master.heartbeat') }}', {
@@ -913,22 +921,26 @@ function navbarMusicWidget() {
                 }
             }, 2000);
 
-            // Remote server polling setiap 2 detik untuk sinkronisasi antar-device (PC Kasir vs Tablet)
-            this.remotePollTimer = setInterval(() => this.pollServerStatus(), 2000);
+            // Remote server polling setiap 8 detik untuk sinkronisasi antar-device (PC Kasir vs Tablet)
+            this.remotePollTimer = setInterval(() => this.pollServerStatus(), 8000);
 
             // Inisialisasi YouTube player jika tab ini adalah master host
             if (this.isMasterHost) {
                 this.loadYouTubeApi();
             }
 
-            // Polling KDS Announcer & Antrean
+            // Polling KDS Announcer & Antrean (hanya saat tab aktif & tidak sedang navigasi)
             setInterval(() => {
-                if (this.isMasterHost) {
+                if (this.isMasterHost && !document.hidden && !window._isNavigatingKasirPage) {
                     this.checkReadyOrders();
                 }
-            }, 3500);
+            }, 8000);
 
-            setInterval(() => this.refreshQueue(), 3500);
+            setInterval(() => {
+                if (!document.hidden && !window._isNavigatingKasirPage) {
+                    this.refreshQueue();
+                }
+            }, 12000);
             this.refreshQueue();
 
             // Progress ticker setiap 300ms (High-frequency timeline ticker)
@@ -1725,6 +1737,7 @@ function navbarMusicWidget() {
         },
 
         async refreshQueue() {
+            if (document.hidden || window._isNavigatingKasirPage) return;
             try {
                 const res = await fetch('{{ route('music.status') }}', {
                     headers: {
@@ -1752,7 +1765,7 @@ function navbarMusicWidget() {
         },
 
         async checkReadyOrders() {
-            if (!this.voiceAnnouncerEnabled || this.isAnnouncing) return;
+            if (!this.voiceAnnouncerEnabled || this.isAnnouncing || document.hidden || window._isNavigatingKasirPage) return;
 
             try {
                 const res = await fetch('{{ route('kasir.music.announcements.pending') }}', {

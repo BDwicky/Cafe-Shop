@@ -28,7 +28,7 @@
 
                 <div class="mt-6">
                     <label for="email" class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#8A7B66]">Email</label>
-                    <input id="email" name="email" type="email" value="{{ old('email') }}" required autofocus
+                    <input id="email" name="email" type="text" value="{{ old('email') }}" required autofocus
                            class="mt-1 w-full bg-white border border-[#E4DCCC] focus:border-[#B5762A] focus:outline-none px-3 py-2.5 text-sm">
                     @error('email')<p class="mt-1 text-xs text-[#C4553D]">{{ $message }}</p>@enderror
                 </div>

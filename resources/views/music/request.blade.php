@@ -972,33 +972,52 @@
 
                     <template x-if="queue.length > 0">
                         <div class="space-y-2 max-h-[380px] overflow-y-auto pr-1">
-                            <template x-for="(item, index) in queue" :key="item.id">
+                            <template x-for="(item, index) in queue" :key="item.id + '_' + (item.type || 'req')">
                                 <div class="flex items-center justify-between p-3 rounded-xl text-xs transition"
-                                     :class="(mySong && item.id === mySong.id)
+                                     :class="(mySong && item.id === mySong.id && (item.type === 'request' || item.is_request))
                                         ? 'bg-[#5F7F42]/10 border-2 border-[#5F7F42] shadow-xs'
                                         : 'bg-[#FAF7F2] border border-[#EAE2D5] hover:border-[#D9973E]/50'">
                                     <div class="flex items-center gap-3 min-w-0 flex-1">
                                         <span class="font-mono font-bold w-6 text-center shrink-0"
-                                              :class="(mySong && item.id === mySong.id) ? 'text-[#5F7F42]' : 'text-[#D9973E]'"
+                                              :class="(mySong && item.id === mySong.id && (item.type === 'request' || item.is_request)) ? 'text-[#5F7F42]' : 'text-[#D9973E]'"
                                               x-text="'#' + (index + 1)"></span>
                                         <div class="min-w-0 flex-1">
-                                            <div class="font-medium text-[#1F1812] truncate font-serif" x-text="item.song_title"></div>
+                                            <div class="font-medium text-[#1F1812] truncate font-serif" x-text="item.song_title || item.title"></div>
                                             <div class="text-[10px] text-[#7A6A58] truncate font-mono mt-0.5 flex items-center gap-1.5">
                                                 <span x-text="item.artist || 'Artis YouTube'"></span>
-                                                <span>&bull;</span>
-                                                <span class="text-[#D9973E]" x-text="'Req: ' + (item.customer_name || 'Pelanggan')"></span>
+                                                <template x-if="item.customer_name">
+                                                    <span class="flex items-center gap-1">
+                                                        <span>&bull;</span>
+                                                        <span class="text-[#D9973E]" x-text="'Req: ' + item.customer_name"></span>
+                                                    </span>
+                                                </template>
+                                                <template x-if="!item.customer_name && (item.type === 'default' || !item.is_request)">
+                                                    <span class="flex items-center gap-1">
+                                                        <span>&bull;</span>
+                                                        <span class="text-[#5F7F42]">Playlist Kafe</span>
+                                                    </span>
+                                                </template>
                                             </div>
                                         </div>
                                     </div>
-                                    <template x-if="mySong && item.id === mySong.id">
+                                    <template x-if="mySong && item.id === mySong.id && (item.type === 'request' || item.is_request)">
                                         <span class="font-mono text-[9px] uppercase tracking-wider text-white bg-[#5F7F42] px-2 py-0.5 rounded-full font-bold shrink-0 ml-2 animate-pulse shadow-xs">
                                             ✨ Lagu Kamu
                                         </span>
                                     </template>
-                                    <template x-if="!mySong || item.id !== mySong.id">
-                                        <span class="font-mono text-[9px] uppercase tracking-wider text-[#5F7F42] bg-[#5F7F42]/10 px-2 py-0.5 border border-[#5F7F42]/20 rounded shrink-0 ml-2">
-                                            Menunggu
-                                        </span>
+                                    <template x-if="!(mySong && item.id === mySong.id && (item.type === 'request' || item.is_request))">
+                                        <div>
+                                            <template x-if="item.type === 'request' || item.is_request">
+                                                <span class="font-mono text-[9px] uppercase tracking-wider text-[#D9973E] bg-[#D9973E]/10 px-2 py-0.5 border border-[#D9973E]/25 rounded shrink-0 font-bold ml-2">
+                                                    ★ Request
+                                                </span>
+                                            </template>
+                                            <template x-if="item.type === 'default' || !item.is_request">
+                                                <span class="font-mono text-[9px] uppercase tracking-wider text-[#5F7F42] bg-[#5F7F42]/10 px-2 py-0.5 border border-[#5F7F42]/25 rounded shrink-0 font-bold ml-2">
+                                                    🎵 Bawaan
+                                                </span>
+                                            </template>
+                                        </div>
                                     </template>
                                 </div>
                             </template>
