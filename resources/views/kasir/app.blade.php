@@ -75,11 +75,13 @@
                 <!-- Header Brand & Clock -->
                 <div class="p-4 border-b border-[#32261C]">
                     <div class="flex items-center justify-between gap-2">
-                        <a href="{{ route('kasir.terminal') }}" class="flex items-center gap-3 min-w-0 group">
-                            <img src="{{ asset('images/logo-light.svg') }}" alt="{{ config('cafe.name') }}" class="h-8 w-auto shrink-0 group-hover:scale-105 transition-transform">
-                            <div class="truncate">
-                                <div class="font-medium tracking-tight text-sm text-[#FAF7F2] group-hover:text-[#D9973E] transition truncate">{{ config('cafe.name') }}</div>
-                                <div class="font-mono text-[9px] uppercase tracking-[0.22em] text-[#D9973E] font-semibold">Tablet POS System</div>
+                        <a href="{{ route('kasir.terminal') }}" class="flex items-center gap-2.5 min-w-0 group">
+                            <div class="w-9 h-9 rounded-xl bg-[#261D16] border border-[#3A2D22] flex items-center justify-center p-1.5 shrink-0 group-hover:border-[#D9973E] group-hover:scale-105 transition-all shadow-xs">
+                                <img src="{{ asset('images/logo-mark.svg') }}" alt="{{ config('cafe.name') }}" class="h-full w-full object-contain">
+                            </div>
+                            <div class="truncate min-w-0">
+                                <div class="font-bold tracking-tight text-sm text-[#FAF7F2] group-hover:text-[#D9973E] transition truncate leading-tight">{{ config('cafe.name') }}</div>
+                                <div class="font-mono text-[9px] uppercase tracking-[0.22em] text-[#D9973E] font-semibold mt-0.5">Tablet POS System</div>
                             </div>
                         </a>
                         <!-- Tombol Tutup (muncul di Terminal POS overlay atau mobile drawer) -->
@@ -240,17 +242,17 @@
                         <span>Pengeluaran Toko</span>
                     </a>
 
-                    <!-- External Public Link -->
+                    <!-- External Public Link (Redesain: Jelas, Terang, Elegan) -->
                     <div class="pt-2">
                         <a href="{{ route('landing') }}" target="_blank"
-                           class="flex items-center justify-between px-3 py-2 rounded-xl text-[11px] font-mono tracking-wider uppercase text-[#8A7B66] hover:text-[#D9973E] hover:bg-[#261D16] transition-colors">
-                            <span class="flex items-center gap-2">
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                           class="flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase bg-[#261D16]/80 hover:bg-[#32261C] border border-[#3A2D22] hover:border-[#D9973E]/60 text-[#FAF7F2] hover:text-[#D9973E] transition-all shadow-2xs group">
+                            <span class="flex items-center gap-2.5 font-bold">
+                                <svg class="w-4 h-4 text-[#D9973E] group-hover:scale-110 transition-transform shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
                                 </svg>
-                                Halaman Publik
+                                <span>Halaman Publik</span>
                             </span>
-                            <span class="text-xs">↗</span>
+                            <span class="text-xs text-[#D9973E] font-mono group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform">↗</span>
                         </a>
                     </div>
                 </nav>
@@ -769,20 +771,32 @@
 
         function highlightActiveNav(currentUrl) {
             const path = new URL(currentUrl, window.location.origin).pathname;
-            const navLinks = document.querySelectorAll('aside nav a[href]');
+            const navLinks = Array.from(document.querySelectorAll('aside nav a[href]'));
+
+            // Temukan link yang paling spesifik (path terpanjang yang cocok) agar submenu tidak mengaktifkan induk
+            let bestMatch = null;
+            let bestMatchLength = -1;
+
             navLinks.forEach(link => {
                 const linkHref = link.getAttribute('href');
                 if (!linkHref) return;
                 const linkPath = new URL(linkHref, window.location.origin).pathname;
 
-                let isActive = false;
+                let matches = false;
                 if (linkPath === '/kasir' && (path === '/kasir' || path === '/kasir/terminal')) {
-                    isActive = true;
-                } else if (linkPath !== '/kasir' && path.startsWith(linkPath)) {
-                    isActive = true;
+                    matches = true;
+                } else if (linkPath !== '/kasir' && (path === linkPath || path.startsWith(linkPath + '/'))) {
+                    matches = true;
                 }
 
-                if (isActive) {
+                if (matches && linkPath.length > bestMatchLength) {
+                    bestMatch = link;
+                    bestMatchLength = linkPath.length;
+                }
+            });
+
+            navLinks.forEach(link => {
+                if (link === bestMatch) {
                     link.classList.add('bg-[#D9973E]', 'text-[#1F1812]', 'font-bold', 'shadow-md', 'shadow-[#D9973E]/20');
                     link.classList.remove('text-[#A89A85]', 'hover:text-[#FAF7F2]', 'hover:bg-[#261D16]');
                 } else {
