@@ -659,10 +659,99 @@
                 } catch (err) {}
             });
 
+            // Intercept submit form kasir agar create/update/delete data berlangsung mulus tanpa reload halaman (musik tidak terputus)
+            document.addEventListener('submit', async function(e) {
+                const form = e.target;
+                if (!form || !form.action) return;
+                if (form.dataset.noPjax !== undefined || form.target === '_blank') return;
+
+                // Jika form memiliki data-confirm, biarkan modal-dialog.blade.php yang menanganinya lebih dulu
+                if (form.getAttribute('data-confirm')) return;
+
+                const formAction = form.getAttribute('action') || window.location.href;
+                try {
+                    const url = new URL(formAction, window.location.origin);
+                    if (url.origin !== window.location.origin) return;
+                    if (!url.pathname.startsWith('/kasir')) return;
+                    if (url.pathname.includes('/logout') || url.pathname.includes('/receipt') || url.pathname.includes('/ticket') || url.pathname.includes('/mini')) return;
+
+                    // Form GET (pencarian/filter): alihkan ke swapKasirPage
+                    if ((form.getAttribute('method') || 'GET').toUpperCase() === 'GET') {
+                        e.preventDefault();
+                        const formData = new FormData(form);
+                        const params = new URLSearchParams(formData);
+                        const targetUrl = url.pathname + (params.toString() ? '?' + params.toString() : '');
+                        swapKasirPage(targetUrl, true);
+                        return;
+                    }
+
+                    // Form POST / PUT / PATCH / DELETE:
+                    e.preventDefault();
+                    await window.submitKasirFormSeamless(form);
+                } catch (err) {}
+            });
+
             window.addEventListener('popstate', function() {
                 swapKasirPage(window.location.href, false);
             });
         });
+
+        function applyKasirContent(contentHtml, docTitle, targetUrl, pushState = true) {
+            const mainEl = document.querySelector('main');
+            if (!mainEl) return;
+
+            // Beritahu halaman sebelumnya untuk cleanup (timers, listeners, dll)
+            window.dispatchEvent(new CustomEvent('kasir:page-leave', {
+                detail: { from: window.location.pathname, to: targetUrl }
+            }));
+
+            if (docTitle) {
+                document.title = docTitle;
+            }
+
+            if (pushState && targetUrl) {
+                window.history.pushState({}, '', targetUrl);
+            }
+
+            // Beritahukan shell bahwa rute kasir telah berpindah
+            const newPath = targetUrl ? new URL(targetUrl, window.location.origin).pathname : window.location.pathname;
+            window.dispatchEvent(new CustomEvent('kasir:route-changed', {
+                detail: { url: targetUrl, pathname: newPath }
+            }));
+
+            highlightActiveNav(targetUrl || window.location.href);
+
+            // Bersihkan Alpine trees lama
+            if (window.Alpine && window.Alpine.destroyTree) {
+                window.Alpine.destroyTree(mainEl);
+            }
+
+            // Masukkan konten baru dengan kelas animasi halus
+            mainEl.classList.remove('kasir-page-enter');
+            void mainEl.offsetWidth; // Force reflow agar animasi re-trigger
+            mainEl.innerHTML = contentHtml;
+            mainEl.style.opacity = '1';
+            mainEl.style.pointerEvents = 'auto';
+            mainEl.classList.add('kasir-page-enter');
+
+            // Jalankan kembali tag script yang baru dimasukkan
+            const scripts = mainEl.querySelectorAll('script');
+            scripts.forEach(oldScript => {
+                const newScript = document.createElement('script');
+                Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                newScript.textContent = oldScript.textContent;
+                oldScript.parentNode.replaceChild(newScript, oldScript);
+            });
+
+            // Inisialisasi ulang Alpine pada elemen konten baru
+            if (window.Alpine && window.Alpine.initTree) {
+                window.Alpine.initTree(mainEl);
+            }
+
+            // Scroll konten kembali ke atas
+            const scrollable = mainEl.querySelector('.overflow-y-auto') || mainEl;
+            if (scrollable) scrollable.scrollTop = 0;
+        }
 
         async function swapKasirPage(url, pushState = true) {
             // 1. Tutup sidebar drawer seketika jika terbuka
@@ -740,56 +829,7 @@
                     });
                 }
 
-                // Beritahu halaman sebelumnya untuk cleanup (timers, listeners, dll)
-                window.dispatchEvent(new CustomEvent('kasir:page-leave', {
-                    detail: { from: window.location.pathname, to: url }
-                }));
-
-                if (docTitle) {
-                    document.title = docTitle;
-                }
-
-                if (pushState) {
-                    window.history.pushState({}, '', url);
-                }
-
-                // Beritahukan shell bahwa rute kasir telah berpindah
-                const newPath = new URL(url, window.location.origin).pathname;
-                window.dispatchEvent(new CustomEvent('kasir:route-changed', {
-                    detail: { url, pathname: newPath }
-                }));
-
-                // Bersihkan Alpine trees lama
-                if (window.Alpine && window.Alpine.destroyTree) {
-                    window.Alpine.destroyTree(mainEl);
-                }
-
-                // Masukkan konten baru dengan kelas animasi halus
-                mainEl.classList.remove('kasir-page-enter');
-                void mainEl.offsetWidth; // Force reflow agar animasi re-trigger
-                mainEl.innerHTML = contentHtml;
-                mainEl.style.opacity = '1';
-                mainEl.style.pointerEvents = 'auto';
-                mainEl.classList.add('kasir-page-enter');
-
-                // Jalankan kembali tag script yang baru dimasukkan
-                const scripts = mainEl.querySelectorAll('script');
-                scripts.forEach(oldScript => {
-                    const newScript = document.createElement('script');
-                    Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
-                    newScript.textContent = oldScript.textContent;
-                    oldScript.parentNode.replaceChild(newScript, oldScript);
-                });
-
-                // Inisialisasi ulang Alpine pada elemen konten baru
-                if (window.Alpine && window.Alpine.initTree) {
-                    window.Alpine.initTree(mainEl);
-                }
-
-                // Scroll konten kembali ke atas
-                const scrollable = mainEl.querySelector('.overflow-y-auto') || mainEl;
-                if (scrollable) scrollable.scrollTop = 0;
-
+                applyKasirContent(contentHtml, docTitle, url, pushState);
                 kasirProgressBar.done();
 
             } catch (err) {
@@ -802,6 +842,80 @@
                 window._isNavigatingKasirPage = false;
             }
         }
+
+        window.submitKasirFormSeamless = async function(form) {
+            const mainEl = document.querySelector('main');
+            if (!mainEl) {
+                form.submit();
+                return;
+            }
+
+            const submitBtn = form.querySelector('button[type="submit"], input[type="submit"]');
+            if (submitBtn) submitBtn.disabled = true;
+
+            kasirProgressBar.start();
+            mainEl.style.transition = 'opacity 0.15s ease';
+            mainEl.style.opacity = '0.7';
+
+            try {
+                const formData = new FormData(form);
+                const action = form.getAttribute('action') || window.location.href;
+                const method = (form.getAttribute('method') || 'POST').toUpperCase();
+
+                const res = await _origFetch(action, {
+                    method: method,
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                const html = await res.text();
+
+                // Cek apakah response berupa JSON (misal API endpoint)
+                let isJson = false;
+                let jsonData = null;
+                try {
+                    jsonData = JSON.parse(html);
+                    isJson = true;
+                } catch (e) {}
+
+                if (isJson && jsonData) {
+                    kasirProgressBar.done();
+                    mainEl.style.opacity = '1';
+                    if (submitBtn) submitBtn.disabled = false;
+                    if (window.customToast && jsonData.message) {
+                        window.customToast({
+                            message: jsonData.message,
+                            type: jsonData.success !== false ? 'success' : 'error'
+                        });
+                    }
+                    kasirPageCache.clear();
+                    swapKasirPage(window.location.href, false);
+                    return;
+                }
+
+                // Jika respons adalah halaman HTML (redirect hasil simpan/hapus/validasi)
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const newMain = doc.querySelector('main');
+
+                if (newMain) {
+                    kasirPageCache.clear();
+                    const targetUrl = res.url || action;
+                    applyKasirContent(newMain.innerHTML, doc.title || '', targetUrl, true);
+                    kasirProgressBar.done();
+                    return;
+                }
+
+                window.location.href = res.url || action;
+            } catch (err) {
+                console.warn('Seamless form submission failed, falling back to standard submit:', err);
+                form.submit();
+            } finally {
+                if (submitBtn) submitBtn.disabled = false;
+            }
+        };
 
         function highlightActiveNav(currentUrl) {
             const path = new URL(currentUrl, window.location.origin).pathname;

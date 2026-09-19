@@ -286,17 +286,56 @@
                                 @endif
                             </td>
 
-                            <!-- Status Toggle -->
-                            <td class="py-3.5 px-4 whitespace-nowrap text-center">
-                                <form method="POST" action="{{ route('kasir.promos.toggle', $promo) }}" class="inline">
+                            <!-- Status Toggle (In-Place Instant AJAX Toggle - Musik Tidak Terjeda) -->
+                            <td class="py-3.5 px-4 whitespace-nowrap text-center"
+                                x-data="{
+                                    isActive: {{ $promo->is_active ? 'true' : 'false' }},
+                                    loading: false,
+                                    async toggleStatus() {
+                                        if (this.loading) return;
+                                        this.loading = true;
+                                        try {
+                                            const res = await fetch('{{ route('kasir.promos.toggle', $promo) }}', {
+                                                method: 'PATCH',
+                                                headers: {
+                                                    'Content-Type': 'application/json',
+                                                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                                    'Accept': 'application/json',
+                                                    'X-Requested-With': 'XMLHttpRequest'
+                                                }
+                                            });
+                                            if (res.ok) {
+                                                const data = await res.json();
+                                                this.isActive = !!data.is_active;
+                                                if (window.customToast) {
+                                                    window.customToast({
+                                                        message: data.message || 'Status kupon berhasil diperbarui',
+                                                        type: this.isActive ? 'success' : 'info'
+                                                    });
+                                                }
+                                            } else {
+                                                $refs.fallbackForm.submit();
+                                            }
+                                        } catch (e) {
+                                            $refs.fallbackForm.submit();
+                                        } finally {
+                                            this.loading = false;
+                                        }
+                                    }
+                                }">
+                                <button type="button"
+                                        @click="toggleStatus()"
+                                        :disabled="loading"
+                                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider transition cursor-pointer disabled:opacity-50"
+                                        :class="isActive ? 'bg-[#5F7F42]/15 text-[#5F7F42] border border-[#5F7F42]/30 hover:bg-[#5F7F42]/25' : 'bg-gray-200 text-gray-600 border border-gray-300 hover:bg-gray-300'"
+                                        title="Klik untuk ubah status aktif/nonaktif">
+                                    <span class="w-1.5 h-1.5 rounded-full"
+                                          :class="isActive ? 'bg-[#5F7F42] animate-pulse' : 'bg-gray-400'"></span>
+                                    <span x-text="isActive ? 'Aktif' : 'Nonaktif'">{{ $promo->is_active ? 'Aktif' : 'Nonaktif' }}</span>
+                                </button>
+                                <form x-ref="fallbackForm" method="POST" action="{{ route('kasir.promos.toggle', $promo) }}" class="hidden">
                                     @csrf
                                     @method('PATCH')
-                                    <button type="submit"
-                                            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider transition cursor-pointer {{ $promo->is_active ? 'bg-[#5F7F42]/15 text-[#5F7F42] border border-[#5F7F42]/30 hover:bg-[#5F7F42]/25' : 'bg-gray-200 text-gray-600 border border-gray-300 hover:bg-gray-300' }}"
-                                            title="Klik untuk ubah status aktif/nonaktif">
-                                        <span class="w-1.5 h-1.5 rounded-full {{ $promo->is_active ? 'bg-[#5F7F42] animate-pulse' : 'bg-gray-400' }}"></span>
-                                        <span>{{ $promo->is_active ? 'Aktif' : 'Nonaktif' }}</span>
-                                    </button>
                                 </form>
                             </td>
 

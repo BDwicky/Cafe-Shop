@@ -275,7 +275,11 @@
             }).then((ok) => {
                 if (ok) {
                     form.removeAttribute('data-confirm');
-                    form.submit();
+                    if (typeof window.submitKasirFormSeamless === 'function' && form.closest('main')) {
+                        window.submitKasirFormSeamless(form);
+                    } else {
+                        form.submit();
+                    }
                 }
             });
         }

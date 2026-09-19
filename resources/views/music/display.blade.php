@@ -711,32 +711,36 @@
                         }
 
                         if (data.playback) {
-                            let newIsPlaying = hasMaster && (typeof data.playback.is_playing !== 'undefined' ? !!data.playback.is_playing : false);
+                            // Hitung jeda waktu sejak playback terakhir diperbarui kasir
+                            const serverTime = Number(data.server_time || 0);
+                            const serverUpdated = Number(data.playback.updated_at || 0);
+                            let diffSec = 0;
+                            if (serverTime > 0 && serverUpdated > 0) {
+                                diffSec = (serverTime - serverUpdated) / 1000;
+                            } else if (serverUpdated > 0) {
+                                diffSec = (Date.now() - serverUpdated) / 1000;
+                            }
 
                             // JIKA Display TV baru saja menerima sinkronisasi langsung (BroadcastChannel) dari kasir dalam 10 detik terakhir:
                             // Jangan biarkan polling HTTP yang tertunda/stale menimpa status play lokal!
                             const isLocalChannelFresh = this._lastLocalSyncTime && (Date.now() - this._lastLocalSyncTime < 10000);
+
+                            // Jika kasir tidak mengirim heartbeat/update selama lebih dari 18 detik, anggap kasir offline/tertutup
+                            // agar TV tidak memutar video hantu dan tidak terjadi loop pause/seek backwards!
+                            const isPlaybackAlive = (diffSec <= 18 || isLocalChannelFresh);
+                            let newIsPlaying = hasMaster && isPlaybackAlive && (typeof data.playback.is_playing !== 'undefined' ? !!data.playback.is_playing : false);
+
                             if (isLocalChannelFresh && this.isPlaying) {
                                 newIsPlaying = true;
                             }
 
                             const playStateChanged = this.isPlaying !== newIsPlaying;
                             this.isPlaying = newIsPlaying;
-                            this.hasMaster = hasMaster || isLocalChannelFresh;
+                            this.hasMaster = hasMaster && isPlaybackAlive;
 
                             let elapsed = 0;
-                            const serverTime = Number(data.server_time || 0);
-                            const serverUpdated = Number(data.playback.updated_at || 0);
-                            if (serverTime > 0 && serverUpdated > 0) {
-                                const diffSec = (serverTime - serverUpdated) / 1000;
-                                if (diffSec >= 0 && diffSec <= 30) {
-                                    elapsed = diffSec;
-                                }
-                            } else if (serverUpdated > 0) {
-                                const diffSec = (Date.now() - serverUpdated) / 1000;
-                                if (diffSec >= 0 && diffSec <= 15) {
-                                    elapsed = diffSec;
-                                }
+                            if (diffSec >= 0 && diffSec <= 18) {
+                                elapsed = diffSec;
                             }
 
                             let cur = Number(data.playback.current_time || 0) + (this.isPlaying ? elapsed : 0);
