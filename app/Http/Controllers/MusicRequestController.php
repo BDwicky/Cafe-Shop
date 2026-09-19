@@ -234,6 +234,7 @@ class MusicRequestController extends Controller
             'default_tracks_count' => $state['default_tracks_count'] ?? 0,
             'total_queue_count' => $state['total_queue_count'] ?? count($state['queue']),
             'ready_orders' => $readyOrders,
+            'latest_call' => Cache::get('soundstation_latest_order_call'),
             'playback' => $playback,
             'server_time' => (int) round(microtime(true) * 1000),
             'prayer_times' => $prayerScheduleData,

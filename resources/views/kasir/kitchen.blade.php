@@ -391,12 +391,18 @@
                     } catch (e) {}
                 }
 
-                // Sinyal TV Display jika status ready
-                if (newStatus === 'ready' && typeof BroadcastChannel !== 'undefined') {
-                    try {
-                        const ch = new BroadcastChannel('cafe_soundstation_sync');
-                        ch.postMessage({ type: 'ORDER_READY', orderId: id });
-                    } catch (e) {}
+                // Sinyal TV Display & SoundStation jika status ready
+                if (newStatus === 'ready') {
+                    if (typeof BroadcastChannel !== 'undefined') {
+                        try {
+                            const ch = new BroadcastChannel('cafe_soundstation_sync');
+                            ch.postMessage({ type: 'ORDER_READY', orderId: id });
+                            ch.close();
+                        } catch (e) {}
+                    }
+                    if (window.SoundStationHub && typeof window.SoundStationHub.sendCommand === 'function') {
+                        window.SoundStationHub.sendCommand('CHECK_READY_ORDERS', { orderId: id, isRecall: false });
+                    }
                 }
 
                 // 2. Kirim request AJAX ke server di background
@@ -461,7 +467,12 @@
                         try {
                             const ch = new BroadcastChannel('cafe_soundstation_sync');
                             ch.postMessage({ type: 'ORDER_READY', orderId: id, isRecall: true });
+                            ch.close();
                         } catch (e) {}
+                    }
+
+                    if (window.SoundStationHub && typeof window.SoundStationHub.sendCommand === 'function') {
+                        window.SoundStationHub.sendCommand('CHECK_READY_ORDERS', { orderId: id, isRecall: true });
                     }
 
                     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';

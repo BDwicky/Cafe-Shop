@@ -171,6 +171,7 @@
                 _isManualAdzan: false,
                 isTrackTransitioning: false,
                 _trackTransitionTimer: null,
+                _lastSeenCallTimestamp: 0,
 
                 get adzanDisplayTitlePrefix() {
                     if (!this.adzanPrayerName) return 'Memasuki Waktu ';
@@ -729,6 +730,21 @@
                             this.checkNewReadyOrders(data.ready_orders);
                         }
 
+                        if (data.latest_call && data.latest_call.timestamp) {
+                            if (!this._lastSeenCallTimestamp) {
+                                this._lastSeenCallTimestamp = data.latest_call.timestamp;
+                            } else if (data.latest_call.timestamp > this._lastSeenCallTimestamp) {
+                                this._lastSeenCallTimestamp = data.latest_call.timestamp;
+                                const targetOrder = (data.ready_orders && data.ready_orders.find(o => o.id === data.latest_call.order_id)) || {
+                                    id: data.latest_call.order_id,
+                                    code: data.latest_call.code,
+                                    customer_name: data.latest_call.customer_name,
+                                    order_type: data.latest_call.order_type
+                                };
+                                this.spawnFlyingCard(targetOrder, !!data.latest_call.is_recall);
+                            }
+                        }
+
                         if (data.prayer_times && data.prayer_times.active_prayer && data.adzan_settings && data.adzan_settings.enabled) {
                             this.isAdzanMode = true;
                             this.adzanPrayerName = data.prayer_times.active_prayer.name;
@@ -774,7 +790,7 @@
                     const cardObj = {
                         ...order,
                         isRecall: isRecall,
-                        uniqueKey: Date.now() + '-' + order.id
+                        uniqueKey: Date.now() + '-' + order.id + (isRecall ? '-recall' : '')
                     };
                     this.activeFlyingCards.push(cardObj);
 

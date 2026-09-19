@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Order;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Cache;
 use InvalidArgumentException;
 
 class KitchenService
@@ -101,6 +102,14 @@ class KitchenService
             $order->markPreparing();
         } elseif ($newStatus === 'ready') {
             $order->markReady();
+            Cache::put('soundstation_latest_order_call', [
+                'order_id' => $order->id,
+                'code' => $order->code,
+                'customer_name' => $order->customer_name,
+                'order_type' => $order->order_type,
+                'timestamp' => (int) round(microtime(true) * 1000),
+                'is_recall' => false,
+            ], 60);
         } elseif ($newStatus === 'completed') {
             $order->markCompleted();
         } else {
@@ -118,7 +127,17 @@ class KitchenService
         $order->update([
             'prep_status' => 'ready',
             'announced_at' => null,
+            'ready_at' => now(),
         ]);
+
+        Cache::put('soundstation_latest_order_call', [
+            'order_id' => $order->id,
+            'code' => $order->code,
+            'customer_name' => $order->customer_name,
+            'order_type' => $order->order_type,
+            'timestamp' => (int) round(microtime(true) * 1000),
+            'is_recall' => true,
+        ], 60);
     }
 
     /**

@@ -938,6 +938,10 @@ function navbarMusicWidget() {
                         }
                     } else if (e.data.type === 'ANNOUNCER_SETTINGS_UPDATED' && e.data.settings) {
                         this.applyAnnouncerSettings(e.data.settings);
+                    } else if (e.data.type === 'ORDER_READY') {
+                        if (this.isMasterHost) {
+                            this.checkReadyOrders();
+                        }
                     }
                 });
 
@@ -1001,12 +1005,12 @@ function navbarMusicWidget() {
                 this.loadYouTubeApi();
             }
 
-            // Polling KDS Announcer & Antrean (hanya saat tab aktif & tidak sedang navigasi)
+            // Polling KDS Announcer & Antrean (2 detik, tetap jalan meski tab di latar belakang)
             setInterval(() => {
-                if (this.isMasterHost && !document.hidden && !window._isNavigatingKasirPage) {
+                if (this.isMasterHost && !window._isNavigatingKasirPage) {
                     this.checkReadyOrders();
                 }
-            }, 8000);
+            }, 2000);
 
             setInterval(() => {
                 if (!document.hidden && !window._isNavigatingKasirPage) {
@@ -1485,6 +1489,11 @@ function navbarMusicWidget() {
                 case 'UPDATE_ANNOUNCER_SETTINGS':
                     this.applyAnnouncerSettings(data ? data.settings : null);
                     break;
+                case 'CHECK_READY_ORDERS':
+                    if (this.isMasterHost) {
+                        this.checkReadyOrders();
+                    }
+                    break;
                 case 'TOGGLE_MANUAL_ADZAN':
                     this.toggleManualAdzanMode(data ? data.action : null);
                     break;
@@ -1961,7 +1970,7 @@ function navbarMusicWidget() {
         },
 
         async checkReadyOrders() {
-            if (!this.voiceAnnouncerEnabled || this.isAnnouncing || document.hidden || window._isNavigatingKasirPage) return;
+            if (!this.voiceAnnouncerEnabled || this.isAnnouncing || window._isNavigatingKasirPage) return;
 
             try {
                 const res = await fetch('{{ route('kasir.music.announcements.pending') }}', {
