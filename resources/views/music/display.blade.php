@@ -138,6 +138,10 @@
     </style>
     <script>
         function tvDisplayApp() {
+            const initialPlayback = @json($playback ?? null);
+            const initialIsMasterAlive = {{ !empty($isMasterAlive) ? 'true' : 'false' }};
+            const initialIsPlaying = initialIsMasterAlive && initialPlayback && !!initialPlayback.is_playing;
+
             return {
                 nowPlaying: @json($playerState['now_playing']),
                 queue: @json($playerState['queue']),
@@ -150,12 +154,13 @@
                 displayMode: localStorage.getItem('tv_display_mode') || 'visualizer', // 'visualizer' atau 'video'
                 isFullscreen: false,
 
-                playbackCurrentTime: 0,
-                playbackDuration: 0,
+                playbackCurrentTime: Number(initialPlayback?.current_time || 0),
+                playbackDuration: Number(initialPlayback?.duration || {{ (float) ($playerState['now_playing']['duration_seconds'] ?? 0) }}),
                 playbackProgressPercent: 0,
                 playbackCurrentTimeFormatted: '00:00',
                 playbackDurationFormatted: '00:00',
-                isPlaying: false,
+                isPlaying: initialIsPlaying,
+                hasMaster: initialIsMasterAlive,
 
                 // YOUTUBE TV VIDEO PLAYER INSTANCE (100% SYNC DENGAN AUDIO KASIR)
                 tvPlayer: null,
@@ -195,7 +200,7 @@
                     return (remaining > 0 && remaining <= 6.5) || isEnded || this.isTrackTransitioning;
                 },
 
-                triggerTrackTransition(newTrack = null) {
+                triggerTrackTransition(newTrack = null, shouldPlay = null) {
                     if (this._trackTransitionTimer) {
                         clearTimeout(this._trackTransitionTimer);
                     }
@@ -206,7 +211,9 @@
                             this.queue = this.queue.filter(item => item.id !== this.nowPlaying.id && item.id !== this.nowPlaying.request_id);
                         }
                     }
-                    this.isPlaying = true;
+                    if (shouldPlay !== null) {
+                        this.isPlaying = !!shouldPlay;
+                    }
                     this.syncTvPlayerState();
 
                     // Selesaikan transisi visual setelah 1.5 detik
@@ -448,7 +455,7 @@
                             width: '100%',
                             videoId: initialVideoId || undefined,
                             playerVars: {
-                                autoplay: 1,
+                                autoplay: 0, // TV Display DILARANG autoplay sendiri tanpa perintah aktif dari Kasir!
                                 controls: 0,
                                 disablekb: 1,
                                 fs: 0,
@@ -474,14 +481,19 @@
 
                                     if (this.nowPlaying && this.nowPlaying.youtube_id) {
                                         const startSec = Math.max(0, Math.floor(this.playbackCurrentTime || 0));
-                                        this.tvPlayer.loadVideoById({
-                                            videoId: this.nowPlaying.youtube_id,
-                                            startSeconds: (startSec > 0 && startSec < 86400) ? startSec : 0,
-                                            suggestedQuality: 'hd1080'
-                                        });
                                         if (this.isPlaying) {
+                                            this.tvPlayer.loadVideoById({
+                                                videoId: this.nowPlaying.youtube_id,
+                                                startSeconds: (startSec > 0 && startSec < 86400) ? startSec : 0,
+                                                suggestedQuality: 'hd1080'
+                                            });
                                             event.target.playVideo();
                                         } else {
+                                            this.tvPlayer.cueVideoById({
+                                                videoId: this.nowPlaying.youtube_id,
+                                                startSeconds: (startSec > 0 && startSec < 86400) ? startSec : 0,
+                                                suggestedQuality: 'hd1080'
+                                            });
                                             event.target.pauseVideo();
                                         }
                                         setTimeout(() => {
@@ -560,11 +572,19 @@
                             this._initialSynced = false;
                             this._currentRate = 1;
                             const startSec = Math.max(0, Math.floor(this.playbackCurrentTime || 0));
-                            this.tvPlayer.loadVideoById({
-                                videoId: this.nowPlaying.youtube_id,
-                                startSeconds: (startSec > 0 && startSec < 86400) ? startSec : 0,
-                                suggestedQuality: 'hd1080'
-                            });
+                            if (this.isPlaying) {
+                                this.tvPlayer.loadVideoById({
+                                    videoId: this.nowPlaying.youtube_id,
+                                    startSeconds: (startSec > 0 && startSec < 86400) ? startSec : 0,
+                                    suggestedQuality: 'hd1080'
+                                });
+                            } else {
+                                this.tvPlayer.cueVideoById({
+                                    videoId: this.nowPlaying.youtube_id,
+                                    startSeconds: (startSec > 0 && startSec < 86400) ? startSec : 0,
+                                    suggestedQuality: 'hd1080'
+                                });
+                            }
                             this.disableCaptions();
                             setTimeout(() => {
                                 this.disableCaptions();
@@ -582,7 +602,7 @@
                                 this.tvPlayer.playVideo();
                             }
                         } else {
-                            if (state === YT.PlayerState.PLAYING) {
+                            if (state === YT.PlayerState.PLAYING || state === YT.PlayerState.BUFFERING) {
                                 this._isManualPausing = true;
                                 this.tvPlayer.pauseVideo();
                                 setTimeout(() => { this._isManualPausing = false; }, 500);
@@ -652,8 +672,11 @@
                         const data = await res.json();
                         const oldTrackId = this.nowPlaying ? (this.nowPlaying.id || this.nowPlaying.youtube_id) : null;
                         const newTrackId = data.now_playing ? (data.now_playing.id || data.now_playing.youtube_id) : null;
+                        const hasMaster = typeof data.has_master !== 'undefined' ? !!data.has_master : true;
+                        const isPlaybackPlaying = hasMaster && (data.playback ? !!data.playback.is_playing : false);
+
                         if (newTrackId && oldTrackId && newTrackId !== oldTrackId) {
-                            this.triggerTrackTransition(data.now_playing);
+                            this.triggerTrackTransition(data.now_playing, isPlaybackPlaying);
                         } else {
                             this.nowPlaying = data.now_playing;
                         }
@@ -676,12 +699,13 @@
                         }
 
                         if (data.playback) {
-                            let newIsPlaying = typeof data.playback.is_playing !== 'undefined' ? !!data.playback.is_playing : true;
+                            let newIsPlaying = hasMaster && (typeof data.playback.is_playing !== 'undefined' ? !!data.playback.is_playing : false);
                             if (data.closing_settings && data.closing_settings.is_store_closed && !data.playback.is_playing) {
                                 newIsPlaying = false;
                             }
                             const playStateChanged = this.isPlaying !== newIsPlaying;
                             this.isPlaying = newIsPlaying;
+                            this.hasMaster = hasMaster;
 
                             let elapsed = 0;
                             const serverTime = Number(data.server_time || 0);
@@ -720,11 +744,20 @@
                                     }
                                 }
                             }
-                        } else if (data.now_playing) {
-                            this.isPlaying = true;
-                            if (!this.playbackCurrentTime || this.playbackCurrentTime === 0) {
-                                this.playbackCurrentTimeFormatted = '00:00';
+
+                            // Pengamanan: Jika kasir sedang exit / pause, pastikan player TV tidak memutar video
+                            if (!this.isPlaying && this.tvPlayer && typeof this.tvPlayer.getPlayerState === 'function') {
+                                const st = this.tvPlayer.getPlayerState();
+                                if (st === YT.PlayerState.PLAYING || st === YT.PlayerState.BUFFERING) {
+                                    this._isManualPausing = true;
+                                    this.tvPlayer.pauseVideo();
+                                    setTimeout(() => { this._isManualPausing = false; }, 400);
+                                }
                             }
+                        } else {
+                            // Jika tidak ada data playback aktif dari server, status TV selalu jeda (paused)
+                            this.isPlaying = false;
+                            this.hasMaster = false;
                         }
 
                         this.syncTvPlayerState();

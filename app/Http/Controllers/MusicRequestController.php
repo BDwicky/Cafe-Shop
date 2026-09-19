@@ -223,6 +223,13 @@ class MusicRequestController extends Controller
                     $playback['duration'] = (float) $state['now_playing']['duration_seconds'];
                 }
             }
+        } else {
+            $playback = [
+                'current_time' => 0,
+                'duration' => (float) ($state['now_playing']['duration_seconds'] ?? 0),
+                'is_playing' => false,
+                'updated_at' => (int) round(microtime(true) * 1000),
+            ];
         }
 
         $voiceSettings = Cache::get('soundstation_voice_settings', []);
@@ -256,6 +263,7 @@ class MusicRequestController extends Controller
         }
 
         return response()->json([
+            'has_master' => $isMasterAlive,
             'now_playing' => $state['now_playing'],
             'now_playing_type' => $state['now_playing_type'] ?? 'default',
             'queue' => $state['queue'],
@@ -290,6 +298,25 @@ class MusicRequestController extends Controller
         $playerState = $this->musicService->getPlayerState();
         $readyOrders = Order::prepReady()->select('id', 'code', 'customer_name', 'order_type', 'prep_status')->get();
 
-        return view('music.display', compact('playerState', 'readyOrders'));
+        $master = Cache::get('soundstation_master_host');
+        $isMasterAlive = false;
+        if ($master && ! empty($master['updated_at'])) {
+            $isMasterAlive = (now()->timestamp - $master['updated_at']) < 25;
+        }
+
+        $playback = Cache::get('soundstation_playback_state');
+        if (! $isMasterAlive) {
+            if ($playback && is_array($playback)) {
+                $playback['is_playing'] = false;
+            } else {
+                $playback = [
+                    'current_time' => 0,
+                    'duration' => (float) ($playerState['now_playing']['duration_seconds'] ?? 0),
+                    'is_playing' => false,
+                ];
+            }
+        }
+
+        return view('music.display', compact('playerState', 'readyOrders', 'isMasterAlive', 'playback'));
     }
 }
