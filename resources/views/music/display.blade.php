@@ -1190,35 +1190,35 @@
                                 </div>
                             </template>
 
-                            <!-- OVERLAY BOTTOM INSIDE VIDEO FRAME (NOW PLAYING TITLE & LIVE SYNC PROGRESS BAR WITH 75% TRANSPARENCY & SUBTLE BLUR) -->
-                            <div class="absolute bottom-0 inset-x-0 z-20 bg-[#120D09]/25 backdrop-blur-md border-t border-white/10 px-4 py-3 sm:px-5 sm:py-3.5 flex flex-col gap-1.5 pointer-events-none select-none">
-                                <div class="flex items-center justify-between gap-3">
-                                    <div class="min-w-0 flex-1 flex items-center gap-2.5">
-                                        <span class="w-2 h-2 rounded-full bg-[#D9973E] shrink-0" :class="isPlaying ? 'animate-ping' : 'opacity-40'"></span>
-                                        <div class="min-w-0 flex-1">
-                                            <h2 class="text-sm sm:text-base font-serif font-bold text-[#FAF7F2] truncate drop-shadow-md leading-tight transition-all duration-500"
-                                                :class="isTrackTransitioning ? 'opacity-30 translate-y-0.5' : 'opacity-100 translate-y-0'"
-                                                x-text="nowPlaying ? (nowPlaying.song_title || nowPlaying.title) : 'Playlist Kafe KopiKita'"></h2>
-                                            <p class="text-xs text-[#D9973E] font-mono truncate mt-0.5 transition-all duration-500"
-                                               :class="isTrackTransitioning ? 'opacity-30' : 'opacity-100'"
-                                               x-text="nowPlaying ? (nowPlaying.artist || 'Artis Musik') : 'Chill Lo-Fi & Jazz Vibes'"></p>
-                                        </div>
+                            <!-- OVERLAY TOP INSIDE VIDEO FRAME (NOW PLAYING TITLE & ARTIST) -->
+                            <div class="absolute top-0 inset-x-0 z-20 bg-gradient-to-b from-[#120D09]/85 via-[#120D09]/45 to-transparent backdrop-blur-xs px-4 py-2.5 sm:px-5 sm:py-3 flex items-center justify-between gap-3 pointer-events-none select-none">
+                                <div class="min-w-0 flex-1 flex items-center gap-2.5">
+                                    <span class="w-2 h-2 rounded-full bg-[#D9973E] shrink-0" :class="isPlaying ? 'animate-ping' : 'opacity-40'"></span>
+                                    <div class="min-w-0 flex-1">
+                                        <h2 class="text-sm sm:text-base font-serif font-bold text-[#FAF7F2] truncate drop-shadow-md leading-tight transition-all duration-500"
+                                            :class="isTrackTransitioning ? 'opacity-30 translate-y-0.5' : 'opacity-100 translate-y-0'"
+                                            x-text="nowPlaying ? (nowPlaying.song_title || nowPlaying.title) : 'Playlist Kafe KopiKita'"></h2>
+                                        <p class="text-xs text-[#D9973E] font-mono truncate mt-0.5 transition-all duration-500"
+                                           :class="isTrackTransitioning ? 'opacity-30' : 'opacity-100'"
+                                           x-text="nowPlaying ? (nowPlaying.artist || 'Artis Musik') : 'Chill Lo-Fi & Jazz Vibes'"></p>
                                     </div>
-                                    <template x-if="nowPlaying && nowPlaying.customer_name">
-                                        <div class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-[#D9973E]/20 border border-[#D9973E]/40 rounded-lg shrink-0">
-                                            <span class="text-[10px] font-mono text-[#D9973E] font-semibold" x-text="'★ Kak ' + nowPlaying.customer_name"></span>
-                                        </div>
-                                    </template>
                                 </div>
+                                <template x-if="nowPlaying && nowPlaying.customer_name">
+                                    <div class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-[#D9973E]/20 border border-[#D9973E]/40 rounded-lg shrink-0 shadow-xs backdrop-blur-sm">
+                                        <span class="text-[10px] font-mono text-[#D9973E] font-semibold" x-text="'★ Kak ' + nowPlaying.customer_name"></span>
+                                    </div>
+                                </template>
+                            </div>
 
-                                <!-- Timeline Progress Bar in Overlay -->
-                                <div class="w-full flex items-center gap-2.5 pt-0.5">
-                                    <span class="font-mono text-[11px] text-[#D9973E] font-bold shrink-0" x-text="playbackCurrentTimeFormatted">00:00</span>
-                                    <div class="w-full bg-white/20 h-1.5 rounded-full overflow-hidden backdrop-blur-xs">
+                            <!-- OVERLAY BOTTOM INSIDE VIDEO FRAME (SLENDER LIVE SYNC PROGRESS BAR) -->
+                            <div class="absolute bottom-0 inset-x-0 z-20 bg-gradient-to-t from-[#120D09]/85 via-[#120D09]/35 to-transparent backdrop-blur-xs px-4 py-2 sm:px-5 sm:py-2.5 pointer-events-none select-none">
+                                <div class="w-full flex items-center gap-2.5">
+                                    <span class="font-mono text-[10px] sm:text-[11px] text-[#D9973E] font-bold shrink-0 drop-shadow" x-text="playbackCurrentTimeFormatted">00:00</span>
+                                    <div class="w-full bg-white/20 h-1 sm:h-1.5 rounded-full overflow-hidden backdrop-blur-xs shadow-inner">
                                         <div class="bg-gradient-to-r from-[#D9973E] via-[#E5A955] to-[#5F7F42] h-full transition-all duration-300 rounded-full shadow-[0_0_10px_rgba(217,151,62,0.8)]"
                                              :style="'width: ' + playbackProgressPercent + '%'"></div>
                                     </div>
-                                    <span class="font-mono text-[11px] text-[#FAF7F2] font-semibold shrink-0" x-text="playbackDurationFormatted">00:00</span>
+                                    <span class="font-mono text-[10px] sm:text-[11px] text-[#FAF7F2] font-semibold shrink-0 drop-shadow" x-text="playbackDurationFormatted">00:00</span>
                                 </div>
                             </div>
 
