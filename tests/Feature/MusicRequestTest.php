@@ -1149,11 +1149,11 @@ class MusicRequestTest extends TestCase
 
     public function test_status_endpoint_returns_closing_settings_and_safeguards_stale_master(): void
     {
-        // 1. Simulasikan master host mati (> 25 detik yang lalu)
+        // 1. Simulasikan master host mati (> 45 detik yang lalu)
         Cache::put('soundstation_master_host', [
             'client_id' => 'tab_stale_cashier',
-            'updated_at' => now()->subSeconds(30)->timestamp,
-        ], 30);
+            'updated_at' => now()->subSeconds(50)->timestamp,
+        ], 60);
 
         Cache::put('soundstation_playback_state', [
             'current_time' => 50.0,

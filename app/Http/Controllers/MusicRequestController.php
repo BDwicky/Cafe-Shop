@@ -207,12 +207,12 @@ class MusicRequestController extends Controller
         $master = Cache::get('soundstation_master_host');
         $isMasterAlive = false;
         if ($master && ! empty($master['updated_at'])) {
-            $isMasterAlive = (now()->timestamp - $master['updated_at']) < 25;
+            $isMasterAlive = (now()->timestamp - $master['updated_at']) < 45;
         }
 
         $playback = Cache::get('soundstation_playback_state');
 
-        // Jika Master Host mati / tidak ada heartbeat selama lebih dari 25 detik,
+        // Jika Master Host mati / tidak ada heartbeat selama lebih dari 45 detik,
         // paksa is_playing = false agar display TV tidak menampilkan status bermain saat kasir tutup/mati
         if ($playback && is_array($playback)) {
             if (! $isMasterAlive && ! empty($playback['is_playing'])) {

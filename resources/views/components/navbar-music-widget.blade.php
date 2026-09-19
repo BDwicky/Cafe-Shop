@@ -847,8 +847,8 @@ function navbarMusicWidget() {
                 } catch (e) {}
             }
 
-            // Jangan kirim HTTP request ke server jika tab sedang disembunyikan atau sedang navigasi halaman
-            if (document.hidden || window._isNavigatingKasirPage) return;
+            // Jangan kirim HTTP request ke server jika sedang dalam proses navigasi antar halaman kasir
+            if (window._isNavigatingKasirPage) return;
 
             // Batasi request HTTP heartbeat ke server minimal berselang 6 detik
             const now = Date.now();

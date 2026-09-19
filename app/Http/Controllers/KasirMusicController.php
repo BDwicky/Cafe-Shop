@@ -476,7 +476,7 @@ class KasirMusicController extends Controller
         // Jika ada perangkat remote yang mencoba syncPlayback, abaikan agar display TV tidak reset ke 0.
         if ($master && ! empty($master['client_id']) && ! empty($clientId) && $master['client_id'] !== $clientId) {
             $now = now()->timestamp;
-            $isMasterStale = ($now - ($master['updated_at'] ?? 0)) > 25;
+            $isMasterStale = ($now - ($master['updated_at'] ?? 0)) > 45;
             if (! $isMasterStale) {
                 return response()->json(['status' => 'ignored', 'message' => 'Hanya master yang dapat memperbarui playback']);
             }
@@ -503,6 +503,11 @@ class KasirMusicController extends Controller
         ];
 
         Cache::put('soundstation_playback_state', $state, now()->addMinutes(2));
+
+        if ($master && ! empty($master['client_id']) && $master['client_id'] === $clientId) {
+            $master['updated_at'] = now()->timestamp;
+            Cache::put('soundstation_master_host', $master, now()->addSeconds(60));
+        }
 
         if ($currentTrack && is_array($currentTrack)) {
             if (! isset($currentTrack['song_title']) && isset($currentTrack['title'])) {
@@ -629,7 +634,7 @@ class KasirMusicController extends Controller
         }
 
         $existingMaster['updated_at'] = $now;
-        Cache::put('soundstation_master_host', $existingMaster, now()->addSeconds(30));
+        Cache::put('soundstation_master_host', $existingMaster, now()->addSeconds(60));
 
         // Perbarui playback state jika dikirim
         if ($request->has('current_time') || $request->has('current_track')) {
@@ -678,7 +683,7 @@ class KasirMusicController extends Controller
 
         $isMasterAlive = false;
         if ($master && ! empty($master['updated_at'])) {
-            $isMasterAlive = (now()->timestamp - $master['updated_at']) < 20;
+            $isMasterAlive = (now()->timestamp - $master['updated_at']) < 45;
         }
 
         $playerState = $this->musicService->getPlayerState();

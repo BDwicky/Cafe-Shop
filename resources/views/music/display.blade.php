@@ -257,20 +257,31 @@
                                 this.playbackProgressPercent = Number(t.progressPercent || 0);
                                 this.playbackCurrentTimeFormatted = t.currentTimeFormatted || this.formatSeconds(this.playbackCurrentTime);
                                 this.playbackDurationFormatted = t.durationFormatted || this.formatSeconds(this.playbackDuration);
+                                this._lastLocalSyncTime = Date.now();
+
+                                const oldPlaying = this.isPlaying;
                                 if (typeof t.isPlaying !== 'undefined') {
                                     this.isPlaying = !!t.isPlaying;
                                 }
-                                this.syncTvPlayerState();
+                                if (oldPlaying !== this.isPlaying || this.currentTvVideoId !== (this.nowPlaying?.youtube_id || '')) {
+                                    this.syncTvPlayerState();
+                                }
                             } else if (data.type === 'STATE_UPDATE' && data.state) {
+                                this._lastLocalSyncTime = Date.now();
                                 const s = data.state;
+                                let trackChanged = false;
                                 if (s.currentTrack) {
+                                    const oldYt = this.nowPlaying ? this.nowPlaying.youtube_id : null;
                                     this.nowPlaying = s.currentTrack;
+                                    if (oldYt !== (this.nowPlaying ? this.nowPlaying.youtube_id : null)) {
+                                        trackChanged = true;
+                                    }
                                     if (Array.isArray(this.queue)) {
                                         this.queue = this.queue.filter(item => item.id !== this.nowPlaying.id && item.id !== this.nowPlaying.request_id);
                                     }
                                 }
+                                const oldPlaying = this.isPlaying;
                                 if (typeof s.isPlaying !== 'undefined') {
-                                    const oldPlaying = this.isPlaying;
                                     this.isPlaying = !!s.isPlaying;
                                     if (oldPlaying !== this.isPlaying && this.tvPlayer) {
                                         if (!this.isPlaying && typeof this.tvPlayer.pauseVideo === 'function') {
@@ -286,7 +297,9 @@
                                 if (Array.isArray(s.queue)) {
                                     this.queue = s.queue.filter(item => !this.nowPlaying || (item.id !== this.nowPlaying.id && item.id !== this.nowPlaying.request_id));
                                 }
-                                this.syncTvPlayerState();
+                                if (trackChanged || oldPlaying !== this.isPlaying) {
+                                    this.syncTvPlayerState();
+                                }
                             } else if (data.type === 'SYNC_STATE') {
                                 this.applySyncData(data);
                                 this.syncTvPlayerState();
@@ -703,9 +716,17 @@
                             if (data.closing_settings && data.closing_settings.is_store_closed && !data.playback.is_playing) {
                                 newIsPlaying = false;
                             }
+
+                            // JIKA Display TV baru saja menerima sinkronisasi langsung (BroadcastChannel) dari kasir dalam 10 detik terakhir:
+                            // Jangan biarkan polling HTTP yang tertunda/stale menimpa status play lokal!
+                            const isLocalChannelFresh = this._lastLocalSyncTime && (Date.now() - this._lastLocalSyncTime < 10000);
+                            if (isLocalChannelFresh && this.isPlaying) {
+                                newIsPlaying = true;
+                            }
+
                             const playStateChanged = this.isPlaying !== newIsPlaying;
                             this.isPlaying = newIsPlaying;
-                            this.hasMaster = hasMaster;
+                            this.hasMaster = hasMaster || isLocalChannelFresh;
 
                             let elapsed = 0;
                             const serverTime = Number(data.server_time || 0);
