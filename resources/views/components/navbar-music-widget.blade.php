@@ -2316,7 +2316,7 @@ function navbarMusicWidget() {
                     this.manualAdzanTimer = null;
                 }
 
-                let prayerName = 'Waktu Adzan';
+                let prayerName = 'Adzan';
                 if (this.prayerSchedule) {
                     const now = new Date();
                     const wibStr = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Jakarta', hour12: false });

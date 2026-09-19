@@ -727,7 +727,7 @@ class KasirMusicController extends Controller
             if ($shouldStart) {
                 Cache::put('soundstation_manual_adzan', [
                     'active' => true,
-                    'prayer' => $validated['data']['prayer'] ?? 'Waktu Adzan',
+                    'prayer' => $validated['data']['prayer'] ?? 'Adzan',
                     'started_at' => now()->timestamp,
                     'duration_minutes' => $durationMinutes,
                 ], now()->addMinutes($durationMinutes));
@@ -937,7 +937,7 @@ class KasirMusicController extends Controller
 
         if ($manualAdzan && ! empty($manualAdzan['active'])) {
             $scheduleData['active_prayer'] = [
-                'name' => $manualAdzan['prayer'] ?? 'Waktu Adzan',
+                'name' => $manualAdzan['prayer'] ?? 'Adzan',
                 'time' => date('H:i', $manualAdzan['started_at'] ?? time()),
                 'duration_minutes' => (int) ($manualAdzan['duration_minutes'] ?? $duration),
                 'is_manual' => true,

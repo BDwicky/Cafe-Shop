@@ -218,7 +218,7 @@ class MusicRequestController extends Controller
 
         if ($manualAdzan && ! empty($manualAdzan['active'])) {
             $prayerScheduleData['active_prayer'] = [
-                'name' => $manualAdzan['prayer'] ?? 'Waktu Adzan',
+                'name' => $manualAdzan['prayer'] ?? 'Adzan',
                 'time' => date('H:i', $manualAdzan['started_at'] ?? time()),
                 'duration_minutes' => (int) ($manualAdzan['duration_minutes'] ?? $adzanDuration),
                 'is_manual' => true,
