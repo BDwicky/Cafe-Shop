@@ -97,4 +97,21 @@ class PrayerTimeAndAdzanTest extends TestCase
                 ],
             ]);
     }
+
+    public function test_kasir_can_send_toggle_manual_adzan_command(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->postJson(route('kasir.music.master.command'), [
+            'command' => 'TOGGLE_MANUAL_ADZAN',
+            'data' => [
+                'action' => 'start',
+            ],
+        ]);
+
+        $response->assertOk()
+            ->assertJson([
+                'status' => 'queued',
+            ]);
+    }
 }

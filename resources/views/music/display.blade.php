@@ -169,6 +169,7 @@
                 isAdzanMode: false,
                 adzanPrayerName: '',
                 _isTestAdzan: false,
+                _isManualAdzan: false,
 
                 init() {
                     this.isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
@@ -240,10 +241,12 @@
                                 this.isAdzanMode = true;
                                 this.adzanPrayerName = data.prayer || 'Adzan';
                                 this._isTestAdzan = !!data.isTest;
+                                this._isManualAdzan = !!data.isManual;
                             } else if (data.type === 'ADZAN_MODE_ENDED') {
                                 this.isAdzanMode = false;
                                 this.adzanPrayerName = '';
                                 this._isTestAdzan = false;
+                                this._isManualAdzan = false;
                             }
                         };
                     }
@@ -601,7 +604,7 @@
                         if (data.prayer_times && data.prayer_times.active_prayer && data.adzan_settings && data.adzan_settings.enabled) {
                             this.isAdzanMode = true;
                             this.adzanPrayerName = data.prayer_times.active_prayer.name;
-                        } else if (!this._isTestAdzan) {
+                        } else if (!this._isTestAdzan && !this._isManualAdzan) {
                             this.isAdzanMode = false;
                             this.adzanPrayerName = '';
                         }
@@ -793,6 +796,40 @@
                     }
                 },
 
+                toggleManualAdzan() {
+                    const newAction = this.isAdzanMode ? 'stop' : 'start';
+                    if (this.channel) {
+                        this.channel.postMessage({
+                            type: 'COMMAND',
+                            command: 'TOGGLE_MANUAL_ADZAN',
+                            data: { action: newAction }
+                        });
+                    }
+                    try {
+                        fetch('{{ route('kasir.music.master.command') }}', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                            },
+                            body: JSON.stringify({
+                                command: 'TOGGLE_MANUAL_ADZAN',
+                                data: { action: newAction }
+                            })
+                        }).catch(() => {});
+                    } catch (e) {}
+
+                    if (newAction === 'start') {
+                        this.isAdzanMode = true;
+                        this._isManualAdzan = true;
+                        this.adzanPrayerName = this.adzanPrayerName || 'Waktu Adzan';
+                    } else {
+                        this.isAdzanMode = false;
+                        this._isManualAdzan = false;
+                        this.adzanPrayerName = '';
+                    }
+                },
+
                 toggleFullscreen() {
                     if (!document.fullscreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
                         const docElm = document.documentElement;
@@ -954,6 +991,17 @@
 
             <!-- Mode Switcher, Sound Toggle, Fullscreen & Real-time Clock -->
             <div class="flex items-center gap-2.5 sm:gap-3">
+                <!-- Manual Toggle Mode Adzan -->
+                <button type="button" @click="toggleManualAdzan()"
+                        class="px-2.5 py-1.5 rounded-xl border font-mono text-xs transition flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer"
+                        :class="isAdzanMode
+                            ? 'bg-[#5F7F42] border-[#85BF5C] text-white animate-pulse shadow-[0_0_12px_rgba(95,127,66,0.6)]'
+                            : 'bg-[#261D16] hover:bg-[#32261C] border-[#3A2D22] hover:border-[#D9973E] text-[#D9973E]'"
+                        :title="isAdzanMode ? 'Mode Adzan Sedang Aktif (Klik untuk Matikan)' : 'Aktifkan Mode Adzan Manual (Volume kafe diturunkan)'">
+                    <span>🕌</span>
+                    <span class="hidden sm:inline font-bold" x-text="isAdzanMode ? 'Adzan Aktif' : 'Adzan'"></span>
+                </button>
+
                 <!-- Toggle Mode: Visualizer vs Video -->
                 <button type="button" @click="toggleDisplayMode()"
                         class="px-3 py-1.5 bg-[#261D16] hover:bg-[#32261C] border border-[#3A2D22] hover:border-[#D9973E] text-[#D9973E] font-mono text-xs uppercase tracking-wider transition rounded-xl flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer"

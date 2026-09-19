@@ -206,6 +206,25 @@
         </div>
     </div>
 
+    <!-- TOMBOL TRIGGER MODE ADZAN MANUAL (KASIR / BARISTA) -->
+    <div class="mt-2 pt-2 border-t border-[#261D16]">
+        <button type="button"
+                @click="toggleManualAdzanMode()"
+                :title="isAdzanMode ? 'Mode Adzan Sedang Aktif (Klik untuk Matikan)' : 'Aktifkan Mode Adzan Manual (Volume otomatis diturunkan ke 10%)'"
+                class="w-full py-1.5 px-2.5 rounded-lg font-mono text-[9px] font-bold flex items-center justify-between transition-all cursor-pointer border shadow-sm"
+                :class="isAdzanMode
+                    ? 'bg-[#5F7F42] border-[#85BF5C] text-white animate-pulse shadow-[0_0_12px_rgba(95,127,66,0.6)]'
+                    : 'bg-[#1C1611] hover:bg-[#2A211A] border-[#32261C] hover:border-[#D9973E]/50 text-[#D9973E]'">
+            <span class="flex items-center gap-1.5 truncate">
+                <span class="text-xs shrink-0">🕌</span>
+                <span class="truncate" x-text="isAdzanMode ? ('Mode Adzan Aktif (' + (activePrayerName || 'Adzan') + ')') : 'Mode Adzan Manual'"></span>
+            </span>
+            <span class="text-[8px] uppercase tracking-wider font-semibold opacity-90 shrink-0 ml-1"
+                  :class="isAdzanMode ? 'text-white underline' : 'text-[#A89A85]'"
+                  x-text="isAdzanMode ? 'Matikan ✕' : 'Nyalakan ↗'"></span>
+        </button>
+    </div>
+
     <!-- ANNOUNCER STATUS ALERT (TAMPIL SAAT VOICE ANNOUNCER SEDANG BERBICARA) -->
     <div x-show="isAnnouncing"
          x-transition:enter="transition ease-out duration-150"
@@ -428,6 +447,8 @@ function navbarMusicWidget() {
         // PRAYER TIMES & ADZAN RESPECT MODE (SURABAYA & SIDOARJO)
         prayerSchedule: null,
         isAdzanMode: false,
+        isManualAdzan: false,
+        manualAdzanTimer: null,
         activePrayerName: '',
         preAdzanVolume: null,
         adzanTargetVolume: 10,
@@ -877,12 +898,14 @@ function navbarMusicWidget() {
                         }
                     } else if (e.data.type === 'ADZAN_MODE_STARTED') {
                         this.isAdzanMode = true;
+                        this.isManualAdzan = !!e.data.isManual;
                         this.activePrayerName = e.data.prayer || 'Adzan';
                         if (!this.isMasterHost && typeof e.data.targetVolume !== 'undefined') {
                             this.volume = e.data.targetVolume;
                         }
                     } else if (e.data.type === 'ADZAN_MODE_ENDED') {
                         this.isAdzanMode = false;
+                        this.isManualAdzan = false;
                         this.activePrayerName = '';
                         if (!this.isMasterHost && typeof e.data.restoreVolume !== 'undefined') {
                             this.volume = e.data.restoreVolume;
@@ -1400,6 +1423,9 @@ function navbarMusicWidget() {
                     break;
                 case 'TEST_ADZAN_MODE':
                     this.triggerTestAdzanMode();
+                    break;
+                case 'TOGGLE_MANUAL_ADZAN':
+                    this.toggleManualAdzanMode(data ? data.action : null);
                     break;
                 case 'REFRESH_QUEUE':
                     this.refreshQueue();
@@ -2151,7 +2177,7 @@ function navbarMusicWidget() {
                     }
                 }
             } else {
-                if (this.isAdzanMode) {
+                if (this.isAdzanMode && !this.isManualAdzan) {
                     const finishedPrayer = this.activePrayerName || 'Adzan';
                     this.isAdzanMode = false;
                     this.activePrayerName = '';
@@ -2182,6 +2208,117 @@ function navbarMusicWidget() {
 
                     this.preAdzanVolume = null;
                 }
+            }
+        },
+
+        toggleManualAdzanMode(forceAction = null) {
+            const shouldStart = (forceAction === 'start') || (forceAction === null && !this.isAdzanMode);
+
+            if (shouldStart) {
+                if (this.manualAdzanTimer) {
+                    clearTimeout(this.manualAdzanTimer);
+                    this.manualAdzanTimer = null;
+                }
+
+                let prayerName = 'Waktu Adzan';
+                if (this.prayerSchedule) {
+                    const now = new Date();
+                    const wibStr = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Jakarta', hour12: false });
+                    const [h, m] = wibStr.split(':').map(Number);
+                    const curMin = h * 60 + m;
+                    const prayers = [
+                        { key: 'subuh', name: 'Subuh' },
+                        { key: 'dzuhur', name: (now.getDay() === 5 ? "Jum'at" : 'Dzuhur') },
+                        { key: 'ashar', name: 'Ashar' },
+                        { key: 'maghrib', name: 'Maghrib' },
+                        { key: 'isya', name: 'Isya' }
+                    ];
+                    let closestDiff = 9999;
+                    for (const p of prayers) {
+                        if (this.prayerSchedule[p.key]) {
+                            const [ph, pm] = this.prayerSchedule[p.key].split(':').map(Number);
+                            const diff = Math.abs((ph * 60 + pm) - curMin);
+                            if (diff < closestDiff && diff < 60) {
+                                closestDiff = diff;
+                                prayerName = p.name;
+                            }
+                        }
+                    }
+                }
+
+                this.isAdzanMode = true;
+                this.isManualAdzan = true;
+                this.activePrayerName = prayerName;
+                this.preAdzanVolume = (this.volume && this.volume > 0) ? this.volume : (parseInt(localStorage.getItem('pos_music_volume') || '75'));
+                const targetVol = Math.max(0, Math.min(100, this.adzanTargetVolume ?? 10));
+
+                if (window.customToast) {
+                    window.customToast({
+                        message: '🕌 Mode Adzan Diaktifkan (Manual). Volume musik diturunkan ke ' + targetVol + '% selama adzan berkumandang.',
+                        type: 'info',
+                        duration: 6000
+                    });
+                }
+
+                if (this.isMasterHost) {
+                    this.fadeAudio(this.volume, targetVol, 3000);
+                } else {
+                    window.SoundStationHub.sendCommand('TOGGLE_MANUAL_ADZAN', { action: 'start' });
+                }
+
+                if (window.SoundStationHub && window.SoundStationHub.channel) {
+                    window.SoundStationHub.channel.postMessage({
+                        type: 'ADZAN_MODE_STARTED',
+                        prayer: this.activePrayerName,
+                        targetVolume: targetVol,
+                        durationMinutes: this.adzanDurationMinutes || 5,
+                        isManual: true
+                    });
+                }
+
+                // Auto-expiry safety timer (sesuai durasi adzan, default 5 menit)
+                const durationMs = (this.adzanDurationMinutes || 5) * 60 * 1000;
+                this.manualAdzanTimer = setTimeout(() => {
+                    if (this.isAdzanMode && this.isManualAdzan) {
+                        this.toggleManualAdzanMode('stop');
+                    }
+                }, durationMs);
+
+            } else {
+                if (this.manualAdzanTimer) {
+                    clearTimeout(this.manualAdzanTimer);
+                    this.manualAdzanTimer = null;
+                }
+
+                const finishedPrayer = this.activePrayerName || 'Adzan';
+                this.isAdzanMode = false;
+                this.isManualAdzan = false;
+                this.activePrayerName = '';
+                const restoreVol = (this.preAdzanVolume !== null && this.preAdzanVolume > 0) ? this.preAdzanVolume : 75;
+
+                if (window.customToast) {
+                    window.customToast({
+                        message: '✓ Mode Adzan dimatikan. Volume musik dikembalikan normal (' + restoreVol + '%).',
+                        type: 'success',
+                        duration: 5000
+                    });
+                }
+
+                if (this.isMasterHost) {
+                    this.fadeAudio(this.adzanTargetVolume ?? 10, restoreVol, 3000);
+                } else {
+                    window.SoundStationHub.sendCommand('TOGGLE_MANUAL_ADZAN', { action: 'stop' });
+                }
+
+                if (window.SoundStationHub && window.SoundStationHub.channel) {
+                    window.SoundStationHub.channel.postMessage({
+                        type: 'ADZAN_MODE_ENDED',
+                        prayer: finishedPrayer,
+                        restoreVolume: restoreVol
+                    });
+                }
+
+                this.preAdzanVolume = null;
             }
         },
 

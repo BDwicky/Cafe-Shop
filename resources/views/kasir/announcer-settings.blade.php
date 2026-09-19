@@ -595,15 +595,26 @@
                         </div>
                     </template>
 
-                    <!-- Tombol Uji Coba Mode Adzan -->
-                    <button type="button"
-                            @click="testAdzanMode()"
-                            :disabled="isTestingAdzan"
-                            class="w-full py-2.5 px-4 bg-[#5F7F42]/10 hover:bg-[#5F7F42]/20 border border-[#5F7F42]/40 text-[#3C5726] font-mono text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50">
-                        <span x-show="!isTestingAdzan">🕌 Uji Coba Efek Fade & Toast Adzan</span>
-                        <span x-show="isTestingAdzan" class="animate-spin">⟳</span>
-                        <span x-show="isTestingAdzan">Sedang Menguji Coba Mode Adzan (8 Detik)...</span>
-                    </button>
+                    <!-- Tombol Trigger Manual & Uji Coba Mode Adzan -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                        <button type="button"
+                                @click="toggleManualAdzan()"
+                                class="py-2.5 px-4 font-mono text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 cursor-pointer border shadow-sm active:scale-98"
+                                :class="isManualAdzanActive
+                                    ? 'bg-[#5F7F42] border-[#85BF5C] text-white animate-pulse shadow-[0_0_12px_rgba(95,127,66,0.5)]'
+                                    : 'bg-[#5F7F42]/10 hover:bg-[#5F7F42]/20 border-[#5F7F42]/40 text-[#3C5726]'">
+                            <span>🕌</span>
+                            <span x-text="isManualAdzanActive ? 'Matikan Mode Adzan ✕' : 'Nyalakan Mode Adzan Manual ↗'"></span>
+                        </button>
+                        <button type="button"
+                                @click="testAdzanMode()"
+                                :disabled="isTestingAdzan"
+                                class="py-2.5 px-4 bg-[#1F1812]/5 hover:bg-[#1F1812]/10 border border-[#E4DCCC] text-[#5C4D3C] font-mono text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-98">
+                            <span x-show="!isTestingAdzan">⏱ Uji Coba Singkat (8 Detik)</span>
+                            <span x-show="isTestingAdzan" class="animate-spin">⟳</span>
+                            <span x-show="isTestingAdzan">Menguji Coba (8 Detik)...</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -647,6 +658,7 @@ function announcerSettingsManager(initialSettings) {
         saving: false,
         prayerSchedule: @js($prayerSchedule ?? null),
         isTestingAdzan: false,
+        isManualAdzanActive: false,
 
         testAdzanMode() {
             if (this.isTestingAdzan) return;
@@ -677,6 +689,31 @@ function announcerSettingsManager(initialSettings) {
                 window.speechSynthesis.onvoiceschanged = () => {
                     this.loadBrowserVoices();
                 };
+            }
+
+            // Dengarkan sinkronisasi status adzan dari host pemutar
+            if (typeof BroadcastChannel !== 'undefined') {
+                try {
+                    const bc = new BroadcastChannel('cafe_soundstation_sync');
+                    bc.onmessage = (e) => {
+                        if (e.data && e.data.type === 'ADZAN_MODE_STARTED') {
+                            this.isManualAdzanActive = true;
+                        } else if (e.data && e.data.type === 'ADZAN_MODE_ENDED') {
+                            this.isManualAdzanActive = false;
+                        }
+                    };
+                } catch (e) {}
+            }
+        },
+
+        toggleManualAdzan() {
+            this.isManualAdzanActive = !this.isManualAdzanActive;
+            const action = this.isManualAdzanActive ? 'start' : 'stop';
+
+            if (window.SoundStationHub && typeof window.SoundStationHub.sendCommand === 'function') {
+                window.SoundStationHub.sendCommand('TOGGLE_MANUAL_ADZAN', { action: action });
+            } else if (window.SoundStation && typeof window.SoundStation.toggleManualAdzanMode === 'function') {
+                window.SoundStation.toggleManualAdzanMode(action);
             }
         },
 
