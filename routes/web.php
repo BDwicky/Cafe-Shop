@@ -86,10 +86,11 @@ Route::middleware('auth')->prefix('kasir')->name('kasir.')->group(function () {
         Route::post('/master-host/release', [KasirMusicController::class, 'releaseMasterHost'])->name('master.release');
     });
 
-    // Pengaturan Suara & Aksen Announcer
+    // Pengaturan Suara & Aksen Announcer serta Mode Adzan
     Route::get('/announcer', [KasirMusicController::class, 'announcerSettings'])->name('announcer.settings');
     Route::post('/announcer', [KasirMusicController::class, 'saveAnnouncerSettings'])->name('announcer.save');
     Route::get('/announcer/settings-json', [KasirMusicController::class, 'announcerSettingsJson'])->name('announcer.json');
+    Route::get('/music/prayer-times', [KasirMusicController::class, 'prayerTimes'])->name('music.prayer-times');
 
     // Kelola menu & kategori
     Route::resource('menu', MenuController::class)->except(['show']);

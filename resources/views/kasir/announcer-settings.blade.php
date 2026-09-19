@@ -492,6 +492,121 @@
                 </div>
             </div>
 
+            <!-- BAGIAN 5: MODE HORMAT WAKTU ADZAN (SURABAYA & SIDOARJO) -->
+            <div class="bg-white border border-[#E4DCCC] rounded-2xl p-5 sm:p-6 shadow-xs space-y-5">
+                <div class="border-b border-[#E4DCCC] pb-3.5 flex items-start justify-between gap-3">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xl">🕌</span>
+                            <h2 class="text-lg font-serif font-bold text-[#1F1812]">
+                                5. Mode Hormat Waktu Adzan
+                            </h2>
+                        </div>
+                        <p class="text-xs text-[#7A6A58] mt-1">
+                            Otomatis menurunkan volume musik kafe saat adzan berkumandang (Wilayah <strong>Surabaya & Sidoarjo</strong>).
+                        </p>
+                    </div>
+
+                    <!-- Switch Toggle -->
+                    <label class="relative inline-flex items-center cursor-pointer shrink-0 mt-0.5">
+                        <input type="checkbox" x-model="form.adzan_mode_enabled" class="sr-only peer">
+                        <div class="w-11 h-6 bg-[#D8CFC4] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#D8CFC4] after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#5F7F42]"></div>
+                    </label>
+                </div>
+
+                <div x-show="form.adzan_mode_enabled" x-transition class="space-y-4">
+                    <!-- Slider Target Volume Adzan -->
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="font-mono font-bold text-[#5C4D3C] uppercase tracking-wider">Persentase Volume saat Adzan:</span>
+                            <span class="font-mono font-bold px-2.5 py-0.5 rounded-full bg-[#5F7F42]/15 text-[#5F7F42] text-xs"
+                                  x-text="form.adzan_target_volume === 0 ? '0% (Mute/Hening Total)' : form.adzan_target_volume + '%'"></span>
+                        </div>
+                        <input type="range" min="0" max="30" step="5" x-model="form.adzan_target_volume"
+                               class="w-full accent-[#5F7F42] cursor-pointer h-2 bg-[#E4DCCC] rounded-lg">
+                        <div class="flex justify-between text-[10px] text-[#A89A85] font-mono">
+                            <span>0% (Hening)</span>
+                            <span class="text-[#5F7F42] font-bold">10% (Rekomendasi)</span>
+                            <span>20% (Latar Pelan)</span>
+                            <span>30%</span>
+                        </div>
+                    </div>
+
+                    <!-- Durasi Adzan -->
+                    <div class="space-y-2 pt-2 border-t border-[#F2EDE4]">
+                        <label class="block text-xs font-mono font-bold text-[#5C4D3C] uppercase tracking-wider">
+                            Durasi Mode Adzan:
+                        </label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <label class="p-2.5 border-2 rounded-xl text-center cursor-pointer transition text-xs font-mono"
+                                   :class="form.adzan_duration_minutes == 3 ? 'border-[#5F7F42] bg-[#5F7F42]/10 font-bold text-[#1F1812]' : 'border-[#E4DCCC] hover:border-[#5F7F42]/50 text-[#7A6A58]'">
+                                <input type="radio" value="3" x-model="form.adzan_duration_minutes" class="sr-only">
+                                <div>3 Menit</div>
+                                <div class="text-[9px] text-[#A89A85]">Singkat</div>
+                            </label>
+                            <label class="p-2.5 border-2 rounded-xl text-center cursor-pointer transition text-xs font-mono"
+                                   :class="form.adzan_duration_minutes == 5 ? 'border-[#5F7F42] bg-[#5F7F42]/10 font-bold text-[#1F1812]' : 'border-[#E4DCCC] hover:border-[#5F7F42]/50 text-[#7A6A58]'">
+                                <input type="radio" value="5" x-model="form.adzan_duration_minutes" class="sr-only">
+                                <div>5 Menit</div>
+                                <div class="text-[9px] text-[#5F7F42] font-bold">Cukup Adzan Saja</div>
+                            </label>
+                            <label class="p-2.5 border-2 rounded-xl text-center cursor-pointer transition text-xs font-mono"
+                                   :class="form.adzan_duration_minutes == 7 ? 'border-[#5F7F42] bg-[#5F7F42]/10 font-bold text-[#1F1812]' : 'border-[#E4DCCC] hover:border-[#5F7F42]/50 text-[#7A6A58]'">
+                                <input type="radio" value="7" x-model="form.adzan_duration_minutes" class="sr-only">
+                                <div>7 Menit</div>
+                                <div class="text-[9px] text-[#A89A85]">Adzan + Doa</div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Jadwal Sholat Hari Ini Surabaya & Sidoarjo -->
+                    <template x-if="prayerSchedule && prayerSchedule.schedule">
+                        <div class="bg-[#FAF7F2] border border-[#E4DCCC] rounded-xl p-3.5 space-y-2">
+                            <div class="flex items-center justify-between text-[11px]">
+                                <span class="font-mono font-bold text-[#1F1812] flex items-center gap-1.5">
+                                    <span>📍</span>
+                                    <span>Jadwal Sholat Surabaya & Sidoarjo</span>
+                                </span>
+                                <span class="font-mono text-[10px] text-[#5F7F42] font-bold" x-text="prayerSchedule.date_formatted || 'Hari Ini'"></span>
+                            </div>
+
+                            <div class="grid grid-cols-5 gap-1 text-center font-mono">
+                                <div class="p-1.5 rounded-lg bg-white border border-[#E4DCCC]/80">
+                                    <div class="text-[10px] text-[#8A7B66]">Subuh</div>
+                                    <div class="text-xs font-bold text-[#1F1812] mt-0.5" x-text="prayerSchedule.schedule.subuh"></div>
+                                </div>
+                                <div class="p-1.5 rounded-lg bg-white border border-[#E4DCCC]/80">
+                                    <div class="text-[10px] text-[#8A7B66]">Dzuhur</div>
+                                    <div class="text-xs font-bold text-[#1F1812] mt-0.5" x-text="prayerSchedule.schedule.dzuhur"></div>
+                                </div>
+                                <div class="p-1.5 rounded-lg bg-white border border-[#E4DCCC]/80">
+                                    <div class="text-[10px] text-[#8A7B66]">Ashar</div>
+                                    <div class="text-xs font-bold text-[#1F1812] mt-0.5" x-text="prayerSchedule.schedule.ashar"></div>
+                                </div>
+                                <div class="p-1.5 rounded-lg bg-white border border-[#E4DCCC]/80">
+                                    <div class="text-[10px] text-[#8A7B66]">Maghrib</div>
+                                    <div class="text-xs font-bold text-[#1F1812] mt-0.5" x-text="prayerSchedule.schedule.maghrib"></div>
+                                </div>
+                                <div class="p-1.5 rounded-lg bg-white border border-[#E4DCCC]/80">
+                                    <div class="text-[10px] text-[#8A7B66]">Isya</div>
+                                    <div class="text-xs font-bold text-[#1F1812] mt-0.5" x-text="prayerSchedule.schedule.isya"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+
+                    <!-- Tombol Uji Coba Mode Adzan -->
+                    <button type="button"
+                            @click="testAdzanMode()"
+                            :disabled="isTestingAdzan"
+                            class="w-full py-2.5 px-4 bg-[#5F7F42]/10 hover:bg-[#5F7F42]/20 border border-[#5F7F42]/40 text-[#3C5726] font-mono text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50">
+                        <span x-show="!isTestingAdzan">🕌 Uji Coba Efek Fade & Toast Adzan</span>
+                        <span x-show="isTestingAdzan" class="animate-spin">⟳</span>
+                        <span x-show="isTestingAdzan">Sedang Menguji Coba Mode Adzan (8 Detik)...</span>
+                    </button>
+                </div>
+            </div>
+
             <!-- TOMBOL SIMPAN AKSI -->
             <div class="pt-2">
                 <button type="button"
@@ -521,12 +636,40 @@ function announcerSettingsManager(initialSettings) {
             rate: parseFloat(initialSettings.rate || 1.0),
             pitch: parseFloat(initialSettings.pitch || 1.05),
             duck_volume: parseInt(initialSettings.duck_volume || 12),
+            adzan_mode_enabled: initialSettings.adzan_mode_enabled !== undefined ? !!initialSettings.adzan_mode_enabled : true,
+            adzan_target_volume: parseInt(initialSettings.adzan_target_volume ?? 10),
+            adzan_duration_minutes: parseInt(initialSettings.adzan_duration_minutes ?? 5),
         },
         sampleName: 'Budi',
         sampleCode: '42',
         availableVoices: [],
         isPlayingSample: false,
         saving: false,
+        prayerSchedule: @js($prayerSchedule ?? null),
+        isTestingAdzan: false,
+
+        testAdzanMode() {
+            if (this.isTestingAdzan) return;
+            this.isTestingAdzan = true;
+
+            if (window.customToast) {
+                window.customToast({
+                    message: '🕌 [UJI COBA] Memasuki Waktu Adzan Maghrib (Surabaya & Sidoarjo). Volume musik otomatis diturunkan ke ' + this.form.adzan_target_volume + '%...',
+                    type: 'info',
+                    duration: 7000
+                });
+            }
+
+            if (window.SoundStationHub && typeof window.SoundStationHub.sendCommand === 'function') {
+                window.SoundStationHub.sendCommand('TEST_ADZAN_MODE');
+            } else if (window.SoundStation && typeof window.SoundStation.triggerTestAdzanMode === 'function') {
+                window.SoundStation.triggerTestAdzanMode();
+            }
+
+            setTimeout(() => {
+                this.isTestingAdzan = false;
+            }, 8500);
+        },
 
         init() {
             this.loadBrowserVoices();

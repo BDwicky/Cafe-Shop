@@ -166,6 +166,9 @@
                 _lastSeekTime: 0,
                 _currentRate: 1,
                 _initialSynced: false,
+                isAdzanMode: false,
+                adzanPrayerName: '',
+                _isTestAdzan: false,
 
                 init() {
                     this.isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
@@ -233,6 +236,14 @@
                                 this.fetchStatus();
                             } else if (data.type === 'ORDER_READY') {
                                 this.triggerNewReadyOrderNotification(data.orderId, data.isRecall);
+                            } else if (data.type === 'ADZAN_MODE_STARTED') {
+                                this.isAdzanMode = true;
+                                this.adzanPrayerName = data.prayer || 'Adzan';
+                                this._isTestAdzan = !!data.isTest;
+                            } else if (data.type === 'ADZAN_MODE_ENDED') {
+                                this.isAdzanMode = false;
+                                this.adzanPrayerName = '';
+                                this._isTestAdzan = false;
                             }
                         };
                     }
@@ -586,6 +597,14 @@
                         if (data.ready_orders) {
                             this.checkNewReadyOrders(data.ready_orders);
                         }
+
+                        if (data.prayer_times && data.prayer_times.active_prayer && data.adzan_settings && data.adzan_settings.enabled) {
+                            this.isAdzanMode = true;
+                            this.adzanPrayerName = data.prayer_times.active_prayer.name;
+                        } else if (!this._isTestAdzan) {
+                            this.isAdzanMode = false;
+                            this.adzanPrayerName = '';
+                        }
                     } catch (e) {
                         console.error('[TV Display] Sync Error:', e);
                     }
@@ -818,6 +837,43 @@
         <!-- LAYER 4: AMBIENT PULSING GLOW ORBS -->
         <div class="absolute -top-24 -left-24 w-96 h-96 bg-[#D9973E]/15 rounded-full blur-[120px] animate-pulse-glow"></div>
         <div class="absolute -bottom-24 -right-24 w-96 h-96 bg-[#5F7F42]/15 rounded-full blur-[120px] animate-pulse-glow" style="animation-delay: 4s;"></div>
+    </div>
+
+    <!-- ADZAN RESPECT BANNER OVERLAY (SURABAYA & SIDOARJO) -->
+    <div x-show="isAdzanMode"
+         x-cloak
+         x-transition:enter="transition ease-out duration-500"
+         x-transition:enter-start="opacity-0 -translate-y-8 scale-95"
+         x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+         x-transition:leave="transition ease-in duration-300"
+         x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+         x-transition:leave-end="opacity-0 -translate-y-8 scale-95"
+         class="fixed top-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none max-w-xl w-[calc(100%-2rem)] px-4 select-none">
+        <div class="w-full bg-[#18120C]/95 border-2 border-[#D9973E] rounded-2xl p-4 shadow-[0_20px_50px_rgba(0,0,0,0.85)] backdrop-blur-xl flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3.5 min-w-0">
+                <div class="w-12 h-12 rounded-xl bg-[#D9973E]/20 border border-[#D9973E] flex items-center justify-center shrink-0 shadow-inner">
+                    <span class="text-2xl animate-pulse">🕌</span>
+                </div>
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2">
+                        <span class="px-2 py-0.5 rounded bg-[#D9973E] text-[#140E0A] font-mono text-[10px] font-extrabold uppercase tracking-wider">
+                            Waktu Adzan
+                        </span>
+                        <span class="text-[11px] font-mono text-[#A89A85]">Surabaya & Sidoarjo</span>
+                    </div>
+                    <h3 class="text-base sm:text-lg font-serif font-bold text-white mt-0.5 truncate">
+                        Memasuki Waktu Sholat <span class="text-[#D9973E]" x-text="adzanPrayerName"></span>
+                    </h3>
+                    <p class="text-xs text-[#C4B6A3] font-sans">
+                        Volume musik otomatis diturunkan untuk menghormati adzan.
+                    </p>
+                </div>
+            </div>
+            <div class="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/40 border border-[#3A2C20]">
+                <span class="w-2 h-2 rounded-full bg-[#D9973E] animate-ping"></span>
+                <span class="font-mono text-[10px] text-[#D9973E] font-bold uppercase">Hening Adzan</span>
+            </div>
+        </div>
     </div>
 
     <!-- CARD FLY: FLOATING READY ORDERS NOTIFICATION OVERLAY -->

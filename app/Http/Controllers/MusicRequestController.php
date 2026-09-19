@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\MusicRequest;
 use App\Models\Order;
 use App\Services\MusicService;
+use App\Services\PrayerTimeService;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -210,6 +211,9 @@ class MusicRequestController extends Controller
             }
         }
 
+        $voiceSettings = Cache::get('soundstation_voice_settings', []);
+        $adzanDuration = (int) ($voiceSettings['adzan_duration_minutes'] ?? 5);
+
         return response()->json([
             'now_playing' => $state['now_playing'],
             'now_playing_type' => $state['now_playing_type'] ?? 'default',
@@ -220,6 +224,12 @@ class MusicRequestController extends Controller
             'total_queue_count' => $state['total_queue_count'] ?? count($state['queue']),
             'ready_orders' => $readyOrders,
             'playback' => $playback,
+            'prayer_times' => PrayerTimeService::getSchedule(null, $adzanDuration),
+            'adzan_settings' => [
+                'enabled' => ! empty($voiceSettings['adzan_mode_enabled'] ?? true),
+                'target_volume' => (int) ($voiceSettings['adzan_target_volume'] ?? 10),
+                'duration_minutes' => $adzanDuration,
+            ],
         ]);
     }
 

@@ -7,6 +7,7 @@ use App\Models\MusicRequest;
 use App\Models\Order;
 use App\Services\KitchenService;
 use App\Services\MusicService;
+use App\Services\PrayerTimeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -813,6 +814,9 @@ class KasirMusicController extends Controller
             'rate' => 1.0,
             'pitch' => 1.05,
             'duck_volume' => 12,
+            'adzan_mode_enabled' => true,
+            'adzan_target_volume' => 10,
+            'adzan_duration_minutes' => 5, // Cukup selama adzan berlangsung (~5 menit)
         ];
     }
 
@@ -826,7 +830,9 @@ class KasirMusicController extends Controller
             Cache::get('soundstation_voice_settings', [])
         );
 
-        return view('kasir.announcer-settings', compact('settings'));
+        $prayerSchedule = PrayerTimeService::getSchedule(null, (int) ($settings['adzan_duration_minutes'] ?? 5));
+
+        return view('kasir.announcer-settings', compact('settings', 'prayerSchedule'));
     }
 
     /**
@@ -843,20 +849,28 @@ class KasirMusicController extends Controller
             'rate' => ['required', 'numeric', 'min:0.5', 'max:1.5'],
             'pitch' => ['required', 'numeric', 'min:0.5', 'max:1.5'],
             'duck_volume' => ['nullable', 'integer', 'min:0', 'max:50'],
+            'adzan_mode_enabled' => ['nullable', 'boolean'],
+            'adzan_target_volume' => ['nullable', 'integer', 'min:0', 'max:50'],
+            'adzan_duration_minutes' => ['nullable', 'integer', 'min:2', 'max:15'],
         ]);
 
         $settings = array_merge(self::getDefaultAnnouncerSettings(), $validated);
+        // Pastikan boolean adzan_mode_enabled tersimpan dengan benar jika tidak tercentang pada form biasa
+        if (! $request->has('adzan_mode_enabled') && ! $request->expectsJson()) {
+            $settings['adzan_mode_enabled'] = false;
+        }
+
         Cache::forever('soundstation_voice_settings', $settings);
 
         if ($request->expectsJson()) {
             return response()->json([
                 'success' => true,
-                'message' => 'Pengaturan suara announcer berhasil disimpan.',
+                'message' => 'Pengaturan suara announcer & mode adzan berhasil disimpan.',
                 'settings' => $settings,
             ]);
         }
 
-        return redirect()->route('kasir.announcer.settings')->with('success', 'Pengaturan suara announcer berhasil disimpan.');
+        return redirect()->route('kasir.announcer.settings')->with('success', 'Pengaturan suara announcer & mode adzan berhasil disimpan.');
     }
 
     /**
@@ -872,6 +886,28 @@ class KasirMusicController extends Controller
         return response()->json([
             'success' => true,
             'settings' => $settings,
+        ]);
+    }
+
+    /**
+     * Endpoint API Jadwal Sholat Surabaya & Sidoarjo untuk widget dan TV.
+     */
+    public function prayerTimes(Request $request): JsonResponse
+    {
+        $voiceSettings = array_merge(
+            self::getDefaultAnnouncerSettings(),
+            Cache::get('soundstation_voice_settings', [])
+        );
+        $duration = (int) ($voiceSettings['adzan_duration_minutes'] ?? 5);
+
+        return response()->json([
+            'success' => true,
+            'data' => PrayerTimeService::getSchedule(null, $duration),
+            'settings' => [
+                'enabled' => ! empty($voiceSettings['adzan_mode_enabled']),
+                'target_volume' => (int) ($voiceSettings['adzan_target_volume'] ?? 10),
+                'duration_minutes' => $duration,
+            ],
         ]);
     }
 }
