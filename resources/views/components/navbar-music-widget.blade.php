@@ -1259,6 +1259,12 @@ function navbarMusicWidget() {
                         ct = dur;
                     }
 
+                    // SEAMLESS AUTO-TRANSITION (1.5 detik sebelum durasi habis agar tidak muncul kartu rekomendasi YouTube)
+                    if (dur > 15 && (dur - ct <= 1.5) && this.isPlaying && !this.isTransitioningTrack) {
+                        this.playNextTrack(this.currentRequestId);
+                        return;
+                    }
+
                     this.currentTime = Math.max(0, ct);
                     this.duration = Math.max(0, dur);
                     this.progressPercent = dur > 0 ? Math.min(100, Math.max(0, (ct / dur) * 100)) : 0;
