@@ -30,6 +30,9 @@
                 <span x-show="autoSaveStatus === 'saved'" class="text-[#5F7F42] font-bold flex items-center gap-1.5">
                     <span class="text-xs">✓</span> Tersimpan otomatis
                 </span>
+                <span x-show="autoSaveStatus === 'error'" class="text-rose-600 font-bold flex items-center gap-1.5">
+                    <span class="text-xs">✕</span> Gagal menyimpan
+                </span>
                 <span x-show="!autoSaveStatus" class="text-[#A89A85] flex items-center gap-1.5">
                     <span class="w-1.5 h-1.5 rounded-full bg-[#5F7F42]"></span> Siap
                 </span>
@@ -772,9 +775,9 @@ function announcerSettingsManager(initialSettings) {
             template_type: initialSettings.template_type || 'concise',
             custom_template: initialSettings.custom_template || 'Pesanan Kak {name}, siap diambil di kasir.',
             chime_style: initialSettings.chime_style || 'ding_dong',
-            rate: parseFloat(initialSettings.rate || 1.0),
-            pitch: parseFloat(initialSettings.pitch || 1.05),
-            duck_volume: parseInt(initialSettings.duck_volume || 12),
+            rate: parseFloat(initialSettings.rate ?? 1.0),
+            pitch: parseFloat(initialSettings.pitch ?? 1.05),
+            duck_volume: initialSettings.duck_volume !== undefined ? parseInt(initialSettings.duck_volume) : 12,
             adzan_mode_enabled: initialSettings.adzan_mode_enabled !== undefined ? !!initialSettings.adzan_mode_enabled : true,
             adzan_target_volume: parseInt(initialSettings.adzan_target_volume ?? 10),
             adzan_duration_minutes: parseInt(initialSettings.adzan_duration_minutes ?? 5),
@@ -833,6 +836,26 @@ function announcerSettingsManager(initialSettings) {
         },
 
         init() {
+            // Periksa sinkronisasi awal dengan localStorage (jika ada nilai lokal tersimpan di browser)
+            try {
+                const local = JSON.parse(localStorage.getItem('pos_soundstation_announcer_settings') || 'null');
+                if (local && typeof local === 'object') {
+                    Object.keys(this.form).forEach(k => {
+                        if (typeof local[k] !== 'undefined' && local[k] !== null) {
+                            if (k === 'duck_volume' || k === 'adzan_target_volume' || k === 'adzan_duration_minutes') {
+                                this.form[k] = parseInt(local[k]);
+                            } else if (k === 'rate' || k === 'pitch') {
+                                this.form[k] = parseFloat(local[k]);
+                            } else if (k === 'adzan_mode_enabled' || k === 'auto_pause_midnight') {
+                                this.form[k] = !!local[k];
+                            } else {
+                                this.form[k] = local[k];
+                            }
+                        }
+                    });
+                }
+            } catch (e) {}
+
             this.loadBrowserVoices();
             if ('speechSynthesis' in window && window.speechSynthesis.onvoiceschanged !== undefined) {
                 window.speechSynthesis.onvoiceschanged = () => {
@@ -867,6 +890,12 @@ function announcerSettingsManager(initialSettings) {
             // Pastikan data tersimpan instan ke server & localStorage saat meninggalkan halaman
             window.addEventListener('beforeunload', () => {
                 try {
+                    if (this.form.closing_time && this.form.closing_time.length > 5) {
+                        this.form.closing_time = this.form.closing_time.substring(0, 5);
+                    }
+                    if (this.form.reopen_time && this.form.reopen_time.length > 5) {
+                        this.form.reopen_time = this.form.reopen_time.substring(0, 5);
+                    }
                     localStorage.setItem('pos_soundstation_announcer_settings', JSON.stringify(this.form));
                     fetch('{{ route('kasir.announcer.save') }}', {
                         method: 'POST',
@@ -926,6 +955,14 @@ function announcerSettingsManager(initialSettings) {
         async executeServerSave(isManual = false) {
             if (isManual) this.saving = true;
             try {
+                // Normalisasi string waktu menjadi format HH:mm jika memiliki detik
+                if (this.form.closing_time && this.form.closing_time.length > 5) {
+                    this.form.closing_time = this.form.closing_time.substring(0, 5);
+                }
+                if (this.form.reopen_time && this.form.reopen_time.length > 5) {
+                    this.form.reopen_time = this.form.reopen_time.substring(0, 5);
+                }
+
                 const res = await fetch('{{ route('kasir.announcer.save') }}', {
                     method: 'POST',
                     keepalive: true,
@@ -950,9 +987,20 @@ function announcerSettingsManager(initialSettings) {
                             duration: 3500
                         });
                     }
+                } else {
+                    this.autoSaveStatus = 'error';
+                    const data = await res.json().catch(() => ({}));
+                    const msg = data.message || 'Gagal menyimpan pengaturan ke server.';
+                    if (isManual && window.customToast) {
+                        window.customToast({
+                            message: '✕ ' + msg,
+                            type: 'error',
+                            duration: 4000
+                        });
+                    }
                 }
             } catch (e) {
-                this.autoSaveStatus = '';
+                this.autoSaveStatus = 'error';
             } finally {
                 if (isManual) this.saving = false;
             }

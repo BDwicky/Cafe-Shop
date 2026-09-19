@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\KasirMusicController;
 use App\Models\MusicDefaultTrack;
 use App\Models\MusicRequest;
 use App\Models\Order;
@@ -1028,6 +1029,55 @@ class MusicRequestTest extends TestCase
         $this->assertEquals('ms_ardi', $saved['voice_model']);
         $this->assertEquals('airport', $saved['template_type']);
         $this->assertEquals('airport', $saved['chime_style']);
+    }
+
+    public function test_announcer_settings_persist_across_cache_clear_and_supports_zero_duck_volume(): void
+    {
+        $user = User::factory()->create();
+
+        $payload = [
+            'voice_model' => 'english_cafe',
+            'template_type' => 'english',
+            'custom_template' => '',
+            'chime_style' => 'bell',
+            'rate' => 1.1,
+            'pitch' => 0.95,
+            'duck_volume' => 0,
+            'adzan_mode_enabled' => true,
+            'adzan_target_volume' => 2,
+            'adzan_duration_minutes' => 7,
+            'auto_pause_midnight' => true,
+            'closing_time' => '23:30:00',
+            'reopen_time' => '07:00',
+        ];
+
+        $response = $this->actingAs($user)
+            ->postJson(route('kasir.announcer.save'), $payload);
+
+        $response->assertOk()
+            ->assertJsonPath('settings.duck_volume', 0)
+            ->assertJsonPath('settings.closing_time', '23:30')
+            ->assertJsonPath('settings.voice_model', 'english_cafe');
+
+        // Simulasi php artisan cache:clear (menghapus Cache)
+        Cache::flush();
+        $this->assertNull(Cache::get('soundstation_voice_settings'));
+
+        // getActiveAnnouncerSettings harus memulihkan settingan dari persistent file storage
+        $activeSettings = KasirMusicController::getActiveAnnouncerSettings();
+        $this->assertEquals('english_cafe', $activeSettings['voice_model']);
+        $this->assertSame(0, $activeSettings['duck_volume']);
+        $this->assertEquals('23:30', $activeSettings['closing_time']);
+        $this->assertEquals('07:00', $activeSettings['reopen_time']);
+        $this->assertSame(2, $activeSettings['adzan_target_volume']);
+        $this->assertSame(7, $activeSettings['adzan_duration_minutes']);
+
+        // Bersihkan file storage testing dan cache agar terisolasi dari test lain
+        $testFile = KasirMusicController::getAnnouncerSettingsStoragePath();
+        if (file_exists($testFile)) {
+            @unlink($testFile);
+        }
+        Cache::flush();
     }
 
     public function test_cashier_can_fetch_announcer_settings_json(): void

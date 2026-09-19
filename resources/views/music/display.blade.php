@@ -263,9 +263,8 @@
                                 if (typeof t.isPlaying !== 'undefined') {
                                     this.isPlaying = !!t.isPlaying;
                                 }
-                                if (oldPlaying !== this.isPlaying || this.currentTvVideoId !== (this.nowPlaying?.youtube_id || '')) {
-                                    this.syncTvPlayerState();
-                                }
+                                // SINKRONKAN JUGA STATUS PLAYER & DETIK TV SECARA REALTIME PADA SETIAP DETIK
+                                this.syncTvPlayerState();
                             } else if (data.type === 'STATE_UPDATE' && data.state) {
                                 this._lastLocalSyncTime = Date.now();
                                 const s = data.state;
@@ -519,23 +518,20 @@
                                     }
                                 },
                                 onStateChange: (event) => {
-                                    // Matikan paksa closed caption saat video memutar & kunci kecepatan normal 1.0x
+                                    // Matikan paksa closed caption saat video memutar
                                     if (event.data === YT.PlayerState.PLAYING) {
                                         this.disableCaptions();
-                                        try {
-                                            if (typeof event.target.setPlaybackRate === 'function' && typeof event.target.getPlaybackRate === 'function' && event.target.getPlaybackRate() !== 1) {
-                                                event.target.setPlaybackRate(1);
-                                            }
-                                        } catch (e) {}
 
-                                        // Kalibrasi awal saat video baru mulai memutar agar seluruh TV mulai di detik yang sama (< 0.35s)
+                                        // Kalibrasi awal saat video baru mulai memutar HANYA jika drift sangat jauh (> 2.5 detik)
+                                        // Drift kecil (< 2.5s) disinkronkan secara mulus via penyesuaian playbackRate tanpa memicu buffering berulang
                                         if (!this._initialSynced && this.playbackCurrentTime > 0) {
                                             this._initialSynced = true;
                                             const tvCurTime = (typeof this.tvPlayer.getCurrentTime === 'function') ? (this.tvPlayer.getCurrentTime() || 0) : 0;
-                                            const absDrift = Math.abs(this.playbackCurrentTime - tvCurTime);
-                                            if (absDrift > 0.35 && absDrift < 86400) {
+                                            const targetTvTime = this.playbackCurrentTime + 0.25;
+                                            const absDrift = Math.abs(targetTvTime - tvCurTime);
+                                            if (absDrift > 2.5 && absDrift < 86400) {
                                                 this._lastSeekTime = Date.now();
-                                                this.tvPlayer.seekTo(this.playbackCurrentTime, true);
+                                                this.tvPlayer.seekTo(targetTvTime, true);
                                             }
                                         }
 
@@ -628,29 +624,57 @@
                             } catch (e) {}
                         }
 
-                        // Pastikan kecepatan putar selalu normal 1.0x (mencegah efek slowmo atau nada terseret pada audio TV)
-                        if (typeof this.tvPlayer.getPlaybackRate === 'function') {
-                            try {
-                                if (this.tvPlayer.getPlaybackRate() !== 1 && typeof this.tvPlayer.setPlaybackRate === 'function') {
-                                    this.tvPlayer.setPlaybackRate(1);
-                                    this._currentRate = 1;
-                                }
-                            } catch (e) {}
-                        }
-
-                        // Sinkronisasi posisi detik presisi antar-TV (< 0.8s)
+                        // Sinkronisasi posisi detik presisi antar-TV & Video-First alignment (Zero-Buffering Catch-up)
                         if (this.isPlaying && typeof this.tvPlayer.getCurrentTime === 'function' && this.playbackDuration > 0 && this.playbackCurrentTime < 86400) {
                             if (state !== YT.PlayerState.BUFFERING) {
                                 const tvCurTime = this.tvPlayer.getCurrentTime() || 0;
-                                const diff = this.playbackCurrentTime - tvCurTime;
+                                // Target waktu TV: beri lead offset +0.25 detik agar visual video TV sedikit mendahului audio (menghilangkan kesan video telat)
+                                const targetTvTime = this.playbackCurrentTime + 0.25;
+                                const diff = targetTvTime - tvCurTime; // Positif = TV tertinggal, Negatif = TV mendahului
                                 const absDrift = Math.abs(diff);
                                 const now = Date.now();
 
-                                // Jika selisih antar TV > 0.8 detik, sinkronkan ulang secara instan
-                                if (absDrift > 0.8 && (!this._lastSeekTime || (now - this._lastSeekTime > 2500))) {
+                                // 1. HARD SEEK: HANYA jika drift sangat masif (> 3.0 detik, misal baru scrubbing seekbar di kasir)
+                                // Cooldown 6 detik untuk mencegah loop buffering / seek tiada henti
+                                if (absDrift > 3.0 && (!this._lastSeekTime || (now - this._lastSeekTime > 6000))) {
                                     this._lastSeekTime = now;
-                                    this.tvPlayer.seekTo(this.playbackCurrentTime, true);
+                                    this.tvPlayer.seekTo(targetTvTime, true);
+                                    if (typeof this.tvPlayer.setPlaybackRate === 'function') {
+                                        this.tvPlayer.setPlaybackRate(1);
+                                        this._currentRate = 1;
+                                    }
                                 }
+                                // 2. SMOOTH DYNAMIC RATE CATCH-UP (ZERO BUFFERING):
+                                // Menyesuaikan kecepatan video (0.75x - 1.25x) untuk drift kecil (0.25s s/d 3.0s).
+                                // Karena Display TV selalu mute, penyesuaian rate ini 100% senyap, halus, dan BEBAS BUFFERING!
+                                else if (absDrift > 0.25 && absDrift <= 3.0) {
+                                    let desiredRate = 1;
+                                    if (diff > 0.25) {
+                                        // Video TV tertinggal: percepat halus 1.25x agar visual mengejar target
+                                        desiredRate = 1.25;
+                                    } else if (diff < -0.35) {
+                                        // Video TV terlalu mendahului: perlambat halus 0.75x agar audio menyusul
+                                        desiredRate = 0.75;
+                                    }
+
+                                    if (this._currentRate !== desiredRate && typeof this.tvPlayer.setPlaybackRate === 'function') {
+                                        this._currentRate = desiredRate;
+                                        this.tvPlayer.setPlaybackRate(desiredRate);
+                                    }
+                                }
+                                // 3. IN SYNC: Kembalikan ke kecepatan normal 1.0x jika drift sudah selaras (<= 0.15s)
+                                else if (absDrift <= 0.15) {
+                                    if (this._currentRate !== 1 && typeof this.tvPlayer.setPlaybackRate === 'function') {
+                                        this._currentRate = 1;
+                                        this.tvPlayer.setPlaybackRate(1);
+                                    }
+                                }
+                            }
+                        } else {
+                            // Saat tidak playing, pastikan kecepatan kembali ke 1.0x
+                            if (this._currentRate !== 1 && this.tvPlayer && typeof this.tvPlayer.setPlaybackRate === 'function') {
+                                this._currentRate = 1;
+                                this.tvPlayer.setPlaybackRate(1);
                             }
                         }
                     } catch (e) {}

@@ -1540,9 +1540,10 @@ function navbarMusicWidget() {
                 });
             }
 
-            // Laporkan status detik & durasi ke server setiap 1.8 detik untuk Smart TV / display external
+            // Laporkan status detik & durasi ke server setiap 800ms (saat memutar) agar Display TV tersinkronisasi ultra-presisi
             const now = Date.now();
-            if (this.isMasterHost && (forceServerSync || !this._lastServerSync || now - this._lastServerSync > 1800)) {
+            const syncInterval = this.isPlaying ? 800 : 1800;
+            if (this.isMasterHost && (forceServerSync || !this._lastServerSync || now - this._lastServerSync > syncInterval)) {
                 this._lastServerSync = now;
                 try {
                     fetch('{{ route('kasir.music.playback.sync') }}', {
@@ -1749,29 +1750,9 @@ function navbarMusicWidget() {
 
             this._isSmartFadingOut = false;
 
-            if (this.player && this.playerReady) {
-                // SMART CROSSFADE: Mulai dari 0 untuk mencegah letupan audio
-                try {
-                    this.player.setVolume(0);
-                } catch (e) {}
-
-                this.player.loadVideoById(track.youtube_id);
-                this.player.playVideo();
-                this.isPlaying = true;
-                document.title = '♫ ' + track.title + ' — POS';
-
-                const targetReturnVol = this.isAdzanMode
-                    ? Math.max(0, Math.min(100, this.adzanTargetVolume ?? 10))
-                    : (this.isMuted ? 0 : this.volume);
-                if (targetReturnVol > 0) {
-                    this.fadeAudio(0, targetReturnVol, 1800);
-                }
-            } else {
-                this.loadYouTubeApi();
-            }
-
+            // SINKRONKAN KE DISPLAY TV SEGERA SEBELUM AUDIO DIMULAI
             this.broadcastSync();
-            this.broadcastTimeSync();
+            this.broadcastTimeSync(true);
 
             if (window.SoundStationHub && window.SoundStationHub.channel) {
                 try {
@@ -1783,7 +1764,7 @@ function navbarMusicWidget() {
                 } catch (e) {}
             }
 
-            // SINKRONKAN KE BACKEND SERVER (AGAR /music/request & /music/display LANGSUNG TERBARUKAN)
+            // SINKRONKAN KE BACKEND SERVER (AGAR /music/request & /music/display LANGSUNG MENAMPILKAN VIDEO DULUAN)
             fetch('{{ route('kasir.music.playback.sync') }}', {
                 method: 'POST',
                 headers: {
@@ -1798,13 +1779,39 @@ function navbarMusicWidget() {
                     current_track: this.currentTrack
                 })
             }).catch(() => {});
+
+            if (this.player && this.playerReady) {
+                // VIDEO-FIRST: Mulai player di volume 0 agar video di TV tampil terlebih dahulu sebelum suara membesar
+                try {
+                    this.player.setVolume(0);
+                } catch (e) {}
+
+                this.player.loadVideoById(track.youtube_id);
+                this.player.playVideo();
+                this.isPlaying = true;
+                document.title = '♫ ' + track.title + ' — POS';
+
+                const targetReturnVol = this.isAdzanMode
+                    ? Math.max(0, Math.min(100, this.adzanTargetVolume ?? 10))
+                    : (this.isMuted ? 0 : this.volume);
+                if (targetReturnVol > 0) {
+                    // Beri jeda 1.2 detik (video lead-in) sebelum volume mulai dinaikkan
+                    this.fadeAudio(0, targetReturnVol, 1800, 1200);
+                }
+            } else {
+                this.loadYouTubeApi();
+            }
         },
 
-        fadeAudio(fromVol, toVol, durationMs = 5000) {
+        fadeAudio(fromVol, toVol, durationMs = 5000, preDelayMs = 0) {
             return new Promise((resolve) => {
                 if (this._fadeInterval) {
                     clearInterval(this._fadeInterval);
                     this._fadeInterval = null;
+                }
+                if (this._fadeDelayTimer) {
+                    clearTimeout(this._fadeDelayTimer);
+                    this._fadeDelayTimer = null;
                 }
                 if (!this.player || !this.playerReady) {
                     resolve();
@@ -1814,51 +1821,56 @@ function navbarMusicWidget() {
                 const targetFrom = Math.max(0, Math.min(100, Math.round(Number(fromVol))));
                 const targetTo = Math.max(0, Math.min(100, Math.round(Number(toVol))));
 
-                // Jika targetTo > 0 dan player sempat mute, unMute terlebih dahulu
-                try {
-                    if (targetTo > 0 && typeof this.player.unMute === 'function') {
-                        this.player.unMute();
-                    }
-                } catch (e) {}
+                // Jika ada preDelayMs (lead-in waktu agar video TV tampil terlebih dahulu sebelum audio mulai)
+                this._fadeDelayTimer = setTimeout(() => {
+                    this._fadeDelayTimer = null;
 
-                const steps = 20;
-                const stepTime = Math.max(35, Math.floor(durationMs / steps));
-                const volDiff = targetTo - targetFrom;
-                let currentStep = 0;
-
-                this.isFadingAudio = true;
-
-                this._fadeInterval = setInterval(() => {
-                    currentStep++;
-                    const progress = currentStep / steps;
-                    const newVol = Math.round(targetFrom + (volDiff * progress));
-
+                    // Jika targetTo > 0 dan player sempat mute, unMute terlebih dahulu
                     try {
-                        if (this.player && typeof this.player.setVolume === 'function') {
-                            this.player.setVolume(Math.max(0, Math.min(100, newVol)));
+                        if (targetTo > 0 && typeof this.player.unMute === 'function') {
+                            this.player.unMute();
                         }
                     } catch (e) {}
 
-                    if (currentStep >= steps) {
-                        clearInterval(this._fadeInterval);
-                        this._fadeInterval = null;
-                        this.isFadingAudio = false;
+                    const steps = 20;
+                    const stepTime = Math.max(35, Math.floor(durationMs / steps));
+                    const volDiff = targetTo - targetFrom;
+                    let currentStep = 0;
 
-                        // Pastikan volume akhir tepat targetTo dan jika 0% panggil mute()
+                    this.isFadingAudio = true;
+
+                    this._fadeInterval = setInterval(() => {
+                        currentStep++;
+                        const progress = currentStep / steps;
+                        const newVol = Math.round(targetFrom + (volDiff * progress));
+
                         try {
                             if (this.player && typeof this.player.setVolume === 'function') {
-                                this.player.setVolume(targetTo);
-                                if (targetTo === 0 && typeof this.player.mute === 'function') {
-                                    this.player.mute();
-                                } else if (targetTo > 0 && typeof this.player.unMute === 'function') {
-                                    this.player.unMute();
-                                }
+                                this.player.setVolume(Math.max(0, Math.min(100, newVol)));
                             }
                         } catch (e) {}
 
-                        resolve();
-                    }
-                }, stepTime);
+                        if (currentStep >= steps) {
+                            clearInterval(this._fadeInterval);
+                            this._fadeInterval = null;
+                            this.isFadingAudio = false;
+
+                            // Pastikan volume akhir tepat targetTo dan jika 0% panggil mute()
+                            try {
+                                if (this.player && typeof this.player.setVolume === 'function') {
+                                    this.player.setVolume(targetTo);
+                                    if (targetTo === 0 && typeof this.player.mute === 'function') {
+                                        this.player.mute();
+                                    } else if (targetTo > 0 && typeof this.player.unMute === 'function') {
+                                        this.player.unMute();
+                                    }
+                                }
+                            } catch (e) {}
+
+                            resolve();
+                        }
+                    }, stepTime);
+                }, Math.max(0, preDelayMs));
             });
         },
 
@@ -1960,6 +1972,36 @@ function navbarMusicWidget() {
                     this._trackStartedAt = Date.now();
                     this.currentTimeFormatted = this.formatTime(startSec);
 
+                    this.refreshQueue();
+                    this.broadcastSync();
+                    this.broadcastTimeSync(true);
+
+                    // SINKRONKAN STATE PEMUTAR KE SERVER & DISPLAY TV SEGERA SEBELUM AUDIO MEMBESAR
+                    fetch('{{ route('kasir.music.playback.sync') }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        body: JSON.stringify({
+                            client_id: this.myTabId,
+                            current_time: startSec,
+                            duration: track.duration_seconds || 0,
+                            is_playing: true,
+                            current_track: this.currentTrack
+                        })
+                    }).catch(() => {});
+
+                    if (window.SoundStationHub && window.SoundStationHub.channel) {
+                        try {
+                            window.SoundStationHub.channel.postMessage({
+                                type: 'TRACK_CHANGED',
+                                track: this.currentTrack,
+                                senderTabId: this.myTabId
+                            });
+                        } catch (e) {}
+                    }
+
                     if (this.player && this.playerReady) {
                         // SMART CROSSFADE: Mulai dari volume 0 sebelum memuat video baru
                         try {
@@ -1985,14 +2027,14 @@ function navbarMusicWidget() {
                             }
                         }, 7000);
 
-                        // SMART CROSSFADE FADE-IN:
+                        // SMART CROSSFADE FADE-IN (VIDEO FIRST):
                         // Tentukan volume target (menghormati mode adzan jika aktif)
                         const targetReturnVol = this.isAdzanMode
                             ? Math.max(0, Math.min(100, this.adzanTargetVolume ?? 10))
                             : (this.isMuted ? 0 : this.volume);
 
                         if (isResume) {
-                            this.fadeAudio(0, targetReturnVol, 2500);
+                            this.fadeAudio(0, targetReturnVol, 2500, 1000);
                             if (window.customToast) {
                                 window.customToast({
                                     message: '✓ Antrean request selesai. Melanjutkan musik kasir dari ' + this.formatTime(startSec) + '...',
@@ -2005,43 +2047,13 @@ function navbarMusicWidget() {
                                 localStorage.removeItem('pos_soundstation_paused_cashier_track');
                             } catch (e) {}
                         } else if (!wasBlocked && targetReturnVol > 0) {
-                            // Fade-in halus 1.8 detik untuk lagu baru
-                            this.fadeAudio(0, targetReturnVol, 1800);
+                            // Fade-in halus setelah lead-in 1200ms agar video TV tayang terlebih dahulu
+                            this.fadeAudio(0, targetReturnVol, 1800, 1200);
                         } else if (targetReturnVol === 0) {
                             try {
                                 this.player.setVolume(0);
                             } catch (e) {}
                         }
-                    }
-
-                    this.refreshQueue();
-                    this.broadcastSync();
-                    this.broadcastTimeSync();
-
-                    // SINKRONKAN STATE PEMUTAR KE SERVER & DISPLAY TV SECARA INSTAN
-                    fetch('{{ route('kasir.music.playback.sync') }}', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                        },
-                        body: JSON.stringify({
-                            client_id: this.myTabId,
-                            current_time: startSec,
-                            duration: track.duration_seconds || 0,
-                            is_playing: true,
-                            current_track: this.currentTrack
-                        })
-                    }).catch(() => {});
-
-                    if (window.SoundStationHub && window.SoundStationHub.channel) {
-                        try {
-                            window.SoundStationHub.channel.postMessage({
-                                type: 'TRACK_CHANGED',
-                                track: this.currentTrack,
-                                senderTabId: this.myTabId
-                            });
-                        } catch (e) {}
                     }
                 }
             } catch (e) {
@@ -2298,7 +2310,9 @@ function navbarMusicWidget() {
             })();
 
             // 1. AUDIO DUCKING (FADE-OUT HALUS): Turunkan volume musik YouTube secara bertahap saat pemanggilan dimulai
-            const duckVol = parseInt(cfg.duck_volume || this.duckedVolume || 12);
+            const duckVol = (typeof cfg.duck_volume !== 'undefined' && cfg.duck_volume !== null)
+                ? parseInt(cfg.duck_volume)
+                : ((typeof this.duckedVolume !== 'undefined' && this.duckedVolume !== null) ? parseInt(this.duckedVolume) : 12);
             const currentVol = (this.player && typeof this.player.getVolume === 'function')
                 ? this.player.getVolume()
                 : this.volume;

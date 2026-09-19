@@ -892,15 +892,39 @@ class KasirMusicController extends Controller
     }
 
     /**
-     * Dapatkan pengaturan announcer aktif (gabungan default + cache).
+     * Jalur file persistent untuk menyimpan pengaturan announcer.
+     */
+    public static function getAnnouncerSettingsStoragePath(): string
+    {
+        $filename = app()->environment('testing')
+            ? 'soundstation_voice_settings_testing.json'
+            : 'soundstation_voice_settings.json';
+
+        return storage_path('app/settings/'.$filename);
+    }
+
+    /**
+     * Dapatkan pengaturan announcer aktif (gabungan default + cache/file persistent).
      *
      * @return array<string, mixed>
      */
     public static function getActiveAnnouncerSettings(): array
     {
+        $cached = Cache::get('soundstation_voice_settings');
+        if (empty($cached) || ! is_array($cached)) {
+            $persistentFile = self::getAnnouncerSettingsStoragePath();
+            if (file_exists($persistentFile)) {
+                $decoded = json_decode(@file_get_contents($persistentFile) ?: '', true);
+                if (is_array($decoded) && ! empty($decoded)) {
+                    $cached = $decoded;
+                    Cache::forever('soundstation_voice_settings', $cached);
+                }
+            }
+        }
+
         return array_merge(
             self::getDefaultAnnouncerSettings(),
-            Cache::get('soundstation_voice_settings', [])
+            is_array($cached) ? $cached : []
         );
     }
 
@@ -934,20 +958,53 @@ class KasirMusicController extends Controller
             'adzan_target_volume' => ['nullable', 'integer', 'min:0', 'max:50'],
             'adzan_duration_minutes' => ['nullable', 'integer', 'min:2', 'max:15'],
             'auto_pause_midnight' => ['nullable', 'boolean'],
-            'closing_time' => ['nullable', 'string', 'regex:/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/'],
-            'reopen_time' => ['nullable', 'string', 'regex:/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/'],
+            'closing_time' => ['nullable', 'string', 'regex:/^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/'],
+            'reopen_time' => ['nullable', 'string', 'regex:/^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/'],
         ]);
 
         $settings = array_merge(self::getDefaultAnnouncerSettings(), $validated);
+
         // Pastikan boolean adzan_mode_enabled & auto_pause_midnight tersimpan dengan benar jika tidak tercentang pada form biasa
         if (! $request->has('adzan_mode_enabled') && ! $request->expectsJson()) {
             $settings['adzan_mode_enabled'] = false;
-        }
-        if (! $request->has('auto_pause_midnight') && ! $request->expectsJson()) {
-            $settings['auto_pause_midnight'] = false;
+        } else {
+            $settings['adzan_mode_enabled'] = (bool) ($settings['adzan_mode_enabled'] ?? true);
         }
 
+        if (! $request->has('auto_pause_midnight') && ! $request->expectsJson()) {
+            $settings['auto_pause_midnight'] = false;
+        } else {
+            $settings['auto_pause_midnight'] = (bool) ($settings['auto_pause_midnight'] ?? true);
+        }
+
+        // Normalisasi format waktu ke HH:mm
+        if (! empty($settings['closing_time'])) {
+            $settings['closing_time'] = substr($settings['closing_time'], 0, 5);
+        }
+        if (! empty($settings['reopen_time'])) {
+            $settings['reopen_time'] = substr($settings['reopen_time'], 0, 5);
+        }
+
+        // Pastikan tipe data numerik bersih
+        $settings['rate'] = (float) $settings['rate'];
+        $settings['pitch'] = (float) $settings['pitch'];
+        $settings['duck_volume'] = (int) ($settings['duck_volume'] ?? 12);
+        $settings['adzan_target_volume'] = (int) ($settings['adzan_target_volume'] ?? 10);
+        $settings['adzan_duration_minutes'] = (int) ($settings['adzan_duration_minutes'] ?? 5);
+
         Cache::forever('soundstation_voice_settings', $settings);
+
+        // Simpan cadangan permanen ke storage/app/settings agar tidak hilang saat cache:clear
+        try {
+            $targetPath = self::getAnnouncerSettingsStoragePath();
+            $settingsDir = dirname($targetPath);
+            if (! is_dir($settingsDir)) {
+                mkdir($settingsDir, 0755, true);
+            }
+            file_put_contents($targetPath, json_encode($settings, JSON_PRETTY_PRINT));
+        } catch (\Throwable $e) {
+            // Ignored if permissions restrict writing
+        }
 
         if ($request->expectsJson()) {
             return response()->json([
