@@ -326,6 +326,28 @@
                     setInterval(() => {
                         this.syncTvPlayerState();
                     }, 1000);
+
+                    // TV Browser Autoplay & Remote Interaction Unlock Listener
+                    // Menghilangkan batasan autoplay browser TV (Tizen/webOS/Android TV) pada interaksi pertama (remote OK/click/touch)
+                    const unlockTvAutoplay = () => {
+                        if (this.tvPlayer && typeof this.tvPlayer.playVideo === 'function') {
+                            try {
+                                if (typeof this.tvPlayer.mute === 'function') this.tvPlayer.mute();
+                            } catch (e) {}
+                            if (this.isPlaying) {
+                                this.tvPlayer.playVideo();
+                            }
+                        }
+                    };
+                    window.addEventListener('click', unlockTvAutoplay, { passive: true });
+                    window.addEventListener('keydown', unlockTvAutoplay, { passive: true });
+                    window.addEventListener('touchstart', unlockTvAutoplay, { passive: true });
+                    document.addEventListener('visibilitychange', () => {
+                        if (!document.hidden && this.isPlaying) {
+                            this.fetchStatus();
+                            this.syncTvPlayerState();
+                        }
+                    });
                 },
 
                 loadYouTubeApi() {
@@ -460,12 +482,15 @@
                                         }
                                     }
 
-                                    if (event.data === YT.PlayerState.PAUSED && this.isPlaying && !this._isManualPausing) {
+                                    if ((event.data === YT.PlayerState.PAUSED || event.data === YT.PlayerState.CUED || event.data === -1) && this.isPlaying && !this._isManualPausing) {
                                         setTimeout(() => {
                                             if (this.isPlaying && this.tvPlayer && typeof this.tvPlayer.playVideo === 'function') {
+                                                try {
+                                                    if (typeof this.tvPlayer.mute === 'function') this.tvPlayer.mute();
+                                                } catch (e) {}
                                                 this.tvPlayer.playVideo();
                                             }
-                                        }, 800);
+                                        }, 500);
                                     }
                                 },
                                 onPlaybackQualityChange: (event) => {
@@ -510,7 +535,12 @@
 
                         const state = (typeof this.tvPlayer.getPlayerState === 'function') ? this.tvPlayer.getPlayerState() : -1;
                         if (this.isPlaying) {
-                            if (state === YT.PlayerState.PAUSED || state === YT.PlayerState.CUED) {
+                            if (state !== YT.PlayerState.PLAYING && state !== YT.PlayerState.BUFFERING) {
+                                try {
+                                    if (typeof this.tvPlayer.mute === 'function') {
+                                        this.tvPlayer.mute();
+                                    }
+                                } catch (e) {}
                                 this.tvPlayer.playVideo();
                             }
                         } else {
@@ -593,6 +623,7 @@
                             }
                         });
                         if (!res.ok) return;
+                        const data = await res.json();
                         const oldTrackId = this.nowPlaying ? (this.nowPlaying.id || this.nowPlaying.youtube_id) : null;
                         const newTrackId = data.now_playing ? (data.now_playing.id || data.now_playing.youtube_id) : null;
                         if (newTrackId && oldTrackId && newTrackId !== oldTrackId) {

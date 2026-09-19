@@ -475,7 +475,11 @@ class KasirMusicController extends Controller
         // Proteksi: Hanya Master Host yang diizinkan memperbarui detik playback ke server!
         // Jika ada perangkat remote yang mencoba syncPlayback, abaikan agar display TV tidak reset ke 0.
         if ($master && ! empty($master['client_id']) && ! empty($clientId) && $master['client_id'] !== $clientId) {
-            return response()->json(['status' => 'ignored', 'message' => 'Hanya master yang dapat memperbarui playback']);
+            $now = now()->timestamp;
+            $isMasterStale = ($now - ($master['updated_at'] ?? 0)) > 25;
+            if (! $isMasterStale) {
+                return response()->json(['status' => 'ignored', 'message' => 'Hanya master yang dapat memperbarui playback']);
+            }
         }
 
         $currentTime = $request->float('current_time', 0);

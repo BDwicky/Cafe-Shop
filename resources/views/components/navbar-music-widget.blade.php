@@ -1159,7 +1159,7 @@ function navbarMusicWidget() {
                             }
                         }
                         this.broadcastSync();
-                        this.broadcastTimeSync();
+                        this.broadcastTimeSync(true);
                     }
                 }
             });
@@ -1298,7 +1298,7 @@ function navbarMusicWidget() {
             } catch (e) {}
         },
 
-        broadcastTimeSync() {
+        broadcastTimeSync(forceServerSync = false) {
             if (window.SoundStationHub) {
                 window.SoundStationHub.broadcastTimeSync({
                     currentTime: this.currentTime,
@@ -1314,7 +1314,7 @@ function navbarMusicWidget() {
 
             // Laporkan status detik & durasi ke server setiap 1.8 detik untuk Smart TV / display external
             const now = Date.now();
-            if (this.isMasterHost && (!this._lastServerSync || now - this._lastServerSync > 1800)) {
+            if (this.isMasterHost && (forceServerSync || !this._lastServerSync || now - this._lastServerSync > 1800)) {
                 this._lastServerSync = now;
                 try {
                     fetch('{{ route('kasir.music.playback.sync') }}', {
@@ -1810,6 +1810,7 @@ function navbarMusicWidget() {
             } else {
                 this.player.playVideo();
             }
+            this.broadcastTimeSync(true);
         },
 
         async skipTrackConfirm() {
