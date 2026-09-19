@@ -451,6 +451,11 @@
                             events: {
                                 onReady: (event) => {
                                     this.tvPlayerReady = true;
+                                    try {
+                                        if (typeof event.target.setPlaybackRate === 'function') {
+                                            event.target.setPlaybackRate(1);
+                                        }
+                                    } catch (e) {}
                                     if (this.tvSoundEnabled) {
                                         event.target.unMute();
                                         event.target.setVolume(this.isAdzanMode ? (this.adzanTargetVolume ?? 10) : (this.tvVolume ?? 100));
@@ -477,9 +482,14 @@
                                     }
                                 },
                                 onStateChange: (event) => {
-                                    // Matikan paksa closed caption saat video memutar
+                                    // Matikan paksa closed caption saat video memutar & kunci kecepatan normal 1.0x
                                     if (event.data === YT.PlayerState.PLAYING) {
                                         this.disableCaptions();
+                                        try {
+                                            if (typeof event.target.setPlaybackRate === 'function' && typeof event.target.getPlaybackRate === 'function' && event.target.getPlaybackRate() !== 1) {
+                                                event.target.setPlaybackRate(1);
+                                            }
+                                        } catch (e) {}
 
                                         // Kalibrasi awal saat video baru mulai memutar jika buffering awal memakan waktu > 2 detik
                                         if (!this._initialSynced && this.playbackCurrentTime > 0) {
@@ -588,47 +598,28 @@
                             }
                         }
 
-                        // Sinkronisasi posisi detik ultra-halus (Micro-Rate Auto Sync)
-                        // Mengeliminasi delay sekecil mungkin tanpa memicu buffering loop
+                        // Pastikan kecepatan putar selalu normal 1.0x (mencegah efek slowmo atau nada terseret pada audio TV)
+                        if (typeof this.tvPlayer.getPlaybackRate === 'function') {
+                            try {
+                                if (this.tvPlayer.getPlaybackRate() !== 1 && typeof this.tvPlayer.setPlaybackRate === 'function') {
+                                    this.tvPlayer.setPlaybackRate(1);
+                                    this._currentRate = 1;
+                                }
+                            } catch (e) {}
+                        }
+
+                        // Sinkronisasi posisi detik (Hanya jika terjadi selisih signifikan seperti kasir scrub timeline)
                         if (this.isPlaying && typeof this.tvPlayer.getCurrentTime === 'function' && this.playbackDuration > 0 && this.playbackCurrentTime < 86400) {
                             if (state !== YT.PlayerState.BUFFERING) {
                                 const tvCurTime = this.tvPlayer.getCurrentTime() || 0;
-                                const diff = this.playbackCurrentTime - tvCurTime; // > 0: TV tertinggal, < 0: TV mendahului
+                                const diff = this.playbackCurrentTime - tvCurTime;
                                 const absDrift = Math.abs(diff);
                                 const now = Date.now();
 
-                                // 1. Selisih drastis (> 5 detik, misal kasir menggeser scrubber/slider lagu)
-                                if (absDrift > 5 && (!this._lastSeekTime || (now - this._lastSeekTime > 5000))) {
+                                // Hanya seek jika selisih drastis (> 4 detik, misal kasir menggeser slider lagu)
+                                if (absDrift > 4 && (!this._lastSeekTime || (now - this._lastSeekTime > 5000))) {
                                     this._lastSeekTime = now;
                                     this.tvPlayer.seekTo(this.playbackCurrentTime, true);
-                                    if (this._currentRate !== 1 && typeof this.tvPlayer.setPlaybackRate === 'function') {
-                                        this.tvPlayer.setPlaybackRate(1);
-                                        this._currentRate = 1;
-                                    }
-                                }
-                                // 2. Selisih halus (0.8s s/d 5s): Gunakan penyesuaian kecepatan putar (micro-rate)
-                                // Mulus 100% TANPA buffering, TANPA spinner loading, dan gambar tidak pernah tersendat!
-                                else if (absDrift >= 0.8 && absDrift <= 5) {
-                                    if (diff > 0.8 && this._currentRate !== 1.25) {
-                                        // TV sedikit tertinggal -> percepat 1.25x agar mengejar dalam beberapa detik
-                                        if (typeof this.tvPlayer.setPlaybackRate === 'function') {
-                                            this.tvPlayer.setPlaybackRate(1.25);
-                                            this._currentRate = 1.25;
-                                        }
-                                    } else if (diff < -0.8 && this._currentRate !== 0.75) {
-                                        // TV sedikit mendahului -> perlambat 0.75x agar audio kasir menyusul
-                                        if (typeof this.tvPlayer.setPlaybackRate === 'function') {
-                                            this.tvPlayer.setPlaybackRate(0.75);
-                                            this._currentRate = 0.75;
-                                        }
-                                    }
-                                }
-                                // 3. Selisih presisi (< 0.8 detik): Video dan Audio sudah sinkron sempurna
-                                else if (absDrift < 0.8 && this._currentRate !== 1) {
-                                    if (typeof this.tvPlayer.setPlaybackRate === 'function') {
-                                        this.tvPlayer.setPlaybackRate(1);
-                                        this._currentRate = 1;
-                                    }
                                 }
                             }
                         }
