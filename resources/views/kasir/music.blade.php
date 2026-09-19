@@ -1001,7 +1001,7 @@ function musicStationPage() {
             });
 
             // Interpolasi visual 1 detik untuk pergerakan detik yang mulus
-            setInterval(() => {
+            const visualTickTimer = setInterval(() => {
                 if (this.isPlaying && !this.isLive) {
                     if (this.duration > 0 && this.currentTime < this.duration) {
                         this.currentTime = Math.min(this.duration, this.currentTime + 1);
@@ -1011,13 +1011,24 @@ function musicStationPage() {
                 }
             }, 1000);
 
-            setInterval(() => {
+            const syncTimer = setInterval(() => {
                 if (window.SoundStation) {
                     this.syncFromWindowMaster();
                 } else if (window.SoundStationHub) {
                     this.applyState(window.SoundStationHub.state);
                 }
             }, 1500);
+
+            const cleanupMusicTimers = () => {
+                clearInterval(visualTickTimer);
+                clearInterval(syncTimer);
+                window.removeEventListener('kasir:page-leave', cleanupMusicTimers);
+            };
+
+            window.addEventListener('kasir:page-leave', cleanupMusicTimers);
+            if (typeof this.$cleanup === 'function') {
+                this.$cleanup(cleanupMusicTimers);
+            }
         },
 
         applyTimeSync(timeData) {

@@ -310,10 +310,29 @@
 
                 // Polling pesanan baru setiap 4 detik
                 this._pollTimer = setInterval(() => this.fetchOrders(true), 4000);
+
+                const cleanupFn = () => {
+                    if (this._pollTimer) {
+                        clearInterval(this._pollTimer);
+                        this._pollTimer = null;
+                    }
+                    document.removeEventListener('fullscreenchange', updateFs);
+                    document.removeEventListener('webkitfullscreenchange', updateFs);
+                    document.removeEventListener('msfullscreenchange', updateFs);
+                    window.removeEventListener('kasir:page-leave', cleanupFn);
+                };
+
+                window.addEventListener('kasir:page-leave', cleanupFn);
+                if (typeof this.$cleanup === 'function') {
+                    this.$cleanup(cleanupFn);
+                }
             },
 
             destroy() {
-                if (this._pollTimer) clearInterval(this._pollTimer);
+                if (this._pollTimer) {
+                    clearInterval(this._pollTimer);
+                    this._pollTimer = null;
+                }
             },
 
             async fetchOrders(isSilent = false) {

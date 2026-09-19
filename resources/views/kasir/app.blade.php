@@ -12,10 +12,24 @@
     <link rel="manifest" href="{{ asset('manifest.json') }}">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <style>
+        @keyframes kasirPageFadeIn {
+            0% { opacity: 0.7; transform: translateY(4px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        .kasir-page-enter {
+            animation: kasirPageFadeIn 0.16s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+    </style>
 </head>
 <body class="bg-[#F7F3EC] text-[#2A211A] antialiased h-full overflow-hidden font-sans selection:bg-[#D9973E] selection:text-[#1F1812]"
       x-data="kasirAppShell()"
       x-init="initShell()">
+
+    <!-- TOP NAVIGATION PROGRESS BAR -->
+    <div id="kasir-top-progress" class="fixed top-0 left-0 h-[3px] z-[9999] pointer-events-none transition-all duration-200 ease-out opacity-0"
+         style="width: 0%; background: linear-gradient(90deg, #D9973E, #F59E0B); box-shadow: 0 0 10px rgba(217, 151, 62, 0.8), 0 0 4px rgba(245, 158, 11, 0.6);">
+    </div>
 
     <div class="flex flex-col md:flex-row h-full w-full overflow-hidden">
 
@@ -424,12 +438,154 @@
             };
         }
 
+        // IN-MEMORY PAGE CACHE & PROGRESS BAR UNTUK NAVIGASI INSTAN
+        const kasirPageCache = new Map();
+        const MAX_CACHE_SIZE = 15;
+        const CACHE_TTL_MS = 60000; // 60 detik
+        let activeNavAbortController = null;
+        const prefetchAbortControllers = new Map();
+
+        const kasirProgressBar = {
+            el: null,
+            timer: null,
+            init() {
+                this.el = document.getElementById('kasir-top-progress');
+            },
+            start() {
+                if (!this.el) this.init();
+                if (!this.el) return;
+                clearInterval(this.timer);
+                this.el.style.opacity = '1';
+                this.el.style.width = '25%';
+                let progress = 25;
+                this.timer = setInterval(() => {
+                    if (progress < 80) {
+                        progress += (80 - progress) * 0.15;
+                        if (this.el) this.el.style.width = Math.round(progress) + '%';
+                    }
+                }, 120);
+            },
+            done() {
+                if (!this.el) this.init();
+                if (!this.el) return;
+                clearInterval(this.timer);
+                this.el.style.width = '100%';
+                setTimeout(() => {
+                    if (this.el) {
+                        this.el.style.opacity = '0';
+                        setTimeout(() => {
+                            if (this.el) this.el.style.width = '0%';
+                        }, 200);
+                    }
+                }, 150);
+            }
+        };
+
+        // Cache Invalidation Helper
+        window.clearKasirPageCache = function(pattern) {
+            if (!pattern) {
+                kasirPageCache.clear();
+                return;
+            }
+            for (const key of kasirPageCache.keys()) {
+                if (key.includes(pattern)) {
+                    kasirPageCache.delete(key);
+                }
+            }
+        };
+
+        // Otomatis bersihkan cache halaman saat ada form submit / mutasi data
+        window.addEventListener('submit', () => window.clearKasirPageCache());
+        window.addEventListener('kasir:invalidate-cache', () => window.clearKasirPageCache());
+
+        // Intercept non-GET fetch untuk otomatis invalidasi cache
+        const _origFetch = window.fetch;
+        window.fetch = function(...args) {
+            const [, config] = args;
+            const method = (config && config.method) ? String(config.method).toUpperCase() : 'GET';
+            if (method !== 'GET' && method !== 'HEAD') {
+                window.clearKasirPageCache();
+            }
+            return _origFetch.apply(this, args);
+        };
+
+        // Predictive Preloading saat kursor/sentuhan mendekati menu
+        function prefetchKasirPage(url) {
+            if (!url || typeof url !== 'string') return;
+            try {
+                const parsed = new URL(url, window.location.origin);
+                if (parsed.origin !== window.location.origin) return;
+                if (!parsed.pathname.startsWith('/kasir')) return;
+                if (parsed.pathname.includes('/receipt') || parsed.pathname.includes('/mini') || parsed.pathname.includes('/ticket') || parsed.pathname.includes('/logout')) return;
+
+                const cleanUrl = parsed.href;
+                const cached = kasirPageCache.get(cleanUrl);
+                if (cached && (Date.now() - cached.timestamp < CACHE_TTL_MS)) {
+                    return; // Sudah ada di cache segar
+                }
+
+                if (prefetchAbortControllers.has(cleanUrl)) {
+                    return; // Sedang di-fetch
+                }
+
+                const controller = new AbortController();
+                prefetchAbortControllers.set(cleanUrl, controller);
+
+                _origFetch(cleanUrl, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    signal: controller.signal,
+                    priority: 'low'
+                })
+                .then(res => {
+                    if (res.ok) return res.text();
+                    throw new Error('Prefetch error');
+                })
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const newMain = doc.querySelector('main');
+                    if (newMain) {
+                        if (kasirPageCache.size >= MAX_CACHE_SIZE) {
+                            const oldestKey = kasirPageCache.keys().next().value;
+                            kasirPageCache.delete(oldestKey);
+                        }
+                        kasirPageCache.set(cleanUrl, {
+                            html: newMain.innerHTML,
+                            title: doc.title || '',
+                            timestamp: Date.now()
+                        });
+                    }
+                })
+                .catch(() => {})
+                .finally(() => {
+                    prefetchAbortControllers.delete(cleanUrl);
+                });
+            } catch (e) {}
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             // Update teks tombol musik mobile saat status berubah
             window.addEventListener('soundstation:state', function(e) {
                 const el = document.getElementById('mobile-music-status');
                 if (el) el.textContent = e.detail.isPlaying ? '⏸ Putar' : '▶ Jeda';
             });
+
+            // Predictive Prefetching pada hover & touch
+            document.addEventListener('pointerenter', function(e) {
+                const link = e.target.closest('a');
+                if (link) {
+                    const href = link.getAttribute('href');
+                    if (href) prefetchKasirPage(href);
+                }
+            }, { passive: true });
+
+            document.addEventListener('touchstart', function(e) {
+                const link = e.target.closest('a');
+                if (link) {
+                    const href = link.getAttribute('href');
+                    if (href) prefetchKasirPage(href);
+                }
+            }, { passive: true });
 
             // Intercept klik navigasi link kasir agar perpindahan menu berlangsung instan & musik tetap menyala
             document.addEventListener('click', function(e) {
@@ -457,7 +613,7 @@
         });
 
         async function swapKasirPage(url, pushState = true) {
-            // Tutup sidebar drawer seketika saat link diklik
+            // 1. Tutup sidebar drawer seketika jika terbuka
             window.dispatchEvent(new CustomEvent('kasir:close-sidebar'));
 
             const mainEl = document.querySelector('main');
@@ -466,35 +622,79 @@
                 return;
             }
 
+            // 2. Berikan visual feedback instan di sidebar bahwa menu ini sudah dipilih (0ms latency)
+            highlightActiveNav(url);
+
+            // 3. Batalkan fetch navigasi sebelumnya jika pengguna mengklik link lain secara cepat
+            if (activeNavAbortController) {
+                activeNavAbortController.abort();
+            }
+            activeNavAbortController = new AbortController();
+
+            // 4. Cek ketersediaan di cache in-memory
+            const cleanUrl = new URL(url, window.location.origin).href;
+            const cached = kasirPageCache.get(cleanUrl);
+            const isCached = cached && (Date.now() - cached.timestamp < CACHE_TTL_MS);
+
+            if (!isCached) {
+                kasirProgressBar.start();
+                mainEl.style.transition = 'opacity 0.12s ease';
+                mainEl.style.opacity = '0.75';
+            }
+
             // Kunci background polling agar seluruh kapasitas Apache difokuskan ke halaman ini
             window._isNavigatingKasirPage = true;
 
             try {
-                mainEl.style.transition = 'opacity 0.12s ease';
-                mainEl.style.opacity = '0.5';
-                mainEl.style.pointerEvents = 'none';
+                let contentHtml = '';
+                let docTitle = '';
 
-                const res = await fetch(url, {
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                });
+                if (isCached) {
+                    contentHtml = cached.html;
+                    docTitle = cached.title;
+                } else {
+                    const res = await _origFetch(url, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        signal: activeNavAbortController.signal
+                    });
 
-                if (!res.ok) {
-                    window.location.href = url;
-                    return;
+                    if (!res.ok) {
+                        window.location.href = url;
+                        return;
+                    }
+
+                    const html = await res.text();
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+
+                    const newMain = doc.querySelector('main');
+                    if (!newMain) {
+                        window.location.href = url;
+                        return;
+                    }
+
+                    contentHtml = newMain.innerHTML;
+                    docTitle = doc.title || '';
+
+                    // Simpan ke cache
+                    if (kasirPageCache.size >= MAX_CACHE_SIZE) {
+                        const oldestKey = kasirPageCache.keys().next().value;
+                        kasirPageCache.delete(oldestKey);
+                    }
+                    kasirPageCache.set(cleanUrl, {
+                        html: contentHtml,
+                        title: docTitle,
+                        timestamp: Date.now()
+                    });
                 }
 
-                const html = await res.text();
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
+                // Beritahu halaman sebelumnya untuk cleanup (timers, listeners, dll)
+                window.dispatchEvent(new CustomEvent('kasir:page-leave', {
+                    detail: { from: window.location.pathname, to: url }
+                }));
 
-                const newMain = doc.querySelector('main');
-                if (!newMain) {
-                    window.location.href = url;
-                    return;
-                }
-
-                if (doc.title) {
-                    document.title = doc.title;
+                if (docTitle) {
+                    document.title = docTitle;
                 }
 
                 if (pushState) {
@@ -507,14 +707,18 @@
                     detail: { url, pathname: newPath }
                 }));
 
-                // Bersihkan Alpine trees lama jika ada
+                // Bersihkan Alpine trees lama
                 if (window.Alpine && window.Alpine.destroyTree) {
                     window.Alpine.destroyTree(mainEl);
                 }
 
-                mainEl.innerHTML = newMain.innerHTML;
+                // Masukkan konten baru dengan kelas animasi halus
+                mainEl.classList.remove('kasir-page-enter');
+                void mainEl.offsetWidth; // Force reflow agar animasi re-trigger
+                mainEl.innerHTML = contentHtml;
                 mainEl.style.opacity = '1';
                 mainEl.style.pointerEvents = 'auto';
+                mainEl.classList.add('kasir-page-enter');
 
                 // Jalankan kembali tag script yang baru dimasukkan
                 const scripts = mainEl.querySelectorAll('script');
@@ -530,14 +734,16 @@
                     window.Alpine.initTree(mainEl);
                 }
 
-                // Perbarui highlight link aktif di sidebar
-                highlightActiveNav(url);
-
                 // Scroll konten kembali ke atas
                 const scrollable = mainEl.querySelector('.overflow-y-auto') || mainEl;
                 if (scrollable) scrollable.scrollTop = 0;
 
+                kasirProgressBar.done();
+
             } catch (err) {
+                if (err.name === 'AbortError') {
+                    return; // Request dibatalkan karena navigasi baru
+                }
                 console.warn('Seamless swap failed, standard reload:', err);
                 window.location.href = url;
             } finally {
