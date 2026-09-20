@@ -345,9 +345,9 @@
                         }
                     });
 
-                    // Polling status lagu & pesanan siap setiap 750ms untuk respon ultra-cepat
+                    // Polling status lagu & pesanan siap setiap 2500ms (hemat bandwidth & bebas buffer)
                     this.fetchStatus();
-                    setInterval(() => this.fetchStatus(), 750);
+                    setInterval(() => this.fetchStatus(), 2500);
 
                     // Muat YouTube Iframe API HANYA jika mode awal adalah video
                     if (this.displayMode === 'video') {
@@ -367,12 +367,12 @@
                         }
                     }, 100);
 
-                    // Sinkronisasi Video TV dengan status playback audio Kasir setiap 800ms HANYA jika mode video aktif
+                    // Sinkronisasi Video TV dengan status playback audio Kasir setiap 1000ms HANYA jika mode video aktif
                     setInterval(() => {
                         if (this.displayMode === 'video') {
                             this.syncTvPlayerState();
                         }
-                    }, 800);
+                    }, 1000);
 
                     // TV Browser Autoplay & Remote Interaction Unlock Listener
                     // Menghilangkan batasan autoplay browser TV (Tizen/webOS/Android TV) pada interaksi pertama (remote OK/click/touch)
@@ -443,15 +443,15 @@
                 setOptimalQuality() {
                     if (!this.tvPlayer) return;
                     try {
-                        const highResQualities = ['highres', 'hd1440', 'hd2160', 'hd2880', 'hd4320'];
+                        const highResQualities = ['highres', 'hd1440', 'hd2160', 'hd2880', 'hd4320', 'hd1080'];
                         const currentQuality = (typeof this.tvPlayer.getPlaybackQuality === 'function')
                             ? this.tvPlayer.getPlaybackQuality()
                             : null;
 
-                        // Hanya turunkan jika YouTube secara otomatis memilih resolusi di atas 1080p (2K/4K/8K)
+                        // Batasi maksimal ke 720p HD untuk efisiensi bandwidth dan mencegah video TV buffering
                         if (currentQuality && highResQualities.includes(currentQuality)) {
                             if (typeof this.tvPlayer.setPlaybackQuality === 'function') {
-                                this.tvPlayer.setPlaybackQuality('hd1080');
+                                this.tvPlayer.setPlaybackQuality('hd720');
                             }
                         }
                     } catch (e) {}
@@ -501,14 +501,14 @@
                                             this.tvPlayer.loadVideoById({
                                                 videoId: this.nowPlaying.youtube_id,
                                                 startSeconds: (startSec > 0 && startSec < 86400) ? startSec : 0,
-                                                suggestedQuality: 'hd1080'
+                                                suggestedQuality: 'hd720'
                                             });
                                             event.target.playVideo();
                                         } else {
                                             this.tvPlayer.cueVideoById({
                                                 videoId: this.nowPlaying.youtube_id,
                                                 startSeconds: (startSec > 0 && startSec < 86400) ? startSec : 0,
-                                                suggestedQuality: 'hd1080'
+                                                suggestedQuality: 'hd720'
                                             });
                                             event.target.pauseVideo();
                                         }
@@ -522,14 +522,14 @@
                                     if (event.data === YT.PlayerState.PLAYING) {
                                         this.disableCaptions();
 
-                                        // Kalibrasi awal saat video baru mulai memutar HANYA jika drift sangat jauh (> 2.5 detik)
-                                        // Drift kecil (< 2.5s) disinkronkan secara mulus via penyesuaian playbackRate tanpa memicu buffering berulang
+                                        // Kalibrasi awal saat video baru mulai memutar HANYA jika drift sangat jauh (> 4.5 detik)
+                                        // Drift kecil (< 4.5s) disinkronkan secara mulus via penyesuaian playbackRate tanpa memicu buffering berulang
                                         if (!this._initialSynced && this.playbackCurrentTime > 0) {
                                             this._initialSynced = true;
                                             const tvCurTime = (typeof this.tvPlayer.getCurrentTime === 'function') ? (this.tvPlayer.getCurrentTime() || 0) : 0;
                                             const targetTvTime = this.playbackCurrentTime + 0.25;
                                             const absDrift = Math.abs(targetTvTime - tvCurTime);
-                                            if (absDrift > 2.5 && absDrift < 86400) {
+                                            if (absDrift > 4.5 && absDrift < 86400) {
                                                 this._lastSeekTime = Date.now();
                                                 this.tvPlayer.seekTo(targetTvTime, true);
                                             }
@@ -544,11 +544,11 @@
                                     }
                                 },
                                 onPlaybackQualityChange: (event) => {
-                                    // Batasi maksimal Full HD (1080p) agar tidak memboroskan bandwidth atau buffering 4K
-                                    const highResQualities = ['highres', 'hd1440', 'hd2160', 'hd2880', 'hd4320'];
+                                    // Batasi maksimal ke 720p HD agar hemat bandwidth dan bebas buffering di Smart TV
+                                    const highResQualities = ['highres', 'hd1440', 'hd2160', 'hd2880', 'hd4320', 'hd1080'];
                                     if (highResQualities.includes(event.data)) {
                                         if (this.tvPlayer && typeof this.tvPlayer.setPlaybackQuality === 'function') {
-                                            this.tvPlayer.setPlaybackQuality('hd1080');
+                                            this.tvPlayer.setPlaybackQuality('hd720');
                                         }
                                     }
                                 }
@@ -584,13 +584,13 @@
                                 this.tvPlayer.loadVideoById({
                                     videoId: this.nowPlaying.youtube_id,
                                     startSeconds: (startSec > 0 && startSec < 86400) ? startSec : 0,
-                                    suggestedQuality: 'hd1080'
+                                    suggestedQuality: 'hd720'
                                 });
                             } else {
                                 this.tvPlayer.cueVideoById({
                                     videoId: this.nowPlaying.youtube_id,
                                     startSeconds: (startSec > 0 && startSec < 86400) ? startSec : 0,
-                                    suggestedQuality: 'hd1080'
+                                    suggestedQuality: 'hd720'
                                 });
                             }
                             this.disableCaptions();
@@ -634,9 +634,9 @@
                                 const absDrift = Math.abs(diff);
                                 const now = Date.now();
 
-                                // 1. HARD SEEK: HANYA jika drift sangat masif (> 3.0 detik, misal baru scrubbing seekbar di kasir)
-                                // Cooldown 6 detik untuk mencegah loop buffering / seek tiada henti
-                                if (absDrift > 3.0 && (!this._lastSeekTime || (now - this._lastSeekTime > 6000))) {
+                                // 1. HARD SEEK: HANYA jika drift sangat masif (> 5.5 detik, misal baru scrubbing seekbar di kasir)
+                                // Cooldown 8 detik untuk mencegah loop buffering / seek tiada henti
+                                if (absDrift > 5.5 && (!this._lastSeekTime || (now - this._lastSeekTime > 8000))) {
                                     this._lastSeekTime = now;
                                     this.tvPlayer.seekTo(targetTvTime, true);
                                     if (typeof this.tvPlayer.setPlaybackRate === 'function') {
@@ -645,16 +645,16 @@
                                     }
                                 }
                                 // 2. SMOOTH DYNAMIC RATE CATCH-UP (ZERO BUFFERING):
-                                // Menyesuaikan kecepatan video (0.75x - 1.25x) untuk drift kecil (0.25s s/d 3.0s).
+                                // Menyesuaikan kecepatan video (0.85x - 1.25x) untuk drift moderat (0.35s s/d 5.5s).
                                 // Karena Display TV selalu mute, penyesuaian rate ini 100% senyap, halus, dan BEBAS BUFFERING!
-                                else if (absDrift > 0.25 && absDrift <= 3.0) {
+                                else if (absDrift > 0.35 && absDrift <= 5.5) {
                                     let desiredRate = 1;
-                                    if (diff > 0.25) {
-                                        // Video TV tertinggal: percepat halus 1.25x agar visual mengejar target
-                                        desiredRate = 1.25;
-                                    } else if (diff < -0.35) {
-                                        // Video TV terlalu mendahului: perlambat halus 0.75x agar audio menyusul
-                                        desiredRate = 0.75;
+                                    if (diff > 0.35) {
+                                        // Video TV tertinggal: percepat halus (1.15x jika drift < 2s, atau 1.25x jika drift > 2s)
+                                        desiredRate = diff > 2.0 ? 1.25 : 1.15;
+                                    } else if (diff < -0.45) {
+                                        // Video TV terlalu mendahului: perlambat halus (0.85x) agar audio menyusul
+                                        desiredRate = 0.85;
                                     }
 
                                     if (this._currentRate !== desiredRate && typeof this.tvPlayer.setPlaybackRate === 'function') {
@@ -662,8 +662,8 @@
                                         this.tvPlayer.setPlaybackRate(desiredRate);
                                     }
                                 }
-                                // 3. IN SYNC: Kembalikan ke kecepatan normal 1.0x jika drift sudah selaras (<= 0.15s)
-                                else if (absDrift <= 0.15) {
+                                // 3. IN SYNC: Kembalikan ke kecepatan normal 1.0x jika drift sudah selaras (<= 0.2s)
+                                else if (absDrift <= 0.2) {
                                     if (this._currentRate !== 1 && typeof this.tvPlayer.setPlaybackRate === 'function') {
                                         this._currentRate = 1;
                                         this.tvPlayer.setPlaybackRate(1);
