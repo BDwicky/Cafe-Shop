@@ -758,6 +758,40 @@ class KasirMusicController extends Controller
             Cache::put('soundstation_playback_volume', $volume, now()->addDays(30));
         }
 
+        if ($validated['command'] === 'SET_DUCK_VOLUME' && isset($validated['data']['duck_volume'])) {
+            $duckVol = max(0, min(50, (int) $validated['data']['duck_volume']));
+            $currentSettings = self::getActiveAnnouncerSettings();
+            $currentSettings['duck_volume'] = $duckVol;
+            Cache::forever('soundstation_voice_settings', $currentSettings);
+            try {
+                $targetPath = self::getAnnouncerSettingsStoragePath();
+                $settingsDir = dirname($targetPath);
+                if (! is_dir($settingsDir)) {
+                    mkdir($settingsDir, 0755, true);
+                }
+                file_put_contents($targetPath, json_encode($currentSettings, JSON_PRETTY_PRINT));
+            } catch (\Throwable $e) {
+                // Ignored if permissions restrict writing
+            }
+        }
+
+        if ($validated['command'] === 'SET_ADZAN_VOLUME' && isset($validated['data']['target_volume'])) {
+            $targetVol = max(0, min(50, (int) $validated['data']['target_volume']));
+            $currentSettings = self::getActiveAnnouncerSettings();
+            $currentSettings['adzan_target_volume'] = $targetVol;
+            Cache::forever('soundstation_voice_settings', $currentSettings);
+            try {
+                $targetPath = self::getAnnouncerSettingsStoragePath();
+                $settingsDir = dirname($targetPath);
+                if (! is_dir($settingsDir)) {
+                    mkdir($settingsDir, 0755, true);
+                }
+                file_put_contents($targetPath, json_encode($currentSettings, JSON_PRETTY_PRINT));
+            } catch (\Throwable $e) {
+                // Ignored if permissions restrict writing
+            }
+        }
+
         // Cek apakah perintah dikirim oleh Master Host itu sendiri
         $senderClientId = $request->input('client_id');
         $master = Cache::get('soundstation_master_host');
@@ -988,9 +1022,9 @@ class KasirMusicController extends Controller
         // Pastikan tipe data numerik bersih
         $settings['rate'] = (float) $settings['rate'];
         $settings['pitch'] = (float) $settings['pitch'];
-        $settings['duck_volume'] = (int) ($settings['duck_volume'] ?? 12);
-        $settings['adzan_target_volume'] = (int) ($settings['adzan_target_volume'] ?? 10);
-        $settings['adzan_duration_minutes'] = (int) ($settings['adzan_duration_minutes'] ?? 5);
+        $settings['duck_volume'] = isset($settings['duck_volume']) && $settings['duck_volume'] !== '' ? (int) $settings['duck_volume'] : 12;
+        $settings['adzan_target_volume'] = isset($settings['adzan_target_volume']) && $settings['adzan_target_volume'] !== '' ? (int) $settings['adzan_target_volume'] : 10;
+        $settings['adzan_duration_minutes'] = isset($settings['adzan_duration_minutes']) && $settings['adzan_duration_minutes'] !== '' ? (int) $settings['adzan_duration_minutes'] : 5;
 
         Cache::forever('soundstation_voice_settings', $settings);
 

@@ -466,47 +466,23 @@ function navbarMusicWidget() {
         activePrayerName: '',
         preAdzanVolume: null,
         adzanTargetVolume: (() => {
-            try {
-                const saved = JSON.parse(localStorage.getItem('pos_soundstation_announcer_settings') || 'null');
-                if (saved && typeof saved.adzan_target_volume !== 'undefined') return Number(saved.adzan_target_volume);
-            } catch (e) {}
             return {{ (int) (\App\Http\Controllers\KasirMusicController::getActiveAnnouncerSettings()['adzan_target_volume'] ?? 10) }};
         })(),
         adzanDurationMinutes: (() => {
-            try {
-                const saved = JSON.parse(localStorage.getItem('pos_soundstation_announcer_settings') || 'null');
-                if (saved && typeof saved.adzan_duration_minutes !== 'undefined') return Number(saved.adzan_duration_minutes);
-            } catch (e) {}
             return {{ (int) (\App\Http\Controllers\KasirMusicController::getActiveAnnouncerSettings()['adzan_duration_minutes'] ?? 5) }};
         })(),
         adzanModeEnabled: (() => {
-            try {
-                const saved = JSON.parse(localStorage.getItem('pos_soundstation_announcer_settings') || 'null');
-                if (saved && typeof saved.adzan_mode_enabled !== 'undefined') return !!saved.adzan_mode_enabled;
-            } catch (e) {}
             return {{ \App\Http\Controllers\KasirMusicController::getActiveAnnouncerSettings()['adzan_mode_enabled'] ? 'true' : 'false' }};
         })(),
 
         // AUTO-PAUSE JAM TUTUP TOKO (00:00 WIB)
         autoPauseClosingEnabled: (() => {
-            try {
-                const saved = JSON.parse(localStorage.getItem('pos_soundstation_announcer_settings') || 'null');
-                if (saved && typeof saved.auto_pause_midnight !== 'undefined') return !!saved.auto_pause_midnight;
-            } catch (e) {}
             return {{ \App\Http\Controllers\KasirMusicController::getActiveAnnouncerSettings()['auto_pause_midnight'] ? 'true' : 'false' }};
         })(),
         closingTime: (() => {
-            try {
-                const saved = JSON.parse(localStorage.getItem('pos_soundstation_announcer_settings') || 'null');
-                if (saved && saved.closing_time) return saved.closing_time;
-            } catch (e) {}
             return '{{ \App\Http\Controllers\KasirMusicController::getActiveAnnouncerSettings()['closing_time'] ?? '00:00' }}';
         })(),
         reopenTime: (() => {
-            try {
-                const saved = JSON.parse(localStorage.getItem('pos_soundstation_announcer_settings') || 'null');
-                if (saved && saved.reopen_time) return saved.reopen_time;
-            } catch (e) {}
             return '{{ \App\Http\Controllers\KasirMusicController::getActiveAnnouncerSettings()['reopen_time'] ?? '06:00' }}';
         })(),
         _hasAutoPausedTonight: false,
@@ -521,17 +497,17 @@ function navbarMusicWidget() {
         voiceAnnouncerEnabled: true,
         isAnnouncing: false,
         duckedVolume: (() => {
-            try {
-                const saved = JSON.parse(localStorage.getItem('pos_soundstation_announcer_settings') || 'null');
-                if (saved && typeof saved.duck_volume !== 'undefined') return Number(saved.duck_volume);
-            } catch (e) {}
             return {{ (int) (\App\Http\Controllers\KasirMusicController::getActiveAnnouncerSettings()['duck_volume'] ?? 12) }};
         })(),
         announcerSettings: (() => {
+            const serverSettings = @json(\App\Http\Controllers\KasirMusicController::getActiveAnnouncerSettings());
             try {
-                return JSON.parse(localStorage.getItem('pos_soundstation_announcer_settings') || 'null') || @json(\App\Http\Controllers\KasirMusicController::getActiveAnnouncerSettings());
+                const local = JSON.parse(localStorage.getItem('pos_soundstation_announcer_settings') || 'null') || {};
+                const merged = { ...local, ...serverSettings };
+                localStorage.setItem('pos_soundstation_announcer_settings', JSON.stringify(merged));
+                return merged;
             } catch (e) {
-                return @json(\App\Http\Controllers\KasirMusicController::getActiveAnnouncerSettings());
+                return serverSettings;
             }
         })(),
 
@@ -1699,7 +1675,24 @@ function navbarMusicWidget() {
                     break;
                 case 'SET_ADZAN_VOLUME':
                     if (data && typeof data.target_volume !== 'undefined') {
-                        this.setLiveAdzanVolume(data.target_volume);
+                        const targetVol = Math.max(0, Math.min(100, Number(data.target_volume)));
+                        this.setLiveAdzanVolume(targetVol);
+                        if (!this.announcerSettings) this.announcerSettings = {};
+                        this.announcerSettings.adzan_target_volume = targetVol;
+                        try {
+                            localStorage.setItem('pos_soundstation_announcer_settings', JSON.stringify(this.announcerSettings));
+                        } catch (e) {}
+                    }
+                    break;
+                case 'SET_DUCK_VOLUME':
+                    if (data && typeof data.duck_volume !== 'undefined') {
+                        const duckVol = Math.max(0, Math.min(50, Number(data.duck_volume)));
+                        this.duckedVolume = duckVol;
+                        if (!this.announcerSettings) this.announcerSettings = {};
+                        this.announcerSettings.duck_volume = duckVol;
+                        try {
+                            localStorage.setItem('pos_soundstation_announcer_settings', JSON.stringify(this.announcerSettings));
+                        } catch (e) {}
                     }
                     break;
                 case 'REFRESH_QUEUE':

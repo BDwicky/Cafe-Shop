@@ -1278,4 +1278,46 @@ class MusicRequestTest extends TestCase
 
         $this->assertSame(20, Cache::get('soundstation_playback_volume'));
     }
+
+    public function test_remote_command_persists_duck_and_adzan_volume_to_persistent_storage(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        // 1. Remote command SET_DUCK_VOLUME memperbarui duck_volume ke cache dan storage
+        $remoteDuck = $this->postJson(route('kasir.music.master.command'), [
+            'command' => 'SET_DUCK_VOLUME',
+            'data' => ['duck_volume' => 5],
+        ]);
+        $remoteDuck->assertOk()->assertJsonPath('status', 'queued');
+
+        $activeSettings = KasirMusicController::getActiveAnnouncerSettings();
+        $this->assertSame(5, $activeSettings['duck_volume']);
+
+        // 2. Remote command SET_ADZAN_VOLUME memperbarui adzan_target_volume ke cache dan storage
+        $remoteAdzan = $this->postJson(route('kasir.music.master.command'), [
+            'command' => 'SET_ADZAN_VOLUME',
+            'data' => ['target_volume' => 8],
+        ]);
+        $remoteAdzan->assertOk()->assertJsonPath('status', 'queued');
+
+        $activeSettings = KasirMusicController::getActiveAnnouncerSettings();
+        $this->assertSame(8, $activeSettings['adzan_target_volume']);
+
+        // 3. Simulasi server restart / cache:clear: Cache dihapus total
+        Cache::flush();
+        $this->assertNull(Cache::get('soundstation_voice_settings'));
+
+        // Harus tetap pulih dari persistent file storage
+        $restoredSettings = KasirMusicController::getActiveAnnouncerSettings();
+        $this->assertSame(5, $restoredSettings['duck_volume']);
+        $this->assertSame(8, $restoredSettings['adzan_target_volume']);
+
+        // Cleanup
+        $testFile = KasirMusicController::getAnnouncerSettingsStoragePath();
+        if (file_exists($testFile)) {
+            @unlink($testFile);
+        }
+        Cache::flush();
+    }
 }

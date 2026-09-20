@@ -112,13 +112,15 @@
         </div>
     </div>
 
-    <!-- 3. GRID UTAMA PENGATURAN (2 KOLOM: MODEL SUARA & FORMAT/CHIME) -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    <!-- 3. GRID UTAMA PENGATURAN (2 KOLOM SEIMBANG: SUARA & FORMAT vs PEREDAM & OTOMASI) -->
+    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
 
-        <!-- KOLOM KIRI: PILIHAN MODEL SUARA & AKSEN (lg:col-span-7) -->
-        <div class="lg:col-span-7 space-y-6">
+        <!-- ======================================================== -->
+        <!-- KOLOM KIRI: KARAKTER SUARA, FORMAT PANGGILAN & BEL CHIME -->
+        <!-- ======================================================== -->
+        <div class="space-y-6">
 
-            <!-- BAGIAN 1: MODEL SUARA UTAMA -->
+            <!-- BAGIAN 1: MODEL SUARA & AKSEN -->
             <div class="bg-white border border-[#E4DCCC] rounded-2xl p-5 sm:p-6 shadow-xs space-y-5">
                 <div class="border-b border-[#E4DCCC] pb-3">
                     <div class="flex items-center gap-2">
@@ -293,85 +295,13 @@
                 </div>
             </div>
 
-            <!-- BAGIAN 2: PENGATURAN TEMPO & PITCH SUARA -->
-            <div class="bg-white border border-[#E4DCCC] rounded-2xl p-5 sm:p-6 shadow-xs space-y-5">
-                <div class="border-b border-[#E4DCCC] pb-3">
-                    <div class="flex items-center gap-2">
-                        <span class="text-lg">🎚️</span>
-                        <h2 class="text-lg font-serif font-bold text-[#1F1812]">
-                            2. Kecepatan & Nada Bicara
-                        </h2>
-                    </div>
-                    <p class="text-xs text-[#7A6A58] mt-0.5">
-                        Sesuaikan tempo bicara agar tidak tergesa-gesa dan nyaman didengar pengunjung kafe.
-                    </p>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <!-- Speed / Rate Slider -->
-                    <div class="space-y-2.5 p-3.5 bg-[#FAF7F2] border border-[#E4DCCC] rounded-xl shadow-2xs">
-                        <div class="flex items-center justify-between text-xs">
-                            <span class="font-mono uppercase tracking-wider text-[#5C4D3C] font-bold">Kecepatan (Speed):</span>
-                            <span class="font-mono font-bold px-2 py-0.5 rounded-full bg-[#D9973E]/15 text-[#B5762A] text-xs" x-text="form.rate + 'x'"></span>
-                        </div>
-                        <input type="range" min="0.75" max="1.3" step="0.05" x-model="form.rate"
-                               class="w-full accent-[#D9973E] cursor-pointer h-2 bg-[#E4DCCC] rounded-lg">
-                        <div class="flex justify-between text-[10px] font-mono text-[#8A7B66]">
-                            <span>Santai (0.8x)</span>
-                            <span>Normal (1.0x)</span>
-                            <span>Cepat (1.25x)</span>
-                        </div>
-                    </div>
-
-                    <!-- Pitch Slider -->
-                    <div class="space-y-2.5 p-3.5 bg-[#FAF7F2] border border-[#E4DCCC] rounded-xl shadow-2xs">
-                        <div class="flex items-center justify-between text-xs">
-                            <span class="font-mono uppercase tracking-wider text-[#5C4D3C] font-bold">Nada Suara (Pitch):</span>
-                            <span class="font-mono font-bold px-2 py-0.5 rounded-full bg-[#D9973E]/15 text-[#B5762A] text-xs" x-text="form.pitch"></span>
-                        </div>
-                        <input type="range" min="0.8" max="1.25" step="0.05" x-model="form.pitch"
-                               class="w-full accent-[#D9973E] cursor-pointer h-2 bg-[#E4DCCC] rounded-lg">
-                        <div class="flex justify-between text-[10px] font-mono text-[#8A7B66]">
-                            <span>Berat / Rendah (0.8)</span>
-                            <span>Natural (1.0)</span>
-                            <span>Ceria / Tinggi (1.2)</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Audio Ducking Setting -->
-                <div class="pt-4 border-t border-[#F2EDE4] space-y-2.5">
-                    <div class="flex items-center justify-between text-xs">
-                        <div>
-                            <span class="font-mono uppercase tracking-wider text-[#5C4D3C] font-bold">Peredam Musik Kafe (Audio Ducking):</span>
-                            <p class="text-[11px] text-[#8A7B66] mt-0.5">Tingkat volume lagu YouTube yang diturunkan saat suara pengumuman berbicara.</p>
-                        </div>
-                        <span class="font-mono font-bold px-2.5 py-0.5 rounded-full bg-[#5F7F42]/15 text-[#5F7F42] text-xs" x-text="form.duck_volume + '%'"></span>
-                    </div>
-                    <input type="range" min="0" max="35" step="1" x-model.number="form.duck_volume"
-                           class="w-full accent-[#D9973E] cursor-pointer h-2 bg-[#E4DCCC] rounded-lg">
-                    <div class="flex justify-between text-[10px] text-[#A89A85] font-mono">
-                        <span :class="form.duck_volume == 0 ? 'text-[#5F7F42] font-bold' : ''">0% (Hening)</span>
-                        <span :class="form.duck_volume == 2 ? 'text-[#5F7F42] font-bold' : ''">2%</span>
-                        <span :class="form.duck_volume == 12 ? 'text-[#5F7F42] font-bold' : ''">12% (Standar)</span>
-                        <span>25%</span>
-                        <span>35%</span>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-
-        <!-- KOLOM KANAN: FORMAT KALIMAT & NADA DERING (lg:col-span-5) -->
-        <div class="lg:col-span-5 space-y-6">
-
-            <!-- BAGIAN 3: TEMPLATE KALIMAT PANGGILAN -->
+            <!-- BAGIAN 2: TEMPLATE KALIMAT PANGGILAN -->
             <div class="bg-white border border-[#E4DCCC] rounded-2xl p-5 sm:p-6 shadow-xs space-y-5">
                 <div class="border-b border-[#E4DCCC] pb-3">
                     <div class="flex items-center gap-2">
                         <span class="text-lg">💬</span>
                         <h2 class="text-lg font-serif font-bold text-[#1F1812]">
-                            3. Format Kalimat Panggilan
+                            2. Format Kalimat Panggilan
                         </h2>
                     </div>
                     <p class="text-xs text-[#7A6A58] mt-0.5">
@@ -450,14 +380,14 @@
                 </div>
             </div>
 
-            <!-- BAGIAN 4: GAYA NADA DERING (CHIME BELL) -->
+            <!-- BAGIAN 3: GAYA NADA DERING (CHIME BELL) -->
             <div class="bg-white border border-[#E4DCCC] rounded-2xl p-5 sm:p-6 shadow-xs space-y-5">
                 <div class="border-b border-[#E4DCCC] pb-3 flex items-center justify-between">
                     <div>
                         <div class="flex items-center gap-2">
                             <span class="text-lg">🔔</span>
                             <h2 class="text-lg font-serif font-bold text-[#1F1812]">
-                                4. Nada Dering Bel (Chime)
+                                3. Nada Dering Bel (Chime)
                             </h2>
                         </div>
                         <p class="text-xs text-[#7A6A58] mt-0.5">
@@ -466,7 +396,7 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-2.5">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <!-- Chime 1: Ding Dong Kafe -->
                     <div class="p-3.5 border-2 rounded-xl flex items-center justify-between transition-all cursor-pointer shadow-2xs"
                          :class="form.chime_style === 'ding_dong' ? 'border-[#D9973E] bg-[#D9973E]/10' : 'border-[#E4DCCC] hover:border-[#D9973E]/60 bg-[#FAF7F2]/40'"
@@ -515,6 +445,117 @@
                 </div>
             </div>
 
+        </div>
+
+        <!-- ======================================================== -->
+        <!-- KOLOM KANAN: PEREDAM MUSIK, ADZAN & JEDA TUTUP TOKO      -->
+        <!-- ======================================================== -->
+        <div class="space-y-6">
+
+            <!-- BAGIAN 4: PENGATURAN TEMPO, PITCH & PEREDAM MUSIK KAFE -->
+            <div class="bg-white border border-[#E4DCCC] rounded-2xl p-5 sm:p-6 shadow-xs space-y-5">
+                <div class="border-b border-[#E4DCCC] pb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-lg">🎚️</span>
+                        <h2 class="text-lg font-serif font-bold text-[#1F1812]">
+                            4. Nada Bicara & Peredam Musik Kafe
+                        </h2>
+                    </div>
+                    <p class="text-xs text-[#7A6A58] mt-0.5">
+                        Sesuaikan dinamika suara pengumuman dan tingkat peredaman lagu saat kasir berbicara.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <!-- Speed / Rate Slider -->
+                    <div class="space-y-2.5 p-3.5 bg-[#FAF7F2] border border-[#E4DCCC] rounded-xl shadow-2xs">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="font-mono uppercase tracking-wider text-[#5C4D3C] font-bold">Kecepatan (Speed):</span>
+                            <span class="font-mono font-bold px-2 py-0.5 rounded-full bg-[#D9973E]/15 text-[#B5762A] text-xs" x-text="form.rate + 'x'"></span>
+                        </div>
+                        <input type="range" min="0.75" max="1.3" step="0.05" x-model="form.rate"
+                               class="w-full accent-[#D9973E] cursor-pointer h-2 bg-[#E4DCCC] rounded-lg">
+                        <div class="flex justify-between text-[10px] font-mono text-[#8A7B66]">
+                            <span>Santai (0.8x)</span>
+                            <span>Normal (1.0x)</span>
+                            <span>Cepat (1.25x)</span>
+                        </div>
+                    </div>
+
+                    <!-- Pitch Slider -->
+                    <div class="space-y-2.5 p-3.5 bg-[#FAF7F2] border border-[#E4DCCC] rounded-xl shadow-2xs">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="font-mono uppercase tracking-wider text-[#5C4D3C] font-bold">Nada Suara (Pitch):</span>
+                            <span class="font-mono font-bold px-2 py-0.5 rounded-full bg-[#D9973E]/15 text-[#B5762A] text-xs" x-text="form.pitch"></span>
+                        </div>
+                        <input type="range" min="0.8" max="1.25" step="0.05" x-model="form.pitch"
+                               class="w-full accent-[#D9973E] cursor-pointer h-2 bg-[#E4DCCC] rounded-lg">
+                        <div class="flex justify-between text-[10px] font-mono text-[#8A7B66]">
+                            <span>Berat (0.8)</span>
+                            <span>Natural (1.0)</span>
+                            <span>Ceria (1.2)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Audio Ducking Setting -->
+                <div class="pt-4 border-t border-[#F2EDE4] space-y-2.5">
+                    <div class="flex items-center justify-between text-xs">
+                        <div>
+                            <span class="font-mono uppercase tracking-wider text-[#5C4D3C] font-bold">Peredam Musik Kafe (Audio Ducking):</span>
+                            <p class="text-[11px] text-[#8A7B66] mt-0.5">Tingkat volume lagu YouTube yang diturunkan saat suara pengumuman berbicara.</p>
+                        </div>
+                        <span class="font-mono font-bold px-2.5 py-0.5 rounded-full bg-[#5F7F42]/15 text-[#5F7F42] text-xs shrink-0 ml-2"
+                              x-text="form.duck_volume === 0 ? '0% (Hening Total)' : form.duck_volume + '%'"></span>
+                    </div>
+                    <input type="range" min="0" max="35" step="1" x-model.number="form.duck_volume"
+                           @input="onDuckVolumeInput()" @change="onDuckVolumeChange()"
+                           class="w-full accent-[#D9973E] cursor-pointer h-2 bg-[#E4DCCC] rounded-lg">
+                    <div class="flex justify-between text-[10px] text-[#A89A85] font-mono">
+                        <span :class="form.duck_volume == 0 ? 'text-[#5F7F42] font-bold' : ''">0% (Hening)</span>
+                        <span :class="form.duck_volume == 2 ? 'text-[#5F7F42] font-bold' : ''">2%</span>
+                        <span :class="form.duck_volume == 12 ? 'text-[#5F7F42] font-bold' : ''">12% (Standar)</span>
+                        <span>25%</span>
+                        <span>35%</span>
+                    </div>
+
+                    <!-- Opsi Cepat Persentase Volume Peredam Musik Kafe -->
+                    <div class="flex flex-wrap items-center gap-1.5 pt-1">
+                        <span class="text-[10px] font-mono text-[#8A7B66] mr-1">Opsi Cepat:</span>
+                        <button type="button" @click="onDuckVolumeInput(0); onDuckVolumeChange()"
+                                class="px-2 py-0.5 text-[10px] font-mono rounded-lg border transition cursor-pointer select-none active:scale-95"
+                                :class="form.duck_volume === 0 ? 'bg-[#5F7F42] text-white border-[#5F7F42] font-bold shadow-xs' : 'bg-white border-[#E4DCCC] text-[#7A6A58] hover:border-[#5F7F42]/50'">
+                            0% (Hening)
+                        </button>
+                        <button type="button" @click="onDuckVolumeInput(2); onDuckVolumeChange()"
+                                class="px-2.5 py-0.5 text-[10px] font-mono rounded-lg border transition cursor-pointer select-none active:scale-95"
+                                :class="form.duck_volume === 2 ? 'bg-[#5F7F42] text-white border-[#5F7F42] font-bold shadow-xs' : 'bg-white border-[#E4DCCC] text-[#7A6A58] hover:border-[#5F7F42]/50'">
+                            2%
+                        </button>
+                        <button type="button" @click="onDuckVolumeInput(5); onDuckVolumeChange()"
+                                class="px-2 py-0.5 text-[10px] font-mono rounded-lg border transition cursor-pointer select-none active:scale-95"
+                                :class="form.duck_volume === 5 ? 'bg-[#5F7F42] text-white border-[#5F7F42] font-bold shadow-xs' : 'bg-white border-[#E4DCCC] text-[#7A6A58] hover:border-[#5F7F42]/50'">
+                            5%
+                        </button>
+                        <button type="button" @click="onDuckVolumeInput(12); onDuckVolumeChange()"
+                                class="px-2 py-0.5 text-[10px] font-mono rounded-lg border transition cursor-pointer select-none active:scale-95"
+                                :class="form.duck_volume === 12 ? 'bg-[#5F7F42] text-white border-[#5F7F42] font-bold shadow-xs' : 'bg-white border-[#E4DCCC] text-[#7A6A58] hover:border-[#5F7F42]/50'">
+                            12% (Standar)
+                        </button>
+                        <button type="button" @click="onDuckVolumeInput(25); onDuckVolumeChange()"
+                                class="px-2 py-0.5 text-[10px] font-mono rounded-lg border transition cursor-pointer select-none active:scale-95"
+                                :class="form.duck_volume === 25 ? 'bg-[#5F7F42] text-white border-[#5F7F42] font-bold shadow-xs' : 'bg-white border-[#E4DCCC] text-[#7A6A58] hover:border-[#5F7F42]/50'">
+                            25%
+                        </button>
+                        <button type="button" @click="onDuckVolumeInput(35); onDuckVolumeChange()"
+                                class="px-2 py-0.5 text-[10px] font-mono rounded-lg border transition cursor-pointer select-none active:scale-95"
+                                :class="form.duck_volume === 35 ? 'bg-[#5F7F42] text-white border-[#5F7F42] font-bold shadow-xs' : 'bg-white border-[#E4DCCC] text-[#7A6A58] hover:border-[#5F7F42]/50'">
+                            35%
+                        </button>
+                    </div>
+                </div>
+            </div>
+
             <!-- BAGIAN 5: MODE HORMAT WAKTU ADZAN (SURABAYA & SIDOARJO) -->
             <div class="bg-white border border-[#E4DCCC] rounded-2xl p-5 sm:p-6 shadow-xs space-y-5">
                 <div class="border-b border-[#E4DCCC] pb-3.5 flex items-start justify-between gap-3">
@@ -546,7 +587,7 @@
                                   x-text="form.adzan_target_volume === 0 ? '0% (Mute/Hening Total)' : (form.adzan_target_volume === 1 ? '1% (Super Hening)' : (form.adzan_target_volume === 2 ? '2% (Hening Sayup)' : form.adzan_target_volume + '%'))"></span>
                         </div>
                         <input type="range" min="0" max="30" step="1" x-model.number="form.adzan_target_volume"
-                               @input="onAdzanVolumeInput()" @change="triggerAutoSave()"
+                               @input="onAdzanVolumeInput()" @change="onAdzanVolumeChange()"
                                class="w-full accent-[#5F7F42] cursor-pointer h-2 bg-[#E4DCCC] rounded-lg">
                         <div class="flex justify-between text-[10px] text-[#A89A85] font-mono">
                             <span :class="form.adzan_target_volume == 0 ? 'text-[#5F7F42] font-bold' : ''">0% (Mute)</span>
@@ -560,32 +601,32 @@
                         <!-- Opsi Cepat Persentase Volume Hening Adzan -->
                         <div class="flex flex-wrap items-center gap-1.5 pt-1">
                             <span class="text-[10px] font-mono text-[#8A7B66] mr-1">Opsi Cepat:</span>
-                            <button type="button" @click="onAdzanVolumeInput(0)"
+                            <button type="button" @click="onAdzanVolumeInput(0); onAdzanVolumeChange()"
                                     class="px-2 py-0.5 text-[10px] font-mono rounded-lg border transition cursor-pointer select-none active:scale-95"
                                     :class="form.adzan_target_volume === 0 ? 'bg-[#5F7F42] text-white border-[#5F7F42] font-bold shadow-xs' : 'bg-white border-[#E4DCCC] text-[#7A6A58] hover:border-[#5F7F42]/50'">
                                 0% (Mute)
                             </button>
-                            <button type="button" @click="onAdzanVolumeInput(1)"
+                            <button type="button" @click="onAdzanVolumeInput(1); onAdzanVolumeChange()"
                                     class="px-2 py-0.5 text-[10px] font-mono rounded-lg border transition cursor-pointer select-none active:scale-95"
                                     :class="form.adzan_target_volume === 1 ? 'bg-[#5F7F42] text-white border-[#5F7F42] font-bold shadow-xs' : 'bg-white border-[#E4DCCC] text-[#7A6A58] hover:border-[#5F7F42]/50'">
                                 1% (Super Hening)
                             </button>
-                            <button type="button" @click="onAdzanVolumeInput(2)"
+                            <button type="button" @click="onAdzanVolumeInput(2); onAdzanVolumeChange()"
                                     class="px-2.5 py-0.5 text-[10px] font-mono rounded-lg border transition cursor-pointer select-none active:scale-95"
                                     :class="form.adzan_target_volume === 2 ? 'bg-[#5F7F42] text-white border-[#5F7F42] font-bold shadow-xs' : 'bg-white border-[#E4DCCC] text-[#7A6A58] hover:border-[#5F7F42]/50'">
                                 2% (Hening Sayup)
                             </button>
-                            <button type="button" @click="onAdzanVolumeInput(5)"
+                            <button type="button" @click="onAdzanVolumeInput(5); onAdzanVolumeChange()"
                                     class="px-2 py-0.5 text-[10px] font-mono rounded-lg border transition cursor-pointer select-none active:scale-95"
                                     :class="form.adzan_target_volume === 5 ? 'bg-[#5F7F42] text-white border-[#5F7F42] font-bold shadow-xs' : 'bg-white border-[#E4DCCC] text-[#7A6A58] hover:border-[#5F7F42]/50'">
                                 5%
                             </button>
-                            <button type="button" @click="onAdzanVolumeInput(10)"
+                            <button type="button" @click="onAdzanVolumeInput(10); onAdzanVolumeChange()"
                                     class="px-2 py-0.5 text-[10px] font-mono rounded-lg border transition cursor-pointer select-none active:scale-95"
                                     :class="form.adzan_target_volume === 10 ? 'bg-[#5F7F42] text-white border-[#5F7F42] font-bold shadow-xs' : 'bg-white border-[#E4DCCC] text-[#7A6A58] hover:border-[#5F7F42]/50'">
                                 10% (Rekomendasi)
                             </button>
-                            <button type="button" @click="onAdzanVolumeInput(20)"
+                            <button type="button" @click="onAdzanVolumeInput(20); onAdzanVolumeChange()"
                                     class="px-2 py-0.5 text-[10px] font-mono rounded-lg border transition cursor-pointer select-none active:scale-95"
                                     :class="form.adzan_target_volume === 20 ? 'bg-[#5F7F42] text-white border-[#5F7F42] font-bold shadow-xs' : 'bg-white border-[#E4DCCC] text-[#7A6A58] hover:border-[#5F7F42]/50'">
                                 20%
@@ -750,7 +791,7 @@
             </div>
 
             <!-- TOMBOL SIMPAN AKSI -->
-            <div class="pt-2">
+            <div class="pt-1">
                 <button type="button"
                         @click="saveSettings()"
                         :disabled="saving"
@@ -836,24 +877,9 @@ function announcerSettingsManager(initialSettings) {
         },
 
         init() {
-            // Periksa sinkronisasi awal dengan localStorage (jika ada nilai lokal tersimpan di browser)
+            // Sinkronkan localStorage dari data server terkini (server adalah single source of truth)
             try {
-                const local = JSON.parse(localStorage.getItem('pos_soundstation_announcer_settings') || 'null');
-                if (local && typeof local === 'object') {
-                    Object.keys(this.form).forEach(k => {
-                        if (typeof local[k] !== 'undefined' && local[k] !== null) {
-                            if (k === 'duck_volume' || k === 'adzan_target_volume' || k === 'adzan_duration_minutes') {
-                                this.form[k] = parseInt(local[k]);
-                            } else if (k === 'rate' || k === 'pitch') {
-                                this.form[k] = parseFloat(local[k]);
-                            } else if (k === 'adzan_mode_enabled' || k === 'auto_pause_midnight') {
-                                this.form[k] = !!local[k];
-                            } else {
-                                this.form[k] = local[k];
-                            }
-                        }
-                    });
-                }
+                localStorage.setItem('pos_soundstation_announcer_settings', JSON.stringify(this.form));
             } catch (e) {}
 
             this.loadBrowserVoices();
@@ -890,12 +916,18 @@ function announcerSettingsManager(initialSettings) {
             // Pastikan data tersimpan instan ke server & localStorage saat meninggalkan halaman
             window.addEventListener('beforeunload', () => {
                 try {
+                    if (this._autoSaveTimer) {
+                        clearTimeout(this._autoSaveTimer);
+                        this._autoSaveTimer = null;
+                    }
                     if (this.form.closing_time && this.form.closing_time.length > 5) {
                         this.form.closing_time = this.form.closing_time.substring(0, 5);
                     }
                     if (this.form.reopen_time && this.form.reopen_time.length > 5) {
                         this.form.reopen_time = this.form.reopen_time.substring(0, 5);
                     }
+                    this.form.duck_volume = parseInt(this.form.duck_volume ?? 12);
+                    this.form.adzan_target_volume = parseInt(this.form.adzan_target_volume ?? 10);
                     localStorage.setItem('pos_soundstation_announcer_settings', JSON.stringify(this.form));
                     fetch('{{ route('kasir.announcer.save') }}', {
                         method: 'POST',
@@ -905,10 +937,35 @@ function announcerSettingsManager(initialSettings) {
                             'X-CSRF-TOKEN': '{{ csrf_token() }}',
                             'Accept': 'application/json'
                         },
-                        body: JSON.stringify(this.form)
+                        body: JSON.stringify({
+                            ...this.form,
+                            _token: '{{ csrf_token() }}'
+                        })
                     });
                 } catch (e) {}
             });
+        },
+
+        onDuckVolumeInput(val = null) {
+            if (val !== null && typeof val !== 'undefined') {
+                this.form.duck_volume = parseInt(val);
+            }
+            const duckVol = Math.max(0, Math.min(50, parseInt(this.form.duck_volume ?? 12)));
+            this.form.duck_volume = duckVol;
+            this.triggerAutoSave();
+
+            // Broadcast penyesuaian volume ducking instan (real-time) ke pemutar musik aktif
+            if (window.SoundStationHub && typeof window.SoundStationHub.sendCommand === 'function') {
+                window.SoundStationHub.sendCommand('SET_DUCK_VOLUME', { duck_volume: duckVol });
+            }
+        },
+
+        onDuckVolumeChange() {
+            if (this._autoSaveTimer) {
+                clearTimeout(this._autoSaveTimer);
+                this._autoSaveTimer = null;
+            }
+            this.executeServerSave(false);
         },
 
         onAdzanVolumeInput(val = null) {
@@ -916,6 +973,7 @@ function announcerSettingsManager(initialSettings) {
                 this.form.adzan_target_volume = parseInt(val);
             }
             const targetVol = Math.max(0, Math.min(100, parseInt(this.form.adzan_target_volume ?? 10)));
+            this.form.adzan_target_volume = targetVol;
             this.triggerAutoSave();
 
             // Broadcast penyesuaian volume instan (real-time) ke pemutar musik aktif
@@ -924,6 +982,14 @@ function announcerSettingsManager(initialSettings) {
             } else if (window.SoundStation && typeof window.SoundStation.setLiveAdzanVolume === 'function') {
                 window.SoundStation.setLiveAdzanVolume(targetVol);
             }
+        },
+
+        onAdzanVolumeChange() {
+            if (this._autoSaveTimer) {
+                clearTimeout(this._autoSaveTimer);
+                this._autoSaveTimer = null;
+            }
+            this.executeServerSave(false);
         },
 
         triggerAutoSave() {
@@ -946,10 +1012,10 @@ function announcerSettingsManager(initialSettings) {
                 clearTimeout(this._autoSaveTimer);
             }
 
-            // 2. Debounce penyimpanan ke server (500ms)
+            // 2. Debounce penyimpanan ke server (350ms)
             this._autoSaveTimer = setTimeout(() => {
                 this.executeServerSave(false);
-            }, 500);
+            }, 350);
         },
 
         async executeServerSave(isManual = false) {
@@ -963,18 +1029,39 @@ function announcerSettingsManager(initialSettings) {
                     this.form.reopen_time = this.form.reopen_time.substring(0, 5);
                 }
 
+                this.form.duck_volume = parseInt(this.form.duck_volume ?? 12);
+                this.form.adzan_target_volume = parseInt(this.form.adzan_target_volume ?? 10);
+                this.form.adzan_duration_minutes = parseInt(this.form.adzan_duration_minutes ?? 5);
+
+                const payload = {
+                    ...this.form,
+                    _token: '{{ csrf_token() }}'
+                };
+
                 const res = await fetch('{{ route('kasir.announcer.save') }}', {
                     method: 'POST',
-                    keepalive: true,
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': '{{ csrf_token() }}',
                         'Accept': 'application/json'
                     },
-                    body: JSON.stringify(this.form)
+                    body: JSON.stringify(payload)
                 });
 
                 if (res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    if (data && data.settings) {
+                        // Sinkronkan state lokal dengan data yang terkonfirmasi tersimpan di server
+                        Object.keys(data.settings).forEach(k => {
+                            if (typeof this.form[k] !== 'undefined') {
+                                this.form[k] = data.settings[k];
+                            }
+                        });
+                        try {
+                            localStorage.setItem('pos_soundstation_announcer_settings', JSON.stringify(this.form));
+                        } catch (e) {}
+                    }
+
                     this.autoSaveStatus = 'saved';
                     setTimeout(() => {
                         if (this.autoSaveStatus === 'saved') this.autoSaveStatus = '';
@@ -982,7 +1069,7 @@ function announcerSettingsManager(initialSettings) {
 
                     if (isManual && window.customToast) {
                         window.customToast({
-                            message: '✓ Pengaturan suara announcer & adzan berhasil disimpan!',
+                            message: '✓ Pengaturan suara announcer & adzan berhasil disimpan ke server!',
                             type: 'success',
                             duration: 3500
                         });

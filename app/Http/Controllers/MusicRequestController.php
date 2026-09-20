@@ -232,7 +232,7 @@ class MusicRequestController extends Controller
             ];
         }
 
-        $voiceSettings = Cache::get('soundstation_voice_settings', []);
+        $voiceSettings = KasirMusicController::getActiveAnnouncerSettings();
         $adzanDuration = (int) ($voiceSettings['adzan_duration_minutes'] ?? 5);
         $prayerScheduleData = PrayerTimeService::getSchedule(null, $adzanDuration);
         $manualAdzan = Cache::get('soundstation_manual_adzan');
