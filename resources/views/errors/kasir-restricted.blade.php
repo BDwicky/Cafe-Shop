@@ -49,6 +49,13 @@
                 Halaman terminal kasir ini dikunci dan hanya dapat dibuka melalui <b>jaringan Wi-Fi resmi kedai kafe</b> atau <b>perangkat tablet kasir yang telah diotorisasi</b>.
             </p>
 
+            @if (!empty($isRevoked))
+                <div class="mt-4 p-3 rounded-xl bg-amber-50 border border-amber-300 text-amber-950 text-xs flex items-center gap-2.5 shadow-2xs">
+                    <span class="text-base shrink-0">⚠️</span>
+                    <span><b>Otorisasi Dicabut:</b> Akses perangkat ini sebelumnya telah dinonaktifkan oleh Owner. Silakan hubungi Owner untuk mengaktifkan kembali perangkat ini.</span>
+                </div>
+            @endif
+
             @if (session('error'))
                 <div class="mt-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
                     <span class="font-bold">⚠️</span>

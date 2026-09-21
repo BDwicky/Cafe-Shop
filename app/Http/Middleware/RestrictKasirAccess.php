@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\KasirAuthorizedDevice;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\IpUtils;
@@ -20,7 +21,8 @@ class RestrictKasirAccess
         }
 
         // 1. Cek Kunci Perangkat Terdaftar (Registered Device Token)
-        if ($this->hasValidDeviceToken($request)) {
+        $tokenStatus = $this->checkDeviceTokenStatus($request);
+        if ($tokenStatus['valid']) {
             return $next($request);
         }
 
@@ -35,31 +37,64 @@ class RestrictKasirAccess
         // 3. Akses Ditolak (Unauthorized Network / Device)
         if ($request->expectsJson()) {
             return response()->json([
-                'message' => 'Akses ditolak. Web kasir hanya dapat dibuka melalui jaringan Wi-Fi/IP kafe resmi atau perangkat terdaftar.',
+                'message' => $tokenStatus['revoked']
+                    ? 'Akses perangkat ini telah dicabut oleh Owner.'
+                    : 'Akses ditolak. Web kasir hanya dapat dibuka melalui jaringan Wi-Fi/IP kafe resmi atau perangkat terdaftar.',
                 'client_ip' => $clientIp,
+                'is_revoked' => $tokenStatus['revoked'],
             ], 403);
         }
 
         return response()->view('errors.kasir-restricted', [
             'clientIp' => $clientIp,
             'allowedIps' => $allowedIps,
+            'isRevoked' => $tokenStatus['revoked'],
         ], 403);
     }
 
     /**
-     * Memeriksa apakah perangkat memiliki cookie otorisasi perangkat yang valid.
+     * Memeriksa status token otorisasi perangkat dari cookie:
+     * - Valid: aktif di tabel kasir_authorized_devices atau token HMAC legacy cocok.
+     * - Revoked: tercatat di database namun berstatus is_revoked = true.
+     *
+     * @return array{valid: bool, revoked: bool}
      */
-    protected function hasValidDeviceToken(Request $request): bool
+    protected function checkDeviceTokenStatus(Request $request): array
     {
         $token = $request->cookie('kasir_device_token');
         if (! $token) {
-            return false;
+            return ['valid' => false, 'revoked' => false];
         }
 
-        $secret = config('cafe.kasir_device_secret', 'kopikita-pos-secret-device-2026');
-        $expected = hash_hmac('sha256', 'kopikita-authorized-pos-device', $secret);
+        $tokenStr = (string) $token;
+        $hash = hash('sha256', $tokenStr);
 
-        return hash_equals($expected, (string) $token);
+        // A. Cek di tabel database kasir_authorized_devices
+        $device = KasirAuthorizedDevice::where('device_token_hash', $hash)->first();
+        if ($device) {
+            if ($device->is_revoked) {
+                return ['valid' => false, 'revoked' => true];
+            }
+
+            // Perbarui waktu aktif (dibatasi cache tiap 5 menit agar performa tetap kencang)
+            $cacheKey = "kasir_device_active_{$device->id}";
+            if (! cache()->has($cacheKey)) {
+                $device->touchActivity($request->ip());
+                cache()->put($cacheKey, true, now()->addMinutes(5));
+            }
+
+            return ['valid' => true, 'revoked' => false];
+        }
+
+        // B. Fallback kompatibilitas: token statis HMAC bawaan
+        $secret = config('cafe.kasir_device_secret', 'kopikita-pos-secret-device-2026');
+        $legacyExpected = hash_hmac('sha256', 'kopikita-authorized-pos-device', $secret);
+
+        if (hash_equals($legacyExpected, $tokenStr)) {
+            return ['valid' => true, 'revoked' => false];
+        }
+
+        return ['valid' => false, 'revoked' => false];
     }
 
     /**
