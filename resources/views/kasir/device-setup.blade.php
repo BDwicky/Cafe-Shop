@@ -13,16 +13,82 @@
          editingDeviceId: null,
          editingDeviceName: '',
 
+         // Reactive Fleet Tracking (Tanpa Refresh Halaman)
+         deletedDeviceIds: [],
+         revokedStates: {
+             @foreach ($devices as $d)
+                 {{ $d->id }}: {{ $d->is_revoked ? 'true' : 'false' }},
+             @endforeach
+         },
+         deviceNames: {
+             @foreach ($devices as $d)
+                 {{ $d->id }}: '{{ addslashes($d->device_name) }}',
+             @endforeach
+         },
+
+         get totalFleetCount() {
+             return Math.max(0, {{ $devices->count() }} - this.deletedDeviceIds.length);
+         },
+
+         get activeFleetCount() {
+             let count = 0;
+             for (const [id, isRevoked] of Object.entries(this.revokedStates)) {
+                 if (!this.deletedDeviceIds.includes(Number(id)) && !isRevoked) {
+                     count++;
+                 }
+             }
+             return count;
+         },
+
+         get revokedFleetCount() {
+             let count = 0;
+             for (const [id, isRevoked] of Object.entries(this.revokedStates)) {
+                 if (!this.deletedDeviceIds.includes(Number(id)) && isRevoked) {
+                     count++;
+                 }
+             }
+             return count;
+         },
+
+         isDeleted(id) {
+             return this.deletedDeviceIds.includes(id);
+         },
+
+         isRevoked(id) {
+             return Boolean(this.revokedStates[id]);
+         },
+
+         getDeviceName(id, fallback) {
+             return this.deviceNames[id] || fallback;
+         },
+
+         matchesFilter(id, name, ip, platform) {
+             if (this.isDeleted(id)) return false;
+
+             const isRev = this.isRevoked(id);
+             if (this.statusFilter === 'active' && isRev) return false;
+             if (this.statusFilter === 'revoked' && !isRev) return false;
+
+             if (!this.searchQuery.trim()) return true;
+
+             const q = this.searchQuery.toLowerCase();
+             const devName = (this.deviceNames[id] || name).toLowerCase();
+             return devName.includes(q) || (ip && ip.includes(q)) || (platform && platform.toLowerCase().includes(q));
+         },
+
          copyLink(url) {
              navigator.clipboard.writeText(url).then(() => {
                  this.copied = true;
                  setTimeout(() => this.copied = false, 2500);
+                 if (window.customToast) {
+                     window.customToast({ message: 'Tautan otorisasi berhasil disalin!', type: 'success' });
+                 }
              });
          },
 
          startRename(id, currentName) {
              this.editingDeviceId = id;
-             this.editingDeviceName = currentName;
+             this.editingDeviceName = this.deviceNames[id] || currentName;
              this.$nextTick(() => {
                  const input = document.getElementById('rename-input-' + id);
                  if (input) input.focus();
@@ -32,6 +98,180 @@
          cancelRename() {
              this.editingDeviceId = null;
              this.editingDeviceName = '';
+         },
+
+         async submitRename(id, renameUrl) {
+             const trimmed = this.editingDeviceName.trim();
+             if (!trimmed) return;
+
+             try {
+                 const res = await fetch(renameUrl, {
+                     method: 'POST',
+                     headers: {
+                         'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                         'Accept': 'application/json',
+                         'X-Requested-With': 'XMLHttpRequest',
+                         'Content-Type': 'application/x-www-form-urlencoded'
+                     },
+                     body: new URLSearchParams({
+                         _method: 'PATCH',
+                         device_name: trimmed
+                     })
+                 });
+
+                 const data = await res.json();
+                 if (data.success) {
+                     this.deviceNames[id] = data.device_name;
+                     this.editingDeviceId = null;
+                     if (window.customToast) {
+                         window.customToast({
+                             message: data.message || 'Nama perangkat berhasil diperbarui.',
+                             type: 'success'
+                         });
+                     }
+                 } else {
+                     throw new Error(data.message || 'Gagal menyimpan');
+                 }
+             } catch (err) {
+                 if (window.customToast) {
+                     window.customToast({ message: 'Gagal memperbarui nama perangkat.', type: 'error' });
+                 }
+             }
+         },
+
+         async confirmRevoke(id, name, revokeUrl) {
+             const ok = await window.customConfirm({
+                 title: 'Cabut Izin (Blokir)',
+                 message: `Apakah Anda yakin ingin memblokir/mencabut izin akses untuk '${name}'? Perangkat ini akan langsung diblokir seketika dan tidak dapat mendaftar ulang via scan QR.`,
+                 type: 'danger',
+                 confirmText: 'Cabut Izin',
+                 cancelText: 'Batal'
+             });
+
+             if (!ok) return;
+
+             try {
+                 const res = await fetch(revokeUrl, {
+                     method: 'POST',
+                     headers: {
+                         'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                         'Accept': 'application/json',
+                         'X-Requested-With': 'XMLHttpRequest'
+                     }
+                 });
+
+                 const data = await res.json();
+                 if (data.success) {
+                     this.revokedStates[id] = true;
+                     if (window.customToast) {
+                         window.customToast({
+                             message: data.message || `Akses untuk '${name}' berhasil dicabut.`,
+                             type: 'warning'
+                         });
+                     }
+                     if (data.is_self) {
+                         setTimeout(() => window.location.reload(), 1200);
+                     }
+                 }
+             } catch (err) {
+                 if (window.customToast) {
+                     window.customToast({ message: 'Gagal mencabut izin perangkat.', type: 'error' });
+                 }
+             }
+         },
+
+         async confirmRestore(id, name, restoreUrl) {
+             const ok = await window.customConfirm({
+                 title: 'Aktifkan Kembali Perangkat',
+                 message: `Aktifkan kembali akses kasir untuk '${name}'?`,
+                 type: 'info',
+                 confirmText: 'Aktifkan',
+                 cancelText: 'Batal'
+             });
+
+             if (!ok) return;
+
+             try {
+                 const res = await fetch(restoreUrl, {
+                     method: 'POST',
+                     headers: {
+                         'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                         'Accept': 'application/json',
+                         'X-Requested-With': 'XMLHttpRequest'
+                     }
+                 });
+
+                 const data = await res.json();
+                 if (data.success) {
+                     this.revokedStates[id] = false;
+                     if (window.customToast) {
+                         window.customToast({
+                             message: data.message || `Akses untuk '${name}' berhasil diaktifkan kembali.`,
+                             type: 'success'
+                         });
+                     }
+                 }
+             } catch (err) {
+                 if (window.customToast) {
+                     window.customToast({ message: 'Gagal mengaktifkan perangkat.', type: 'error' });
+                 }
+             }
+         },
+
+         async confirmDelete(id, name, deleteUrl) {
+             const ok = await window.customConfirm({
+                 title: 'Hapus Riwayat Perangkat',
+                 message: `Hapus perangkat '${name}' dari riwayat pendaftaran? Catatan: Jika ingin memblokir perangkat agar tidak bisa scan QR lagi, gunakan tombol 'Cabut Izin (Blokir)'.`,
+                 type: 'danger',
+                 confirmText: 'Hapus',
+                 cancelText: 'Batal'
+             });
+
+             if (!ok) return;
+
+             try {
+                 const res = await fetch(deleteUrl, {
+                     method: 'POST',
+                     headers: {
+                         'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                         'Accept': 'application/json',
+                         'X-Requested-With': 'XMLHttpRequest',
+                         'Content-Type': 'application/x-www-form-urlencoded'
+                     },
+                     body: new URLSearchParams({
+                         _method: 'DELETE'
+                     })
+                 });
+
+                 const data = await res.json();
+                 if (data.success) {
+                     this.deletedDeviceIds.push(id);
+                     if (window.customToast) {
+                         window.customToast({
+                             message: data.message || `Perangkat '${name}' telah dihapus dari riwayat.`,
+                             type: 'success'
+                         });
+                     }
+                 }
+             } catch (err) {
+                 if (window.customToast) {
+                     window.customToast({ message: 'Gagal menghapus perangkat.', type: 'error' });
+                 }
+             }
+         },
+
+         async confirmRevokeSelf(formElement) {
+             const ok = await window.customConfirm({
+                 title: 'Cabut Otorisasi Browser Ini',
+                 message: 'Apakah Anda yakin ingin mencabut otorisasi browser ini? Anda akan logout dari kasir dan memerlukan scan QR ulang.',
+                 type: 'danger',
+                 confirmText: 'Cabut Token',
+                 cancelText: 'Batal'
+             });
+
+             if (ok) {
+                 formElement.submit();
+             }
          },
 
          printQr() {
@@ -140,7 +380,7 @@
             <div class="bg-white border border-[#E4DCCC] rounded-2xl p-4 shadow-[0_4px_20px_rgba(42,33,26,0.03)] flex items-center justify-between">
                 <div>
                     <div class="text-[10px] font-mono uppercase tracking-wider text-[#8A7B66] font-bold">Total Armada</div>
-                    <div class="font-serif text-2xl font-bold text-[#1F1812] mt-0.5">{{ $devices->count() }}</div>
+                    <div class="font-serif text-2xl font-bold text-[#1F1812] mt-0.5" x-text="totalFleetCount">{{ $devices->count() }}</div>
                     <div class="text-[10px] font-mono text-[#8A7B66] mt-0.5">Perangkat Terdaftar</div>
                 </div>
                 <div class="w-12 h-12 rounded-2xl bg-[#FAF7F2] border border-[#E8E1D5] flex items-center justify-center text-xl shadow-2xs">
@@ -152,7 +392,7 @@
             <div class="bg-white border border-[#E4DCCC] rounded-2xl p-4 shadow-[0_4px_20px_rgba(42,33,26,0.03)] flex items-center justify-between">
                 <div>
                     <div class="text-[10px] font-mono uppercase tracking-wider text-emerald-700 font-bold">Izin Aktif</div>
-                    <div class="font-serif text-2xl font-bold text-emerald-700 mt-0.5">{{ $devices->where('is_revoked', false)->count() }}</div>
+                    <div class="font-serif text-2xl font-bold text-emerald-700 mt-0.5" x-text="activeFleetCount">{{ $devices->where('is_revoked', false)->count() }}</div>
                     <div class="text-[10px] font-mono text-emerald-600 mt-0.5">Siap Transaksi POS</div>
                 </div>
                 <div class="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center text-xl shadow-2xs">
@@ -164,7 +404,7 @@
             <div class="bg-white border border-[#E4DCCC] rounded-2xl p-4 shadow-[0_4px_20px_rgba(42,33,26,0.03)] flex items-center justify-between">
                 <div>
                     <div class="text-[10px] font-mono uppercase tracking-wider text-rose-700 font-bold">Akses Dicabut</div>
-                    <div class="font-serif text-2xl font-bold text-rose-700 mt-0.5">{{ $devices->where('is_revoked', true)->count() }}</div>
+                    <div class="font-serif text-2xl font-bold text-rose-700 mt-0.5" x-text="revokedFleetCount">{{ $devices->where('is_revoked', true)->count() }}</div>
                     <div class="text-[10px] font-mono text-rose-600 mt-0.5">Diblokir Jarak Jauh</div>
                 </div>
                 <div class="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 flex items-center justify-center text-xl shadow-2xs">
@@ -352,10 +592,10 @@
                             <div class="pt-3 mt-3 border-t border-[#E8E1D5] flex items-center justify-between gap-2">
                                 <span class="text-[11px] font-mono text-[#8A7B66]">Otorisasi Browser Ini:</span>
                                 <form method="POST" action="{{ route('kasir.device-revoke') }}"
-                                      onsubmit="return confirm('Apakah Anda yakin ingin mencabut otorisasi browser ini?');">
+                                      @submit.prevent="confirmRevokeSelf($el)">
                                     @csrf
                                     <button type="submit"
-                                            class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-mono text-[11px] font-bold rounded-lg transition-all shadow-2xs cursor-pointer">
+                                            class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-mono text-[11px] font-bold rounded-lg transition-all shadow-2xs cursor-pointer active:scale-95">
                                         🔒 Cabut Token Ini
                                     </button>
                                 </form>
@@ -403,36 +643,36 @@
                         <button type="button" @click="statusFilter = 'all'"
                                 :class="statusFilter === 'all' ? 'bg-[#1F1812] text-white shadow-2xs' : 'text-[#6B5A4B] hover:text-[#1F1812]'"
                                 class="px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer">
-                            Semua ({{ $devices->count() }})
+                            <span x-text="'Semua (' + totalFleetCount + ')'">Semua ({{ $devices->count() }})</span>
                         </button>
                         <button type="button" @click="statusFilter = 'active'"
                                 :class="statusFilter === 'active' ? 'bg-emerald-700 text-white shadow-2xs' : 'text-[#6B5A4B] hover:text-[#1F1812]'"
                                 class="px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer">
-                            Aktif ({{ $devices->where('is_revoked', false)->count() }})
+                            <span x-text="'Aktif (' + activeFleetCount + ')'">Aktif ({{ $devices->where('is_revoked', false)->count() }})</span>
                         </button>
                         <button type="button" @click="statusFilter = 'revoked'"
                                 :class="statusFilter === 'revoked' ? 'bg-rose-700 text-white shadow-2xs' : 'text-[#6B5A4B] hover:text-[#1F1812]'"
                                 class="px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer">
-                            Dicabut ({{ $devices->where('is_revoked', true)->count() }})
+                            <span x-text="'Dicabut (' + revokedFleetCount + ')'">Dicabut ({{ $devices->where('is_revoked', true)->count() }})</span>
                         </button>
                     </div>
                 </div>
             </div>
 
-            @if ($devices->isEmpty())
-                <!-- Empty State -->
-                <div class="py-16 px-6 text-center">
-                    <div class="w-16 h-16 rounded-3xl bg-[#FAF7F2] border border-[#E4DCCC] flex items-center justify-center text-3xl mx-auto mb-3 shadow-2xs">
-                        📱
-                    </div>
-                    <h3 class="font-serif text-lg font-bold text-[#1F1812]">Belum Ada Perangkat Terdaftar</h3>
-                    <p class="text-xs sm:text-sm text-[#6B5A4B] font-serif italic max-w-md mx-auto mt-1 leading-relaxed">
-                        Arahkan kamera tablet kasir ke kode QR di atas untuk mendaftarkan perangkat ke database secara otomatis.
-                    </p>
+            <!-- Empty State -->
+            <div x-show="totalFleetCount === 0" class="py-16 px-6 text-center" style="display: {{ $devices->isEmpty() ? 'block' : 'none' }};">
+                <div class="w-16 h-16 rounded-3xl bg-[#FAF7F2] border border-[#E4DCCC] flex items-center justify-center text-3xl mx-auto mb-3 shadow-2xs">
+                    📱
                 </div>
-            @else
+                <h3 class="font-serif text-lg font-bold text-[#1F1812]">Belum Ada Perangkat Terdaftar</h3>
+                <p class="text-xs sm:text-sm text-[#6B5A4B] font-serif italic max-w-md mx-auto mt-1 leading-relaxed">
+                    Arahkan kamera tablet kasir ke kode QR di atas untuk mendaftarkan perangkat ke database secara otomatis.
+                </p>
+            </div>
+
+            @if (! $devices->isEmpty())
                 <!-- Device Items List -->
-                <div class="divide-y divide-[#E8E1D5]">
+                <div x-show="totalFleetCount > 0" class="divide-y divide-[#E8E1D5]">
                     @foreach ($devices as $device)
                         @php
                             $isCurrent = $currentDevice && $currentDevice->id === $device->id;
@@ -450,8 +690,10 @@
                             };
                         @endphp
 
-                        <div x-show="(statusFilter === 'all' || (statusFilter === 'active' && !{{ $device->is_revoked ? 'true' : 'false' }}) || (statusFilter === 'revoked' && {{ $device->is_revoked ? 'true' : 'false' }})) &&
-                                    ('{{ strtolower($device->device_name) }}'.includes(searchQuery.toLowerCase()) || '{{ $device->ip_address }}'.includes(searchQuery.toLowerCase()) || '{{ strtolower($device->platform) }}'.includes(searchQuery.toLowerCase()))"
+                        <div x-show="matchesFilter({{ $device->id }}, '{{ addslashes($device->device_name) }}', '{{ $device->ip_address }}', '{{ addslashes($device->platform ?? '') }}')"
+                             x-transition:leave="transition ease-out duration-200"
+                             x-transition:leave-start="opacity-100 scale-100"
+                             x-transition:leave-end="opacity-0 scale-95"
                              class="p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors hover:bg-[#FAF7F2]/60 {{ $isCurrent ? 'bg-amber-50/30' : '' }}">
                             
                             <!-- Left: Device Details & Inline Rename -->
@@ -464,12 +706,14 @@
                                     
                                     <!-- View Mode: Name & Badges -->
                                     <div x-show="editingDeviceId !== {{ $device->id }}" class="flex items-center gap-2 flex-wrap">
-                                        <h4 class="font-bold text-sm text-[#1F1812] truncate max-w-[280px]" title="{{ $device->device_name }}">
+                                        <h4 class="font-bold text-sm text-[#1F1812] truncate max-w-[280px]"
+                                            x-text="getDeviceName({{ $device->id }}, '{{ addslashes($device->device_name) }}')"
+                                            title="{{ $device->device_name }}">
                                             {{ $device->device_name }}
                                         </h4>
 
                                         <!-- Edit Name Button -->
-                                        <button type="button" @click="startRename({{ $device->id }}, '{{ addslashes($device->device_name) }}')"
+                                        <button type="button" @click="startRename({{ $device->id }}, getDeviceName({{ $device->id }}, '{{ addslashes($device->device_name) }}'))"
                                                 class="p-1 text-stone-400 hover:text-[#B5762A] hover:bg-stone-100 rounded text-xs transition-colors cursor-pointer"
                                                 title="Ubah nama perangkat">
                                             ✏️
@@ -482,25 +726,25 @@
                                             </span>
                                         @endif
 
-                                        <!-- Active / Revoked Badge -->
-                                        @if (! $device->is_revoked)
+                                        <!-- Active / Revoked Badge (Reaktif via Alpine) -->
+                                        <template x-if="!isRevoked({{ $device->id }})">
                                             <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
                                                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
                                                 <span>Aktif</span>
                                             </span>
-                                        @else
+                                        </template>
+                                        <template x-if="isRevoked({{ $device->id }})">
                                             <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200">
                                                 <span>🔒</span>
                                                 <span>Akses Dicabut (Banned)</span>
                                             </span>
-                                        @endif
+                                        </template>
                                     </div>
 
                                     <!-- Edit Mode: Inline Form -->
                                     <div x-show="editingDeviceId === {{ $device->id }}" x-cloak class="flex items-center gap-2 mt-1">
-                                        <form method="POST" action="{{ route('kasir.devices.rename', $device) }}" class="flex items-center gap-2 flex-wrap">
-                                            @csrf
-                                            @method('PATCH')
+                                        <form @submit.prevent="submitRename({{ $device->id }}, '{{ route('kasir.devices.rename', $device) }}')"
+                                              class="flex items-center gap-2 flex-wrap">
                                             <input type="text" name="device_name" id="rename-input-{{ $device->id }}"
                                                    x-model="editingDeviceName" required maxlength="100"
                                                    class="bg-white border border-[#B5762A] rounded-xl px-3 py-1 text-xs font-mono text-[#1F1812] focus:outline-none focus:ring-1 focus:ring-[#B5762A] shadow-2xs">
@@ -530,43 +774,33 @@
                                 </div>
                             </div>
 
-                            <!-- Right: Action Buttons -->
+                            <!-- Right: Action Buttons (Reaktif, Custom Themed Modal & Toast) -->
                             <div class="flex items-center gap-2 self-end sm:self-center shrink-0">
-                                @if (! $device->is_revoked)
-                                    <!-- Revoke Button -->
-                                    <form method="POST" action="{{ route('kasir.devices.revoke', $device) }}"
-                                          onsubmit="return confirm('Apakah Anda yakin ingin memblokir/mencabut izin akses untuk \'{{ addslashes($device->device_name) }}\'? Perangkat ini akan langsung diblokir seketika dan tidak dapat mendaftar ulang via scan QR.');">
-                                        @csrf
-                                        <button type="submit"
-                                                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-mono font-bold uppercase tracking-wider transition-all shadow-2xs cursor-pointer active:scale-95">
-                                            <span>🔒</span>
-                                            <span>Cabut Izin (Blokir)</span>
-                                        </button>
-                                    </form>
-                                @else
-                                    <!-- Restore Button -->
-                                    <form method="POST" action="{{ route('kasir.devices.restore', $device) }}"
-                                          onsubmit="return confirm('Aktifkan kembali akses untuk \'{{ addslashes($device->device_name) }}\'?');">
-                                        @csrf
-                                        <button type="submit"
-                                                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-mono font-bold uppercase tracking-wider transition-all shadow-2xs cursor-pointer active:scale-95">
-                                            <span>✓</span>
-                                            <span>Aktifkan Kembali</span>
-                                        </button>
-                                    </form>
-                                @endif
+                                <!-- Revoke Button -->
+                                <button type="button"
+                                        x-show="!isRevoked({{ $device->id }})"
+                                        @click="confirmRevoke({{ $device->id }}, getDeviceName({{ $device->id }}, '{{ addslashes($device->device_name) }}'), '{{ route('kasir.devices.revoke', $device) }}')"
+                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-mono font-bold uppercase tracking-wider transition-all shadow-2xs cursor-pointer active:scale-95">
+                                    <span>🔒</span>
+                                    <span>Cabut Izin (Blokir)</span>
+                                </button>
+
+                                <!-- Restore Button -->
+                                <button type="button"
+                                        x-show="isRevoked({{ $device->id }})"
+                                        @click="confirmRestore({{ $device->id }}, getDeviceName({{ $device->id }}, '{{ addslashes($device->device_name) }}'), '{{ route('kasir.devices.restore', $device) }}')"
+                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-mono font-bold uppercase tracking-wider transition-all shadow-2xs cursor-pointer active:scale-95">
+                                    <span>✓</span>
+                                    <span>Aktifkan Kembali</span>
+                                </button>
 
                                 <!-- Delete Button -->
-                                <form method="POST" action="{{ route('kasir.devices.destroy', $device) }}"
-                                      onsubmit="return confirm('Hapus perangkat \'{{ addslashes($device->device_name) }}\' dari riwayat pendaftaran? Catatan: Jika ingin memblokir perangkat agar tidak bisa scan QR lagi, gunakan tombol \'Cabut Izin (Blokir)\'.');">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit"
-                                            class="p-2 rounded-xl text-stone-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all cursor-pointer"
-                                            title="Hapus dari daftar riwayat">
-                                        🗑️
-                                    </button>
-                                </form>
+                                <button type="button"
+                                        @click="confirmDelete({{ $device->id }}, getDeviceName({{ $device->id }}, '{{ addslashes($device->device_name) }}'), '{{ route('kasir.devices.destroy', $device) }}')"
+                                        class="p-2 rounded-xl text-stone-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all cursor-pointer active:scale-95"
+                                        title="Hapus dari daftar riwayat">
+                                    🗑️
+                                </button>
                             </div>
 
                         </div>

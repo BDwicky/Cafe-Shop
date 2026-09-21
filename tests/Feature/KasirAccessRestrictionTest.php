@@ -450,4 +450,56 @@ class KasirAccessRestrictionTest extends TestCase
         $response->assertSessionHas('status');
         $this->assertEquals($initialCount, KasirAuthorizedDevice::count());
     }
+
+    public function test_owner_can_delete_remote_device_via_ajax_receiving_json(): void
+    {
+        $user = User::factory()->create();
+
+        $device = KasirAuthorizedDevice::create([
+            'device_name' => 'Tablet Usang AJAX',
+            'device_token_hash' => hash('sha256', Str::random(64)),
+            'device_type' => 'tablet',
+            'is_revoked' => false,
+            'last_active_at' => now(),
+        ]);
+
+        $response = $this->actingAs($user)
+            ->withServerVariables(['REMOTE_ADDR' => '127.0.0.1'])
+            ->deleteJson("/kasir/devices/{$device->id}");
+
+        $response->assertStatus(200);
+        $response->assertJson(['success' => true]);
+        $this->assertDatabaseMissing('kasir_authorized_devices', ['id' => $device->id]);
+    }
+
+    public function test_owner_can_revoke_and_restore_device_via_ajax_receiving_json(): void
+    {
+        $user = User::factory()->create();
+
+        $device = KasirAuthorizedDevice::create([
+            'device_name' => 'Tablet AJAX Test',
+            'device_token_hash' => hash('sha256', Str::random(64)),
+            'device_type' => 'tablet',
+            'is_revoked' => false,
+            'last_active_at' => now(),
+        ]);
+
+        // 1. Revoke via AJAX
+        $revokeResponse = $this->actingAs($user)
+            ->withServerVariables(['REMOTE_ADDR' => '127.0.0.1'])
+            ->postJson("/kasir/devices/{$device->id}/revoke");
+
+        $revokeResponse->assertStatus(200);
+        $revokeResponse->assertJson(['success' => true]);
+        $this->assertTrue($device->fresh()->is_revoked);
+
+        // 2. Restore via AJAX
+        $restoreResponse = $this->actingAs($user)
+            ->withServerVariables(['REMOTE_ADDR' => '127.0.0.1'])
+            ->postJson("/kasir/devices/{$device->id}/restore");
+
+        $restoreResponse->assertStatus(200);
+        $restoreResponse->assertJson(['success' => true]);
+        $this->assertFalse($device->fresh()->is_revoked);
+    }
 }

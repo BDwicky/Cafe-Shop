@@ -189,6 +189,16 @@ class KasirLoginController extends Controller
         $cookieToken = $request->cookie('kasir_device_token');
         $isSelf = $cookieToken && hash_equals($device->device_token_hash, hash('sha256', (string) $cookieToken));
 
+        if ($request->expectsJson() || $request->ajax()) {
+            $response = response()->json([
+                'success' => true,
+                'is_self' => $isSelf,
+                'message' => "Akses untuk '{$device->device_name}' berhasil dicabut.",
+            ]);
+
+            return $isSelf ? $response->withCookie(cookie()->forget('kasir_device_token')) : $response;
+        }
+
         $redirect = redirect()->route('kasir.device-setup')
             ->with('status', "Akses untuk '{$device->device_name}' berhasil dicabut.");
 
@@ -199,18 +209,32 @@ class KasirLoginController extends Controller
         return $redirect;
     }
 
-    public function restoreRemoteDevice(KasirAuthorizedDevice $device)
+    public function restoreRemoteDevice(Request $request, KasirAuthorizedDevice $device)
     {
         $device->restore();
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Akses untuk '{$device->device_name}' berhasil diaktifkan kembali.",
+            ]);
+        }
 
         return redirect()->route('kasir.device-setup')
             ->with('status', "Akses untuk '{$device->device_name}' berhasil diaktifkan kembali.");
     }
 
-    public function destroyRemoteDevice(KasirAuthorizedDevice $device)
+    public function destroyRemoteDevice(Request $request, KasirAuthorizedDevice $device)
     {
         $name = $device->device_name;
         $device->delete();
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Perangkat '{$name}' telah dihapus dari daftar riwayat.",
+            ]);
+        }
 
         return redirect()->route('kasir.device-setup')
             ->with('status', "Perangkat '{$name}' telah dihapus dari daftar riwayat.");
@@ -223,6 +247,14 @@ class KasirLoginController extends Controller
         ]);
 
         $device->update(['device_name' => trim($validated['device_name'])]);
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'device_name' => $device->device_name,
+                'message' => "Nama perangkat berhasil diperbarui menjadi '{$device->device_name}'.",
+            ]);
+        }
 
         return redirect()->route('kasir.device-setup')
             ->with('status', "Nama perangkat berhasil diperbarui menjadi '{$device->device_name}'.");
