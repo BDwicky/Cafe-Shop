@@ -1921,6 +1921,24 @@ function navbarMusicWidget() {
             if (!this.currentTrack || this.currentTrack.type !== 'default_track') return;
             if (this.queueCount <= 0 || this.isFadingAudio || this.isTransitioningTrack) return;
 
+            // ATURAN DURASI LAGU BAWAAN KAFE:
+            // Jika durasi lagu bawaan < 5 menit (< 300 detik) dan bukan siaran langsung / radio 24/7,
+            // maka request pelanggan harus menunggu lagu bawaan selesai secara alami (tidak di-pause di tengah lagu).
+            // Jika durasi >= 5 menit (mix panjang / radio live), maka pause lagu bawaan seperti biasa.
+            const trackDuration = Number(
+                (this.currentTrack && this.currentTrack.duration_seconds)
+                    ? this.currentTrack.duration_seconds
+                    : (this.duration > 0
+                        ? this.duration
+                        : (this.player && typeof this.player.getDuration === 'function' ? this.player.getDuration() : 0))
+            );
+            const isLongOrLive = this.isLive || trackDuration >= 300 || trackDuration >= 86400 || (this.currentTrack.title && /live|radio|24\/7/i.test(this.currentTrack.title));
+
+            if (!isLongOrLive) {
+                // Biarkan lagu bawaan berdurasi singkat (< 5 menit) selesai sampai habis secara alami
+                return;
+            }
+
             this.isTransitioningTrack = true;
 
             // 1. Simpan posisi track kasir yang ter-pause
@@ -2001,6 +2019,7 @@ function navbarMusicWidget() {
 
                     this.currentTrack = track;
                     this.currentRequestId = track.request_id || null;
+                    this._notifiedWaitReqId = null;
                     if (track.type === 'default_track') {
                         this.lastDefaultTrackId = track.id;
                         try {
@@ -2318,9 +2337,35 @@ function navbarMusicWidget() {
 
                 // Deteksi jika ada request pelanggan masuk:
                 if (this.isMasterHost && this.queueCount > 0 && !this.isFadingAudio && !this.isTransitioningTrack) {
-                    // 1. Jika musik playlist bawaan sedang berputar, interupsi dan alihkan ke request tamu
+                    // 1. Jika musik playlist bawaan sedang berputar:
                     if (this.isPlaying && this.currentTrack && this.currentTrack.type === 'default_track') {
-                        this.interruptAndPlayRequest();
+                        const trackDuration = Number(
+                            (this.currentTrack && this.currentTrack.duration_seconds)
+                                ? this.currentTrack.duration_seconds
+                                : (this.duration > 0
+                                    ? this.duration
+                                    : (this.player && typeof this.player.getDuration === 'function' ? this.player.getDuration() : 0))
+                        );
+                        const isLongOrLive = this.isLive || trackDuration >= 300 || trackDuration >= 86400 || (this.currentTrack.title && /live|radio|24\/7/i.test(this.currentTrack.title));
+
+                        if (isLongOrLive) {
+                            // Lagu bawaan panjang (>= 5 menit / radio live): pause dan langsung putar lagu request
+                            this.interruptAndPlayRequest();
+                        } else {
+                            // Lagu bawaan singkat (< 5 menit): lagu request mengantre menunggu lagu ini selesai
+                            const currentReqId = this.queue[0]?.id || 'first';
+                            if (this._notifiedWaitReqId !== currentReqId) {
+                                this._notifiedWaitReqId = currentReqId;
+                                if (window.customToast) {
+                                    const reqTitle = this.queue[0]?.title || 'Lagu request tamu';
+                                    window.customToast({
+                                        message: `⏳ "${reqTitle}" masuk antrean. Karena lagu bawaan saat ini berdurasi singkat (< 5 mnt), request akan otomatis diputar setelah lagu ini selesai.`,
+                                        type: 'info',
+                                        duration: 5000
+                                    });
+                                }
+                            }
+                        }
                     }
                     // 2. Jika sound station sedang idle/tidak memutar dan ada request masuk, langsung putar
                     else if (!this.isPlaying && !this.isAdzanMode && !this._manualPlaybackOverride) {
