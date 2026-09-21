@@ -12,6 +12,9 @@
          showRegenerateModal: false,
          editingDeviceId: null,
          editingDeviceName: '',
+         qrCodeUri: '{{ $qrCodeUri }}',
+         authorizeUrl: '{{ $authorizeUrl }}',
+         isGeneratingQr: false,
 
          // Reactive Fleet Tracking (Tanpa Refresh Halaman)
          deletedDeviceIds: [],
@@ -283,21 +286,60 @@
                      <style>
                          body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #fff; text-align: center; }
                          h2 { font-size: 24px; margin-bottom: 8px; color: #1F1812; }
-                         p { font-size: 14px; color: #666; margin-top: 0; margin-bottom: 24px; }
+                         p { font-size: 14px; color: #666; margin-top: 0; margin-bottom: 16px; }
+                         .badge { display: inline-block; background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; padding: 5px 14px; border-radius: 9999px; font-weight: bold; font-size: 13px; margin-bottom: 20px; font-family: monospace; }
                          img { width: 280px; height: 280px; border: 2px solid #E8E1D5; border-radius: 16px; padding: 12px; }
-                         .note { margin-top: 20px; font-size: 12px; color: #888; }
+                         .note { margin-top: 20px; font-size: 13px; color: #78350F; font-weight: 500; }
                      </style>
                  </head>
                  <body>
                      <h2>{{ config('cafe.name') }} POS</h2>
                      <p>Scan menggunakan kamera tablet kasir untuk mengotorisasi terminal resmi</p>
-                     <img src='{{ $qrCodeUri }}' alt='QR Code Otorisasi'>
-                     <div class='note'>Berlaku 1 tahun • Jaga kerahasiaan lembar ini</div>
+                     <div class='badge'>⏱️ Sekali Pakai • Berlaku {{ $enrollmentTtlMinutes ?? 15 }} Menit</div><br>
+                     <img src='${this.qrCodeUri}' alt='QR Code Otorisasi'>
+                     <div class='note'>QR Code ini hangus seketika setelah pertama kali di-scan.</div>
                      <script>window.onload = function() { window.print(); }<\/script>
                  </body>
                  </html>
              `);
              qrWindow.document.close();
+         },
+
+         async generateNewQr() {
+             if (this.isGeneratingQr) return;
+             this.isGeneratingQr = true;
+             try {
+                 const res = await fetch('{{ route('kasir.device-enrollment.create') }}', {
+                     method: 'POST',
+                     headers: {
+                         'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                         'Accept': 'application/json',
+                         'X-Requested-With': 'XMLHttpRequest'
+                     }
+                 });
+                 const data = await res.json();
+                 if (data.ok && data.qr_code_uri) {
+                     this.qrCodeUri = data.qr_code_uri;
+                     this.authorizeUrl = data.authorize_url;
+                     if (window.customToast) {
+                         window.customToast({
+                             message: data.message || 'QR Code sekali pakai baru berhasil dibuat!',
+                             type: 'success'
+                         });
+                     }
+                 } else {
+                     throw new Error(data.message || 'Gagal membuat QR baru');
+                 }
+             } catch (err) {
+                 if (window.customToast) {
+                     window.customToast({
+                         message: err.message || 'Gagal membuat QR code baru.',
+                         type: 'error'
+                     });
+                 }
+             } finally {
+                 this.isGeneratingQr = false;
+             }
          }
      }">
 
@@ -442,16 +484,22 @@
 
                     <div>
                         <!-- Card Header -->
-                        <div class="flex items-center gap-3 pb-4 border-b border-[#E8E1D5]">
-                            <div class="w-10 h-10 rounded-2xl bg-[#1F1812] text-amber-400 flex items-center justify-center text-lg shadow-xs shrink-0">
-                                ⚡
+                        <div class="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-[#E8E1D5]">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 rounded-2xl bg-[#1F1812] text-amber-400 flex items-center justify-center text-lg shadow-xs shrink-0">
+                                    ⚡
+                                </div>
+                                <div>
+                                    <h2 class="font-serif text-lg sm:text-xl font-bold text-[#1F1812]">
+                                        Daftarkan Tablet Kasir Baru
+                                    </h2>
+                                    <p class="text-xs text-[#8A7B66] font-mono">Scan kamera atau gunakan tautan pendaftaran</p>
+                                </div>
                             </div>
-                            <div>
-                                <h2 class="font-serif text-lg sm:text-xl font-bold text-[#1F1812]">
-                                    Daftarkan Tablet Kasir Baru
-                                </h2>
-                                <p class="text-xs text-[#8A7B66] font-mono">Scan kamera atau gunakan tautan pendaftaran</p>
-                            </div>
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-amber-50 text-amber-900 border border-amber-300 shadow-2xs shrink-0">
+                                <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                <span>Sekali Pakai (15 Menit)</span>
+                            </span>
                         </div>
 
                         <!-- QR Code & Instructions Grid -->
@@ -459,14 +507,29 @@
                             
                             <!-- QR Frame -->
                             <div class="bg-[#FAF7F2] p-3.5 rounded-2xl border border-[#E4DCCC] shadow-xs shrink-0 flex flex-col items-center">
-                                <div class="bg-white p-2.5 rounded-xl border border-[#E8E1D5] shadow-2xs">
-                                    <img src="{{ $qrCodeUri }}" alt="QR Code Otorisasi Kasir" class="w-40 h-40 object-contain rounded-lg">
+                                <div class="bg-white p-2.5 rounded-xl border border-[#E8E1D5] shadow-2xs relative">
+                                    <img :src="qrCodeUri" alt="QR Code Otorisasi Kasir" class="w-40 h-40 object-contain rounded-lg">
+                                    <div x-show="isGeneratingQr" x-cloak class="absolute inset-0 bg-white/85 backdrop-blur-xs flex items-center justify-center rounded-xl">
+                                        <span class="text-xs font-mono text-[#8A7B66] font-bold animate-pulse">Membuat QR...</span>
+                                    </div>
                                 </div>
-                                <button type="button" @click="printQr()"
-                                        class="mt-2.5 px-3 py-1.5 bg-white hover:bg-stone-100 text-[#1F1812] border border-[#E4DCCC] text-[11px] font-mono font-bold rounded-xl transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer">
-                                    <span>🖨️</span>
-                                    <span>Cetak QR</span>
-                                </button>
+                                <div class="mt-2.5 flex items-center gap-1.5 w-full">
+                                    <button type="button" @click="generateNewQr()" :disabled="isGeneratingQr"
+                                            title="Buat QR Sekali Pakai Baru"
+                                            class="flex-1 px-2.5 py-1.5 bg-[#D9973E] hover:bg-[#B5762A] text-[#1F1812] hover:text-white border border-[#B5762A]/40 text-[11px] font-mono font-bold rounded-xl transition-all shadow-2xs flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50">
+                                        <span :class="{'animate-spin': isGeneratingQr}">🔄</span>
+                                        <span x-text="isGeneratingQr ? '...' : 'QR Baru'">QR Baru</span>
+                                    </button>
+                                    <button type="button" @click="printQr()"
+                                            title="Cetak Lembar QR"
+                                            class="px-2.5 py-1.5 bg-white hover:bg-stone-100 text-[#1F1812] border border-[#E4DCCC] text-[11px] font-mono font-bold rounded-xl transition-all shadow-2xs flex items-center justify-center gap-1 cursor-pointer">
+                                        <span>🖨️</span>
+                                        <span>Cetak</span>
+                                    </button>
+                                </div>
+                                <div class="mt-2 text-[10px] font-mono text-[#8A7B66] text-center">
+                                    Hangus seketika setelah di-scan
+                                </div>
                             </div>
 
                             <!-- Step Guide -->
@@ -492,7 +555,7 @@
                                 <div class="flex items-start gap-2.5 p-2.5 rounded-xl bg-[#FAF7F2] border border-[#E8E1D5]">
                                     <span class="w-5 h-5 rounded-lg bg-[#B5762A] text-white flex items-center justify-center font-mono text-[10px] font-bold shrink-0">3</span>
                                     <div class="text-[11px] text-[#2A211A] leading-tight">
-                                        Perangkat langsung terdaftar resmi di database (berlaku 1 tahun).
+                                        Perangkat terdaftar resmi (1 tahun). <strong>QR code langsung hangus seketika</strong> sehingga tidak bisa dipakai ulang di browser/perangkat lain.
                                     </div>
                                 </div>
                             </div>
@@ -504,19 +567,22 @@
                     <div class="mt-5 pt-4 border-t border-[#E8E1D5]">
                         <div class="flex items-center justify-between mb-1.5">
                             <label class="font-mono text-[10px] uppercase tracking-wider text-[#8A7B66] font-bold">
-                                Tautan Otorisasi Instan:
+                                Tautan Otorisasi Sekali Pakai:
                             </label>
                             <span x-show="copied" x-cloak class="text-xs font-mono text-emerald-600 font-bold">
                                 ✓ Tautan berhasil disalin!
                             </span>
                         </div>
                         <div class="flex items-center gap-2">
-                            <input type="text" readonly value="{{ $authorizeUrl }}"
+                            <input type="text" readonly :value="authorizeUrl"
                                    class="flex-1 bg-[#FAF7F2] border border-[#E4DCCC] rounded-xl px-3 py-2 text-xs font-mono text-[#1F1812] select-all focus:outline-none shadow-2xs">
-                            <button type="button" @click="copyLink('{{ $authorizeUrl }}')"
+                            <button type="button" @click="copyLink(authorizeUrl)"
                                     class="px-3.5 py-2 bg-[#B5762A] hover:bg-[#1F1812] text-white font-mono text-xs uppercase tracking-wider font-bold rounded-xl transition-all shadow-2xs active:scale-95 cursor-pointer shrink-0">
                                 <span x-text="copied ? 'Tersalin!' : 'Salin'">Salin</span>
                             </button>
+                        </div>
+                        <div class="text-[10px] font-mono text-[#8A7B66] mt-1.5">
+                            Tautan ini mengandung token sekali pakai yang berlaku 15 menit.
                         </div>
                     </div>
                 </div>

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Http\Controllers\Auth\KasirLoginController;
 use App\Models\KasirAuthorizedDevice;
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -501,5 +502,66 @@ class KasirAccessRestrictionTest extends TestCase
         $restoreResponse->assertStatus(200);
         $restoreResponse->assertJson(['success' => true]);
         $this->assertFalse($device->fresh()->is_revoked);
+    }
+
+    public function test_owner_can_generate_one_time_enrollment_token_via_api(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)
+            ->withServerVariables(['REMOTE_ADDR' => '127.0.0.1'])
+            ->postJson('/kasir/device-enrollment/create');
+
+        $response->assertStatus(200);
+        $response->assertJsonStructure([
+            'ok',
+            'message',
+            'token',
+            'qr_code_uri',
+            'authorize_url',
+            'expires_at',
+            'ttl_minutes',
+        ]);
+
+        $token = $response->json('token');
+        $this->assertTrue(Cache::has("kasir_enrollment_token_{$token}"));
+    }
+
+    public function test_device_can_be_authorized_using_one_time_token_and_token_is_consumed(): void
+    {
+        // 1. Owner generates enrollment token
+        $token = Str::random(40);
+        Cache::put("kasir_enrollment_token_{$token}", [
+            'created_at' => now()->timestamp,
+        ], now()->addMinutes(15));
+
+        $this->assertTrue(Cache::has("kasir_enrollment_token_{$token}"));
+
+        // 2. Device scans QR and visits authorize endpoint with token
+        $response = $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.88'])
+            ->get("/kasir/authorize-device?token={$token}");
+
+        $response->assertRedirect('/kasir/login');
+        $response->assertCookie('kasir_device_token');
+        $response->assertSessionHas('status', 'Perangkat ini berhasil diotorisasi sebagai terminal kasir resmi!');
+
+        // 3. Verify token is consumed atomically (Cache::pull)
+        $this->assertFalse(Cache::has("kasir_enrollment_token_{$token}"));
+
+        // 4. Second device/browser attempts to use the same token -> Rejected!
+        $secondResponse = $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.99'])
+            ->get("/kasir/authorize-device?token={$token}");
+
+        $secondResponse->assertRedirect('/kasir/login');
+        $secondResponse->assertSessionHas('error', 'Kode QR otorisasi ini sudah pernah digunakan atau telah kadaluarsa (berlaku 15 menit). Minta Owner untuk membuat kode QR baru.');
+    }
+
+    public function test_expired_or_invalid_one_time_token_is_rejected(): void
+    {
+        $response = $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.88'])
+            ->get('/kasir/authorize-device?token=non-existent-token');
+
+        $response->assertRedirect('/kasir/login');
+        $response->assertSessionHas('error', 'Kode QR otorisasi ini sudah pernah digunakan atau telah kadaluarsa (berlaku 15 menit). Minta Owner untuk membuat kode QR baru.');
     }
 }
