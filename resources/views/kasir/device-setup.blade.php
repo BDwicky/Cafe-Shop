@@ -686,9 +686,9 @@
                         <input type="checkbox" name="revoke_all_devices" value="1"
                                class="mt-0.5 rounded border-rose-300 text-rose-600 focus:ring-rose-500 cursor-pointer">
                         <div class="text-xs">
-                            <span class="font-bold text-rose-900 block">Cabut juga izin SEMUA perangkat yang terdaftar saat ini</span>
+                            <span class="font-bold text-rose-900 block">Cabut juga izin SEMUA perangkat lain yang terdaftar saat ini</span>
                             <span class="text-rose-700 text-[11px] block mt-0.5 font-serif">
-                                Centang ini jika kunci rahasia bocor dan Anda ingin memaksa seluruh tablet kasir scan QR baru.
+                                Centang ini jika kunci rahasia bocor dan Anda ingin memaksa seluruh tablet kasir lain scan QR baru. <b>Perangkat yang sedang Anda gunakan saat ini akan dikecualikan</b> sehingga tidak ter-logout.
                             </span>
                         </div>
                     </label>

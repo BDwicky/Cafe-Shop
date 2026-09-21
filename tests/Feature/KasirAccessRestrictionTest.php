@@ -334,21 +334,23 @@ class KasirAccessRestrictionTest extends TestCase
         $this->assertStringStartsWith('pos-sec-', $newSecret);
     }
 
-    public function test_owner_can_regenerate_device_secret_with_revoke_all(): void
+    public function test_owner_can_regenerate_device_secret_with_revoke_all_exempting_current_device(): void
     {
         $user = User::factory()->create();
 
+        $tokenDeviceA = Str::random(64);
         $deviceA = KasirAuthorizedDevice::create([
-            'device_name' => 'Tablet 1',
-            'device_token_hash' => hash('sha256', Str::random(64)),
+            'device_name' => 'Tablet Eksekutor (Owner)',
+            'device_token_hash' => hash('sha256', $tokenDeviceA),
             'device_type' => 'tablet',
             'is_revoked' => false,
             'last_active_at' => now(),
         ]);
 
+        $tokenDeviceB = Str::random(64);
         $deviceB = KasirAuthorizedDevice::create([
-            'device_name' => 'Tablet 2',
-            'device_token_hash' => hash('sha256', Str::random(64)),
+            'device_name' => 'Tablet Kasir Lain',
+            'device_token_hash' => hash('sha256', $tokenDeviceB),
             'device_type' => 'tablet',
             'is_revoked' => false,
             'last_active_at' => now(),
@@ -356,14 +358,14 @@ class KasirAccessRestrictionTest extends TestCase
 
         $response = $this->actingAs($user)
             ->withServerVariables(['REMOTE_ADDR' => '127.0.0.1'])
+            ->withCookie('kasir_device_token', $tokenDeviceA)
             ->post('/kasir/device-secret/regenerate', [
                 'revoke_all_devices' => '1',
             ]);
 
         $response->assertRedirect('/kasir/device-setup');
-        $this->assertTrue($deviceA->fresh()->is_revoked);
+        $this->assertFalse($deviceA->fresh()->is_revoked);
         $this->assertTrue($deviceB->fresh()->is_revoked);
-        $response->assertCookieExpired('kasir_device_token');
     }
 
     public function test_artisan_command_generates_new_secret(): void

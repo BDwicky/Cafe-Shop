@@ -234,16 +234,59 @@ class KasirLoginController extends Controller
             }
         }
 
-        // 3. Jika opsi revoke semua perangkat aktif dicentang
+        // 3. Jika opsi revoke semua perangkat aktif dicentang (dengan PENGECUALIAN untuk perangkat yang sedang mengeksekusi)
         if ($revokeAll) {
-            KasirAuthorizedDevice::query()->update([
-                'is_revoked' => true,
-                'revoked_at' => now(),
-            ]);
+            $cookieToken = $request->cookie('kasir_device_token');
+            $currentTokenHash = $cookieToken ? hash('sha256', (string) $cookieToken) : null;
+            $currentDevice = $currentTokenHash
+                ? KasirAuthorizedDevice::where('device_token_hash', $currentTokenHash)->first()
+                : null;
 
-            return redirect()->route('kasir.device-setup')
-                ->withCookie(cookie()->forget('kasir_device_token'))
-                ->with('status', 'Kunci rahasia keamanan baru berhasil digenerate dan seluruh otorisasi perangkat telah dicabut.');
+            $newCookie = null;
+
+            if ($currentDevice) {
+                // Pastikan perangkat saat ini tetap aktif dan tidak dicabut
+                $currentDevice->update([
+                    'is_revoked' => false,
+                    'revoked_at' => null,
+                    'last_active_at' => now(),
+                ]);
+
+                // Cabut semua perangkat LAIN selain perangkat yang sedang mengeksekusi
+                KasirAuthorizedDevice::where('id', '!=', $currentDevice->id)->update([
+                    'is_revoked' => true,
+                    'revoked_at' => now(),
+                ]);
+            } else {
+                // Jika perangkat saat ini belum tercatat di database, daftarkan agar tidak ter-logout
+                $plainToken = Str::random(64);
+                $detector = DeviceDetector::fromUserAgent($request->userAgent());
+                $createdDevice = KasirAuthorizedDevice::create([
+                    'device_name' => 'Perangkat Admin (Owner)',
+                    'device_token_hash' => hash('sha256', $plainToken),
+                    'device_type' => $detector->deviceType,
+                    'platform' => $detector->platform,
+                    'browser' => $detector->browser,
+                    'ip_address' => $request->ip(),
+                    'user_agent' => $request->userAgent(),
+                    'is_revoked' => false,
+                    'last_active_at' => now(),
+                ]);
+
+                // Cabut semua perangkat selain perangkat yang baru didaftarkan untuk eksekutor
+                KasirAuthorizedDevice::where('id', '!=', $createdDevice->id)->update([
+                    'is_revoked' => true,
+                    'revoked_at' => now(),
+                ]);
+
+                // 1 year cookie untuk perangkat eksekutor
+                $newCookie = cookie('kasir_device_token', $plainToken, 525600, null, null, false, true);
+            }
+
+            $redirect = redirect()->route('kasir.device-setup')
+                ->with('status', 'Kunci rahasia baru berhasil digenerate. Seluruh perangkat kasir lain telah dicabut izinnya (perangkat Anda tetap aktif).');
+
+            return $newCookie ? $redirect->withCookie($newCookie) : $redirect;
         }
 
         return redirect()->route('kasir.device-setup')
