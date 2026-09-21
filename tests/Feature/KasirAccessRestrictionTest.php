@@ -564,4 +564,70 @@ class KasirAccessRestrictionTest extends TestCase
         $response->assertRedirect('/kasir/login');
         $response->assertSessionHas('error', 'Kode QR otorisasi ini sudah pernah digunakan atau telah kadaluarsa (berlaku 15 menit). Minta Owner untuk membuat kode QR baru.');
     }
+
+    public function test_owner_can_fetch_device_fleet_data_in_realtime(): void
+    {
+        $user = User::factory()->create();
+
+        $deviceA = KasirAuthorizedDevice::create([
+            'device_token_hash' => hash('sha256', 'token-a'),
+            'device_name' => 'Tablet Kasir Kasir 1',
+            'device_type' => 'tablet',
+            'platform' => 'iPadOS',
+            'browser' => 'Safari',
+            'ip_address' => '192.168.1.10',
+            'is_revoked' => false,
+            'last_used_at' => now(),
+        ]);
+
+        $deviceB = KasirAuthorizedDevice::create([
+            'device_token_hash' => hash('sha256', 'token-b'),
+            'device_name' => 'HP Waiter 2',
+            'device_type' => 'mobile',
+            'platform' => 'Android',
+            'browser' => 'Chrome',
+            'ip_address' => '192.168.1.11',
+            'is_revoked' => true,
+            'revoked_at' => now(),
+            'last_used_at' => now(),
+        ]);
+
+        $response = $this->actingAs($user)
+            ->withServerVariables(['REMOTE_ADDR' => '127.0.0.1'])
+            ->getJson('/kasir/device-fleet/data');
+
+        $response->assertStatus(200);
+        $response->assertJson([
+            'ok' => true,
+            'kpi' => [
+                'total' => 2,
+                'active' => 1,
+                'revoked' => 1,
+            ],
+        ]);
+
+        $response->assertJsonStructure([
+            'ok',
+            'devices' => [
+                '*' => [
+                    'id',
+                    'device_name',
+                    'device_type',
+                    'platform',
+                    'browser',
+                    'ip_address',
+                    'is_revoked',
+                    'is_current',
+                    'last_active_at',
+                    'created_at_formatted',
+                    'revoke_url',
+                    'restore_url',
+                    'delete_url',
+                    'rename_url',
+                ],
+            ],
+            'kpi' => ['total', 'active', 'revoked'],
+            'enrollment' => ['token', 'qr_code_uri', 'authorize_url'],
+        ]);
+    }
 }

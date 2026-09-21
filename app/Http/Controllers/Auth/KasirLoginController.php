@@ -219,8 +219,63 @@ class KasirLoginController extends Controller
         ]);
     }
 
+    public function fleetData(Request $request)
+    {
+        $devices = KasirAuthorizedDevice::orderBy('last_active_at', 'desc')->get();
+
+        $currentDevice = null;
+        $cookieToken = $request->cookie('kasir_device_token');
+        if ($cookieToken) {
+            $tokenHash = hash('sha256', (string) $cookieToken);
+            $currentDevice = KasirAuthorizedDevice::where('device_token_hash', $tokenHash)->first();
+        }
+
+        $deviceList = $devices->map(function ($d) use ($currentDevice) {
+            return [
+                'id' => $d->id,
+                'device_name' => $d->device_name,
+                'device_type' => $d->device_type,
+                'platform' => $d->platform,
+                'browser' => $d->browser,
+                'ip_address' => $d->ip_address,
+                'is_revoked' => (bool) $d->is_revoked,
+                'is_current' => $currentDevice && $currentDevice->id === $d->id,
+                'last_active_at' => $d->last_active_at ? $d->last_active_at->diffForHumans() : 'Belum aktif',
+                'created_at_formatted' => $d->created_at->format('d M Y'),
+                'revoke_url' => route('kasir.devices.revoke', $d),
+                'restore_url' => route('kasir.devices.restore', $d),
+                'delete_url' => route('kasir.devices.destroy', $d),
+                'rename_url' => route('kasir.devices.rename', $d),
+            ];
+        });
+
+        $enrollment = self::getOrGenerateEnrollmentToken(false);
+
+        return response()->json([
+            'ok' => true,
+            'success' => true,
+            'devices' => $deviceList,
+            'kpi' => [
+                'total' => $devices->count(),
+                'active' => $devices->where('is_revoked', false)->count(),
+                'revoked' => $devices->where('is_revoked', true)->count(),
+            ],
+            'enrollment' => [
+                'token' => $enrollment['token'],
+                'qr_code_uri' => $enrollment['qrCodeUri'],
+                'authorize_url' => $enrollment['authorizeUrl'],
+                'expires_at' => $enrollment['expires_at'],
+                'ttl_minutes' => $enrollment['ttl_minutes'],
+            ],
+        ]);
+    }
+
     public function deviceSetup(Request $request)
     {
+        if ($request->expectsJson() || $request->ajax()) {
+            return $this->fleetData($request);
+        }
+
         $clientIp = $request->ip();
         $allowedIps = config('cafe.kasir_allowed_ips', ['127.0.0.1', '::1']);
         $secret = self::getDeviceSecret();
@@ -241,6 +296,25 @@ class KasirLoginController extends Controller
             }
         }
 
+        $initialDevices = $devices->map(function ($d) use ($currentDevice) {
+            return [
+                'id' => $d->id,
+                'device_name' => $d->device_name,
+                'device_type' => $d->device_type,
+                'platform' => $d->platform,
+                'browser' => $d->browser,
+                'ip_address' => $d->ip_address,
+                'is_revoked' => (bool) $d->is_revoked,
+                'is_current' => $currentDevice && $currentDevice->id === $d->id,
+                'last_active_at' => $d->last_active_at ? $d->last_active_at->diffForHumans() : 'Belum aktif',
+                'created_at_formatted' => $d->created_at->format('d M Y'),
+                'revoke_url' => route('kasir.devices.revoke', $d),
+                'restore_url' => route('kasir.devices.restore', $d),
+                'delete_url' => route('kasir.devices.destroy', $d),
+                'rename_url' => route('kasir.devices.rename', $d),
+            ];
+        });
+
         // Ambil atau buat token otorisasi sekali pakai (One-Time QR Token, berlaku 15 menit)
         $enrollment = self::getOrGenerateEnrollmentToken(false);
         $authorizeUrl = $enrollment['authorizeUrl'];
@@ -255,6 +329,7 @@ class KasirLoginController extends Controller
             'isDeviceAuthorized',
             'currentDevice',
             'devices',
+            'initialDevices',
             'authorizeUrl',
             'qrCodeUri',
             'enrollmentExpiresAt',

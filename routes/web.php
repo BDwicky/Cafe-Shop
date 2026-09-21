@@ -144,6 +144,7 @@ Route::middleware([RestrictKasirAccess::class])->group(function () {
 
         // Pengaturan Keamanan & Otorisasi Perangkat Kasir (Akses URL langsung, tidak masuk di sidebar)
         Route::get('/device-setup', [KasirLoginController::class, 'deviceSetup'])->name('device-setup');
+        Route::get('/device-fleet/data', [KasirLoginController::class, 'fleetData'])->name('device-fleet.data');
         Route::post('/device-enrollment/create', [KasirLoginController::class, 'createEnrollmentToken'])->name('device-enrollment.create');
         Route::post('/device-revoke', [KasirLoginController::class, 'revokeDevice'])->name('device-revoke');
         Route::post('/devices/{device}/revoke', [KasirLoginController::class, 'revokeRemoteDevice'])->name('devices.revoke');

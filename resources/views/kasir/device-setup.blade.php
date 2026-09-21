@@ -15,68 +15,145 @@
          qrCodeUri: '{{ $qrCodeUri }}',
          authorizeUrl: '{{ $authorizeUrl }}',
          isGeneratingQr: false,
+         isFetchingFleet: false,
 
-         // Reactive Fleet Tracking (Tanpa Refresh Halaman)
-         deletedDeviceIds: [],
-         revokedStates: {
-             @foreach ($devices as $d)
-                 {{ $d->id }}: {{ $d->is_revoked ? 'true' : 'false' }},
-             @endforeach
-         },
-         deviceNames: {
-             @foreach ($devices as $d)
-                 {{ $d->id }}: '{{ addslashes($d->device_name) }}',
-             @endforeach
+         // Real-time Fleet Data State
+         devices: {{ Js::from($initialDevices) }},
+         _pollTimer: null,
+         _broadcastChannel: null,
+
+         init() {
+             // Polling armada perangkat secara realtime setiap 3.5 detik
+             this._pollTimer = setInterval(() => this.fetchFleetData(true), 3500);
+
+             if (typeof BroadcastChannel !== 'undefined') {
+                 try {
+                     this._broadcastChannel = new BroadcastChannel('cafe_device_sync');
+                     this._broadcastChannel.onmessage = (event) => {
+                         if (event.data && event.data.type === 'DEVICE_UPDATE') {
+                             this.fetchFleetData(false);
+                         }
+                     };
+                 } catch (e) {}
+             }
+
+             const cleanupFn = () => {
+                 if (this._pollTimer) {
+                     clearInterval(this._pollTimer);
+                     this._pollTimer = null;
+                 }
+                 if (this._broadcastChannel) {
+                     this._broadcastChannel.close();
+                     this._broadcastChannel = null;
+                 }
+             };
+
+             window.addEventListener('kasir:page-leave', cleanupFn);
+             if (typeof this.$cleanup === 'function') {
+                 this.$cleanup(cleanupFn);
+             }
          },
 
          get totalFleetCount() {
-             return Math.max(0, {{ $devices->count() }} - this.deletedDeviceIds.length);
+             return this.devices.length;
          },
 
          get activeFleetCount() {
-             let count = 0;
-             for (const [id, isRevoked] of Object.entries(this.revokedStates)) {
-                 if (!this.deletedDeviceIds.includes(Number(id)) && !isRevoked) {
-                     count++;
-                 }
-             }
-             return count;
+             return this.devices.filter(d => !d.is_revoked).length;
          },
 
          get revokedFleetCount() {
-             let count = 0;
-             for (const [id, isRevoked] of Object.entries(this.revokedStates)) {
-                 if (!this.deletedDeviceIds.includes(Number(id)) && isRevoked) {
-                     count++;
+             return this.devices.filter(d => d.is_revoked).length;
+         },
+
+         get filteredDevices() {
+             return this.devices.filter(d => {
+                 if (this.statusFilter === 'active' && d.is_revoked) return false;
+                 if (this.statusFilter === 'revoked' && !d.is_revoked) return false;
+
+                 if (!this.searchQuery.trim()) return true;
+
+                 const q = this.searchQuery.toLowerCase();
+                 const name = (d.device_name || '').toLowerCase();
+                 const ip = (d.ip_address || '').toLowerCase();
+                 const platform = (d.platform || '').toLowerCase();
+                 return name.includes(q) || ip.includes(q) || platform.includes(q);
+             });
+         },
+
+         getDeviceIcon(type) {
+             if (type === 'mobile') return '📲';
+             if (type === 'desktop') return '💻';
+             return '📱';
+         },
+
+         getPlatformColor(platform) {
+             const p = (platform || '').toLowerCase();
+             if (p.includes('ios') || p.includes('ipados')) return 'text-slate-800 bg-slate-100 border-slate-200';
+             if (p.includes('android')) return 'text-emerald-800 bg-emerald-50 border-emerald-200';
+             if (p.includes('windows')) return 'text-sky-800 bg-sky-50 border-sky-200';
+             if (p.includes('mac')) return 'text-purple-800 bg-purple-50 border-purple-200';
+             return 'text-stone-800 bg-stone-100 border-stone-200';
+         },
+
+         async fetchFleetData(isSilent = true) {
+             if (this.isFetchingFleet) return;
+             this.isFetchingFleet = true;
+
+             try {
+                 const res = await fetch('{{ route('kasir.device-fleet.data') }}', {
+                     headers: {
+                         'Accept': 'application/json',
+                         'X-Requested-With': 'XMLHttpRequest'
+                     }
+                 });
+                 if (!res.ok) return;
+                 const data = await res.json();
+
+                 if (Array.isArray(data.devices)) {
+                     // Notifikasi jika ada perangkat baru yang terdaftar via scan QR
+                     if (this.devices.length > 0 && data.devices.length > this.devices.length) {
+                         const currentIds = new Set(this.devices.map(d => d.id));
+                         const newDevices = data.devices.filter(d => !currentIds.has(d.id));
+                         if (newDevices.length > 0 && window.customToast) {
+                             const latest = newDevices[0];
+                             window.customToast({
+                                 message: '🎉 Perangkat baru terhubung: ' + latest.device_name,
+                                 type: 'success'
+                             });
+                         }
+                     }
+
+                     if (!this.editingDeviceId) {
+                         this.devices = data.devices;
+                     } else {
+                         this.devices = data.devices.map(d => {
+                             if (d.id === this.editingDeviceId) {
+                                 return { ...d, device_name: this.editingDeviceName };
+                             }
+                             return d;
+                         });
+                     }
+
+                     // Sinkronkan QR otomatis jika token lama sudah terkonsumsi
+                     if (data.enrollment && data.enrollment.qr_code_uri && data.enrollment.qr_code_uri !== this.qrCodeUri) {
+                         this.qrCodeUri = data.enrollment.qr_code_uri;
+                         this.authorizeUrl = data.enrollment.authorize_url;
+                     }
                  }
+             } catch (e) {
+                 console.error('[DeviceFleet] Gagal memuat data armada:', e);
+             } finally {
+                 this.isFetchingFleet = false;
              }
-             return count;
          },
 
-         isDeleted(id) {
-             return this.deletedDeviceIds.includes(id);
-         },
-
-         isRevoked(id) {
-             return Boolean(this.revokedStates[id]);
-         },
-
-         getDeviceName(id, fallback) {
-             return this.deviceNames[id] || fallback;
-         },
-
-         matchesFilter(id, name, ip, platform) {
-             if (this.isDeleted(id)) return false;
-
-             const isRev = this.isRevoked(id);
-             if (this.statusFilter === 'active' && isRev) return false;
-             if (this.statusFilter === 'revoked' && !isRev) return false;
-
-             if (!this.searchQuery.trim()) return true;
-
-             const q = this.searchQuery.toLowerCase();
-             const devName = (this.deviceNames[id] || name).toLowerCase();
-             return devName.includes(q) || (ip && ip.includes(q)) || (platform && platform.toLowerCase().includes(q));
+         broadcastChange() {
+             if (this._broadcastChannel) {
+                 try {
+                     this._broadcastChannel.postMessage({ type: 'DEVICE_UPDATE' });
+                 } catch (e) {}
+             }
          },
 
          copyLink(url) {
@@ -89,11 +166,11 @@
              });
          },
 
-         startRename(id, currentName) {
-             this.editingDeviceId = id;
-             this.editingDeviceName = this.deviceNames[id] || currentName;
+         startRename(device) {
+             this.editingDeviceId = device.id;
+             this.editingDeviceName = device.device_name;
              this.$nextTick(() => {
-                 const input = document.getElementById('rename-input-' + id);
+                 const input = document.getElementById('rename-input-' + device.id);
                  if (input) input.focus();
              });
          },
@@ -103,12 +180,12 @@
              this.editingDeviceName = '';
          },
 
-         async submitRename(id, renameUrl) {
+         async submitRename(device) {
              const trimmed = this.editingDeviceName.trim();
              if (!trimmed) return;
 
              try {
-                 const res = await fetch(renameUrl, {
+                 const res = await fetch(device.rename_url, {
                      method: 'POST',
                      headers: {
                          'X-CSRF-TOKEN': '{{ csrf_token() }}',
@@ -124,8 +201,9 @@
 
                  const data = await res.json();
                  if (data.success) {
-                     this.deviceNames[id] = data.device_name;
+                     device.device_name = data.device_name;
                      this.editingDeviceId = null;
+                     this.broadcastChange();
                      if (window.customToast) {
                          window.customToast({
                              message: data.message || 'Nama perangkat berhasil diperbarui.',
@@ -142,10 +220,10 @@
              }
          },
 
-         async confirmRevoke(id, name, revokeUrl) {
+         async confirmRevoke(device) {
              const ok = await window.customConfirm({
                  title: 'Cabut Izin (Blokir)',
-                 message: `Apakah Anda yakin ingin memblokir/mencabut izin akses untuk '${name}'? Perangkat ini akan langsung diblokir seketika dan tidak dapat mendaftar ulang via scan QR.`,
+                 message: `Apakah Anda yakin ingin memblokir/mencabut izin akses untuk '${device.device_name}'? Perangkat ini akan langsung diblokir seketika dan tidak dapat mendaftar ulang via scan QR.`,
                  type: 'danger',
                  confirmText: 'Cabut Izin',
                  cancelText: 'Batal'
@@ -154,7 +232,7 @@
              if (!ok) return;
 
              try {
-                 const res = await fetch(revokeUrl, {
+                 const res = await fetch(device.revoke_url, {
                      method: 'POST',
                      headers: {
                          'X-CSRF-TOKEN': '{{ csrf_token() }}',
@@ -165,10 +243,11 @@
 
                  const data = await res.json();
                  if (data.success) {
-                     this.revokedStates[id] = true;
+                     device.is_revoked = true;
+                     this.broadcastChange();
                      if (window.customToast) {
                          window.customToast({
-                             message: data.message || `Akses untuk '${name}' berhasil dicabut.`,
+                             message: data.message || `Akses untuk '${device.device_name}' berhasil dicabut.`,
                              type: 'warning'
                          });
                      }
@@ -183,10 +262,10 @@
              }
          },
 
-         async confirmRestore(id, name, restoreUrl) {
+         async confirmRestore(device) {
              const ok = await window.customConfirm({
                  title: 'Aktifkan Kembali Perangkat',
-                 message: `Aktifkan kembali akses kasir untuk '${name}'?`,
+                 message: `Aktifkan kembali akses kasir untuk '${device.device_name}'?`,
                  type: 'info',
                  confirmText: 'Aktifkan',
                  cancelText: 'Batal'
@@ -195,7 +274,7 @@
              if (!ok) return;
 
              try {
-                 const res = await fetch(restoreUrl, {
+                 const res = await fetch(device.restore_url, {
                      method: 'POST',
                      headers: {
                          'X-CSRF-TOKEN': '{{ csrf_token() }}',
@@ -206,10 +285,11 @@
 
                  const data = await res.json();
                  if (data.success) {
-                     this.revokedStates[id] = false;
+                     device.is_revoked = false;
+                     this.broadcastChange();
                      if (window.customToast) {
                          window.customToast({
-                             message: data.message || `Akses untuk '${name}' berhasil diaktifkan kembali.`,
+                             message: data.message || `Akses untuk '${device.device_name}' berhasil diaktifkan kembali.`,
                              type: 'success'
                          });
                      }
@@ -221,10 +301,10 @@
              }
          },
 
-         async confirmDelete(id, name, deleteUrl) {
+         async confirmDelete(device) {
              const ok = await window.customConfirm({
                  title: 'Hapus Riwayat Perangkat',
-                 message: `Hapus perangkat '${name}' dari riwayat pendaftaran? Catatan: Jika ingin memblokir perangkat agar tidak bisa scan QR lagi, gunakan tombol 'Cabut Izin (Blokir)'.`,
+                 message: `Hapus perangkat '${device.device_name}' dari riwayat pendaftaran? Catatan: Jika ingin memblokir perangkat agar tidak bisa scan QR lagi, gunakan tombol 'Cabut Izin (Blokir)'.`,
                  type: 'danger',
                  confirmText: 'Hapus',
                  cancelText: 'Batal'
@@ -233,7 +313,7 @@
              if (!ok) return;
 
              try {
-                 const res = await fetch(deleteUrl, {
+                 const res = await fetch(device.delete_url, {
                      method: 'POST',
                      headers: {
                          'X-CSRF-TOKEN': '{{ csrf_token() }}',
@@ -248,10 +328,11 @@
 
                  const data = await res.json();
                  if (data.success) {
-                     this.deletedDeviceIds.push(id);
+                     this.devices = this.devices.filter(d => d.id !== device.id);
+                     this.broadcastChange();
                      if (window.customToast) {
                          window.customToast({
-                             message: data.message || `Perangkat '${name}' telah dihapus dari riwayat.`,
+                             message: data.message || `Perangkat '${device.device_name}' telah dihapus dari riwayat.`,
                              type: 'success'
                          });
                      }
@@ -321,6 +402,7 @@
                  if (data.ok && data.qr_code_uri) {
                      this.qrCodeUri = data.qr_code_uri;
                      this.authorizeUrl = data.authorize_url;
+                     this.broadcastChange();
                      if (window.customToast) {
                          window.customToast({
                              message: data.message || 'QR Code sekali pakai baru berhasil dibuat!',
@@ -682,13 +764,16 @@
             <!-- Table Header & Filter Controls -->
             <div class="p-5 sm:p-6 border-b border-[#E8E1D5] flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#FAF7F2]/50">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-2xl bg-[#1F1812] text-white flex items-center justify-center text-lg shadow-2xs shrink-0">
-                        🖥️
-                    </div>
                     <div>
-                        <h2 class="font-serif text-lg sm:text-xl font-bold text-[#1F1812]">
-                            Daftar Perangkat Kasir Terdaftar
-                        </h2>
+                        <div class="flex items-center gap-2">
+                            <h2 class="font-serif text-lg sm:text-xl font-bold text-[#1F1812]">
+                                Daftar Perangkat Kasir Terdaftar
+                            </h2>
+                            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <span>Real-time Sync</span>
+                            </span>
+                        </div>
                         <p class="text-xs text-[#6B5A4B] font-serif italic mt-0.5">
                             Pantau setiap tablet kasir resmi dan cabut izin (*revoke*) perangkat lain dari jarak jauh secara mandiri.
                         </p>
@@ -726,7 +811,7 @@
             </div>
 
             <!-- Empty State -->
-            <div x-show="totalFleetCount === 0" class="py-16 px-6 text-center" style="display: {{ $devices->isEmpty() ? 'block' : 'none' }};">
+            <div x-show="totalFleetCount === 0" x-cloak class="py-16 px-6 text-center">
                 <div class="w-16 h-16 rounded-3xl bg-[#FAF7F2] border border-[#E4DCCC] flex items-center justify-center text-3xl mx-auto mb-3 shadow-2xs">
                     📱
                 </div>
@@ -736,143 +821,129 @@
                 </p>
             </div>
 
-            @if (! $devices->isEmpty())
-                <!-- Device Items List -->
-                <div x-show="totalFleetCount > 0" class="divide-y divide-[#E8E1D5]">
-                    @foreach ($devices as $device)
-                        @php
-                            $isCurrent = $currentDevice && $currentDevice->id === $device->id;
-                            $deviceIcon = match($device->device_type) {
-                                'mobile' => '📲',
-                                'desktop' => '💻',
-                                default => '📱',
-                            };
-                            $platformColor = match(strtolower($device->platform ?? '')) {
-                                'ios', 'ipados' => 'text-slate-800 bg-slate-100 border-slate-200',
-                                'android' => 'text-emerald-800 bg-emerald-50 border-emerald-200',
-                                'windows' => 'text-sky-800 bg-sky-50 border-sky-200',
-                                'macos' => 'text-purple-800 bg-purple-50 border-purple-200',
-                                default => 'text-stone-800 bg-stone-100 border-stone-200',
-                            };
-                        @endphp
+            <!-- Filtered Empty State -->
+            <div x-show="totalFleetCount > 0 && filteredDevices.length === 0" x-cloak class="py-12 px-6 text-center text-xs font-mono text-[#8A7B66]">
+                Tidak ada perangkat yang cocok dengan kata kunci pencarian atau filter status.
+            </div>
 
-                        <div x-show="matchesFilter({{ $device->id }}, '{{ addslashes($device->device_name) }}', '{{ $device->ip_address }}', '{{ addslashes($device->platform ?? '') }}')"
-                             x-transition:leave="transition ease-out duration-200"
-                             x-transition:leave-start="opacity-100 scale-100"
-                             x-transition:leave-end="opacity-0 scale-95"
-                             class="p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors hover:bg-[#FAF7F2]/60 {{ $isCurrent ? 'bg-amber-50/30' : '' }}">
-                            
-                            <!-- Left: Device Details & Inline Rename -->
-                            <div class="flex items-start sm:items-center gap-3.5 flex-1 min-w-0">
-                                <div class="w-11 h-11 rounded-2xl bg-[#FAF7F2] border border-[#E4DCCC] flex items-center justify-center text-xl shrink-0 shadow-2xs mt-0.5 sm:mt-0">
-                                    {{ $deviceIcon }}
+            <!-- Device Items List (Real-time x-for) -->
+            <div x-show="filteredDevices.length > 0" class="divide-y divide-[#E8E1D5]">
+                <template x-for="device in filteredDevices" :key="device.id">
+                    <div x-transition:leave="transition ease-out duration-200"
+                         x-transition:leave-start="opacity-100 scale-100"
+                         x-transition:leave-end="opacity-0 scale-95"
+                         class="p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors hover:bg-[#FAF7F2]/60"
+                         :class="device.is_current ? 'bg-amber-50/30' : ''">
+                        
+                        <!-- Left: Device Details & Inline Rename -->
+                        <div class="flex items-start sm:items-center gap-3.5 flex-1 min-w-0">
+                            <div class="w-11 h-11 rounded-2xl bg-[#FAF7F2] border border-[#E4DCCC] flex items-center justify-center text-xl shrink-0 shadow-2xs mt-0.5 sm:mt-0"
+                                 x-text="getDeviceIcon(device.device_type)">
+                            </div>
+
+                            <div class="min-w-0 flex-1">
+                                
+                                <!-- View Mode: Name & Badges -->
+                                <div x-show="editingDeviceId !== device.id" class="flex items-center gap-2 flex-wrap">
+                                    <h4 class="font-bold text-sm text-[#1F1812] truncate max-w-[280px]"
+                                        x-text="device.device_name"
+                                        :title="device.device_name">
+                                    </h4>
+
+                                    <!-- Edit Name Button -->
+                                    <button type="button" @click="startRename(device)"
+                                            class="p-1 text-stone-400 hover:text-[#B5762A] hover:bg-stone-100 rounded text-xs transition-colors cursor-pointer"
+                                            title="Ubah nama perangkat">
+                                        ✏️
+                                    </button>
+
+                                    <!-- Current Device Badge -->
+                                    <template x-if="device.is_current">
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-[#1F1812] text-amber-300 shadow-2xs">
+                                            ★ Perangkat Ini
+                                        </span>
+                                    </template>
+
+                                    <!-- Active / Revoked Badge (Reaktif via Alpine) -->
+                                    <template x-if="!device.is_revoked">
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
+                                            <span>Aktif</span>
+                                        </span>
+                                    </template>
+                                    <template x-if="device.is_revoked">
+                                        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200">
+                                            <span>🔒</span>
+                                            <span>Akses Dicabut (Banned)</span>
+                                        </span>
+                                    </template>
                                 </div>
 
-                                <div class="min-w-0 flex-1">
-                                    
-                                    <!-- View Mode: Name & Badges -->
-                                    <div x-show="editingDeviceId !== {{ $device->id }}" class="flex items-center gap-2 flex-wrap">
-                                        <h4 class="font-bold text-sm text-[#1F1812] truncate max-w-[280px]"
-                                            x-text="getDeviceName({{ $device->id }}, '{{ addslashes($device->device_name) }}')"
-                                            title="{{ $device->device_name }}">
-                                            {{ $device->device_name }}
-                                        </h4>
-
-                                        <!-- Edit Name Button -->
-                                        <button type="button" @click="startRename({{ $device->id }}, getDeviceName({{ $device->id }}, '{{ addslashes($device->device_name) }}'))"
-                                                class="p-1 text-stone-400 hover:text-[#B5762A] hover:bg-stone-100 rounded text-xs transition-colors cursor-pointer"
-                                                title="Ubah nama perangkat">
-                                            ✏️
+                                <!-- Edit Mode: Inline Form -->
+                                <div x-show="editingDeviceId === device.id" x-cloak class="flex items-center gap-2 mt-1">
+                                    <form @submit.prevent="submitRename(device)"
+                                          class="flex items-center gap-2 flex-wrap">
+                                        <input type="text" name="device_name" :id="'rename-input-' + device.id"
+                                               x-model="editingDeviceName" required maxlength="100"
+                                               class="bg-white border border-[#B5762A] rounded-xl px-3 py-1 text-xs font-mono text-[#1F1812] focus:outline-none focus:ring-1 focus:ring-[#B5762A] shadow-2xs">
+                                        <button type="submit" class="px-3 py-1 bg-[#1F1812] hover:bg-[#B5762A] text-white text-[11px] font-mono font-bold rounded-xl transition-all cursor-pointer">
+                                            Simpan
                                         </button>
-
-                                        <!-- Current Device Badge -->
-                                        @if ($isCurrent)
-                                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-[#1F1812] text-amber-300 shadow-2xs">
-                                                ★ Perangkat Ini
-                                            </span>
-                                        @endif
-
-                                        <!-- Active / Revoked Badge (Reaktif via Alpine) -->
-                                        <template x-if="!isRevoked({{ $device->id }})">
-                                            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
-                                                <span>Aktif</span>
-                                            </span>
-                                        </template>
-                                        <template x-if="isRevoked({{ $device->id }})">
-                                            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200">
-                                                <span>🔒</span>
-                                                <span>Akses Dicabut (Banned)</span>
-                                            </span>
-                                        </template>
-                                    </div>
-
-                                    <!-- Edit Mode: Inline Form -->
-                                    <div x-show="editingDeviceId === {{ $device->id }}" x-cloak class="flex items-center gap-2 mt-1">
-                                        <form @submit.prevent="submitRename({{ $device->id }}, '{{ route('kasir.devices.rename', $device) }}')"
-                                              class="flex items-center gap-2 flex-wrap">
-                                            <input type="text" name="device_name" id="rename-input-{{ $device->id }}"
-                                                   x-model="editingDeviceName" required maxlength="100"
-                                                   class="bg-white border border-[#B5762A] rounded-xl px-3 py-1 text-xs font-mono text-[#1F1812] focus:outline-none focus:ring-1 focus:ring-[#B5762A] shadow-2xs">
-                                            <button type="submit" class="px-3 py-1 bg-[#1F1812] hover:bg-[#B5762A] text-white text-[11px] font-mono font-bold rounded-xl transition-all cursor-pointer">
-                                                Simpan
-                                            </button>
-                                            <button type="button" @click="cancelRename()" class="px-2.5 py-1 text-stone-500 hover:text-stone-800 text-[11px] font-mono cursor-pointer">
-                                                Batal
-                                            </button>
-                                        </form>
-                                    </div>
-
-                                    <!-- Metadata Row: OS, Browser, IP, Waktu Aktif -->
-                                    <div class="flex items-center gap-2 sm:gap-3 text-[11px] text-[#8A7B66] font-mono mt-1.5 flex-wrap">
-                                        <span class="inline-flex items-center px-2 py-0.2 rounded border text-[10px] font-semibold {{ $platformColor }}">
-                                            {{ $device->platform ?? 'Platform' }} • {{ $device->browser ?? 'Browser' }}
-                                        </span>
-                                        <span>•</span>
-                                        <span>IP: <code class="text-[#1F1812] font-bold">{{ $device->ip_address ?? '-' }}</code></span>
-                                        <span>•</span>
-                                        <span title="Aktivitas terakhir">
-                                            🕒 {{ $device->last_active_at ? $device->last_active_at->diffForHumans() : 'Belum aktif' }}
-                                        </span>
-                                        <span class="hidden lg:inline">• Terdaftar: {{ $device->created_at->format('d M Y') }}</span>
-                                    </div>
-
+                                        <button type="button" @click="cancelRename()" class="px-2.5 py-1 text-stone-500 hover:text-stone-800 text-[11px] font-mono cursor-pointer">
+                                            Batal
+                                        </button>
+                                    </form>
                                 </div>
+
+                                <!-- Metadata Row: OS, Browser, IP, Waktu Aktif -->
+                                <div class="flex items-center gap-2 sm:gap-3 text-[11px] text-[#8A7B66] font-mono mt-1.5 flex-wrap">
+                                    <span class="inline-flex items-center px-2 py-0.2 rounded border text-[10px] font-semibold"
+                                          :class="getPlatformColor(device.platform)"
+                                          x-text="(device.platform || 'Platform') + ' • ' + (device.browser || 'Browser')">
+                                    </span>
+                                    <span>•</span>
+                                    <span>IP: <code class="text-[#1F1812] font-bold" x-text="device.ip_address || '-'"></code></span>
+                                    <span>•</span>
+                                    <span :title="'Aktivitas terakhir'" x-text="'🕒 ' + (device.last_active_at || 'Belum aktif')">
+                                    </span>
+                                    <span class="hidden lg:inline" x-text="'• Terdaftar: ' + (device.created_at_formatted || '-')"></span>
+                                </div>
+
                             </div>
-
-                            <!-- Right: Action Buttons (Reaktif, Custom Themed Modal & Toast) -->
-                            <div class="flex items-center gap-2 self-end sm:self-center shrink-0">
-                                <!-- Revoke Button -->
-                                <button type="button"
-                                        x-show="!isRevoked({{ $device->id }})"
-                                        @click="confirmRevoke({{ $device->id }}, getDeviceName({{ $device->id }}, '{{ addslashes($device->device_name) }}'), '{{ route('kasir.devices.revoke', $device) }}')"
-                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-mono font-bold uppercase tracking-wider transition-all shadow-2xs cursor-pointer active:scale-95">
-                                    <span>🔒</span>
-                                    <span>Cabut Izin (Blokir)</span>
-                                </button>
-
-                                <!-- Restore Button -->
-                                <button type="button"
-                                        x-show="isRevoked({{ $device->id }})"
-                                        @click="confirmRestore({{ $device->id }}, getDeviceName({{ $device->id }}, '{{ addslashes($device->device_name) }}'), '{{ route('kasir.devices.restore', $device) }}')"
-                                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-mono font-bold uppercase tracking-wider transition-all shadow-2xs cursor-pointer active:scale-95">
-                                    <span>✓</span>
-                                    <span>Aktifkan Kembali</span>
-                                </button>
-
-                                <!-- Delete Button -->
-                                <button type="button"
-                                        @click="confirmDelete({{ $device->id }}, getDeviceName({{ $device->id }}, '{{ addslashes($device->device_name) }}'), '{{ route('kasir.devices.destroy', $device) }}')"
-                                        class="p-2 rounded-xl text-stone-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all cursor-pointer active:scale-95"
-                                        title="Hapus dari daftar riwayat">
-                                    🗑️
-                                </button>
-                            </div>
-
                         </div>
-                    @endforeach
+
+                        <!-- Right: Action Buttons (Reaktif, Custom Themed Modal & Toast) -->
+                        <div class="flex items-center gap-2 self-end sm:self-center shrink-0">
+                            <!-- Revoke Button -->
+                            <button type="button"
+                                    x-show="!device.is_revoked"
+                                    @click="confirmRevoke(device)"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-mono font-bold uppercase tracking-wider transition-all shadow-2xs cursor-pointer active:scale-95">
+                                <span>🔒</span>
+                                <span>Cabut Izin (Blokir)</span>
+                            </button>
+
+                            <!-- Restore Button -->
+                            <button type="button"
+                                    x-show="device.is_revoked"
+                                    @click="confirmRestore(device)"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-mono font-bold uppercase tracking-wider transition-all shadow-2xs cursor-pointer active:scale-95">
+                                <span>✓</span>
+                                <span>Aktifkan Kembali</span>
+                            </button>
+
+                            <!-- Delete Button -->
+                            <button type="button"
+                                    @click="confirmDelete(device)"
+                                    class="p-2 rounded-xl text-stone-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all cursor-pointer active:scale-95"
+                                    title="Hapus dari daftar riwayat">
+                                🗑️
+                            </button>
+                        </div>
+
+                    </div>
+                </template>
                 </div>
-            @endif
 
         </div>
 
