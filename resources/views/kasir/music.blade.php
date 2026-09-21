@@ -386,42 +386,54 @@
             <div class="lg:col-span-7 bg-white border border-[#E4DCCC] shadow-xs flex flex-col lg:h-[700px] xl:h-[750px] rounded-2xl overflow-hidden">
 
                 <!-- TAB HEADERS (ROUNDED PILL TABS) -->
-                <div class="p-2.5 bg-[#FAF7F2] border-b border-[#E4DCCC] flex gap-1.5 shrink-0 select-none">
-                    <button type="button"
-                            @click="activeTab = 'queue'"
-                            class="px-4 py-2.5 font-mono text-xs uppercase tracking-wider transition-all rounded-xl flex items-center gap-2 cursor-pointer"
-                            :class="activeTab === 'queue' ? 'bg-white font-bold text-[#1F1812] shadow-xs border border-[#E4DCCC]' : 'text-[#7A6A58] hover:text-[#1F1812] hover:bg-[#F0EAE1]'">
-                        <span>Antrean Request</span>
-                        <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-extrabold"
-                              :class="activeTab === 'queue' ? 'bg-[#D9973E] text-[#1F1812]' : 'bg-[#E4DCCC] text-[#7A6A58]'"
-                              x-text="queue.length"></span>
-                    </button>
+                <div class="p-2.5 bg-[#FAF7F2] border-b border-[#E4DCCC] flex items-center justify-between gap-1.5 shrink-0 select-none overflow-x-auto">
+                    <div class="flex items-center gap-1.5 min-w-0">
+                        <button type="button"
+                                @click="activeTab = 'queue'"
+                                class="px-3 sm:px-4 py-2 sm:py-2.5 font-mono text-xs uppercase tracking-wider transition-all rounded-xl flex items-center gap-2 cursor-pointer shrink-0"
+                                :class="activeTab === 'queue' ? 'bg-white font-bold text-[#1F1812] shadow-xs border border-[#E4DCCC]' : 'text-[#7A6A58] hover:text-[#1F1812] hover:bg-[#F0EAE1]'">
+                            <span>Antrean Request</span>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-extrabold"
+                                  :class="activeTab === 'queue' ? 'bg-[#D9973E] text-[#1F1812]' : 'bg-[#E4DCCC] text-[#7A6A58]'"
+                                  x-text="queue.length"></span>
+                        </button>
 
-                    <button type="button"
-                            @click="activeTab = 'default_tracks'"
-                            class="px-4 py-2.5 font-mono text-xs uppercase tracking-wider transition-all rounded-xl flex items-center gap-2 cursor-pointer"
-                            :class="activeTab === 'default_tracks' ? 'bg-white font-bold text-[#1F1812] shadow-xs border border-[#E4DCCC]' : 'text-[#7A6A58] hover:text-[#1F1812] hover:bg-[#F0EAE1]'">
-                        <span>Playlist Bawaan</span>
-                        <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-extrabold"
-                              :class="activeTab === 'default_tracks' ? 'bg-[#5F7F42] text-white' : 'bg-[#E4DCCC] text-[#7A6A58]'"
-                              x-text="defaultTracks.length"></span>
-                    </button>
+                        <button type="button"
+                                @click="activeTab = 'default_tracks'"
+                                class="px-3 sm:px-4 py-2 sm:py-2.5 font-mono text-xs uppercase tracking-wider transition-all rounded-xl flex items-center gap-2 cursor-pointer shrink-0"
+                                :class="activeTab === 'default_tracks' ? 'bg-white font-bold text-[#1F1812] shadow-xs border border-[#E4DCCC]' : 'text-[#7A6A58] hover:text-[#1F1812] hover:bg-[#F0EAE1]'">
+                            <span>Playlist Bawaan</span>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-extrabold"
+                                  :class="activeTab === 'default_tracks' ? 'bg-[#5F7F42] text-white' : 'bg-[#E4DCCC] text-[#7A6A58]'"
+                                  x-text="defaultTracks.length"></span>
+                        </button>
 
-                    <button type="button"
-                            @click="activeTab = 'history'"
-                            class="px-4 py-2.5 font-mono text-xs uppercase tracking-wider transition-all rounded-xl cursor-pointer"
-                            :class="activeTab === 'history' ? 'bg-white font-bold text-[#1F1812] shadow-xs border border-[#E4DCCC]' : 'text-[#7A6A58] hover:text-[#1F1812] hover:bg-[#F0EAE1]'">
-                        Riwayat
-                    </button>
+                        <button type="button"
+                                @click="activeTab = 'history'"
+                                class="px-3 sm:px-4 py-2 sm:py-2.5 font-mono text-xs uppercase tracking-wider transition-all rounded-xl cursor-pointer shrink-0"
+                                :class="activeTab === 'history' ? 'bg-white font-bold text-[#1F1812] shadow-xs border border-[#E4DCCC]' : 'text-[#7A6A58] hover:text-[#1F1812] hover:bg-[#F0EAE1]'">
+                            Riwayat
+                        </button>
 
+                        <button type="button"
+                                @click="activeTab = 'ban_list'"
+                                class="px-3 sm:px-4 py-2 sm:py-2.5 font-mono text-xs uppercase tracking-wider transition-all rounded-xl flex items-center gap-2 cursor-pointer shrink-0"
+                                :class="activeTab === 'ban_list' ? 'bg-white font-bold text-rose-700 shadow-xs border border-rose-300' : 'text-[#7A6A58] hover:text-rose-700 hover:bg-rose-50/50'">
+                            <span>🚫 Ban List</span>
+                            <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-extrabold"
+                                  :class="activeTab === 'ban_list' ? 'bg-rose-600 text-white' : 'bg-rose-100 text-rose-700 border border-rose-200'"
+                                  x-text="bannedTracks.length"></span>
+                        </button>
+                    </div>
+
+                    <!-- TOMBOL CEPAT BAN LAGU (TETAP DI TAB AKTIF SAAT INI TANPA PERLU GANTI TAB) -->
                     <button type="button"
-                            @click="activeTab = 'ban_list'"
-                            class="px-4 py-2.5 font-mono text-xs uppercase tracking-wider transition-all rounded-xl flex items-center gap-2 cursor-pointer"
-                            :class="activeTab === 'ban_list' ? 'bg-white font-bold text-rose-700 shadow-xs border border-rose-300' : 'text-[#7A6A58] hover:text-rose-700 hover:bg-rose-50/50'">
-                        <span>🚫 Ban List</span>
-                        <span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-extrabold"
-                              :class="activeTab === 'ban_list' ? 'bg-rose-600 text-white' : 'bg-rose-100 text-rose-700 border border-rose-200'"
-                              x-text="bannedTracks.length"></span>
+                            @click="openBanModal()"
+                            title="Masukkan lagu / kata kunci ke Ban List tanpa berpindah tab"
+                            class="ml-auto px-3 py-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 hover:border-rose-400 text-rose-700 rounded-xl font-mono text-xs uppercase tracking-wider font-bold transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0">
+                        <span>🚫</span>
+                        <span class="hidden sm:inline">+ Ban Lagu</span>
+                        <span class="sm:hidden">+ Ban</span>
                     </button>
                 </div>
 
@@ -780,11 +792,20 @@
                                                 <span x-text="track.is_active ? '✓ Aktif' : 'Nonaktif'"></span>
                                             </button>
 
+                                            <!-- BAN DARI PLAYLIST BAWAAN -->
+                                            <button type="button"
+                                                    @click="autoBanDefaultTrack(track)"
+                                                    title="Ban lagu ini agar tidak dapat di-request dan hapus dari playlist bawaan"
+                                                    class="px-2 py-1.5 rounded-lg font-mono text-[10px] uppercase font-bold text-rose-700 border border-rose-200 bg-rose-50 hover:bg-rose-100 transition cursor-pointer active:scale-95 shadow-2xs flex items-center gap-0.5">
+                                                <span>🚫</span>
+                                                <span>Ban</span>
+                                            </button>
+
                                             <!-- DELETE -->
                                             <button type="button"
                                                     @click="deleteTrack(track)"
                                                     title="Hapus lagu ini dari playlist bawaan"
-                                                    class="px-2.5 py-1.5 rounded-lg font-mono text-[10px] uppercase font-bold text-rose-600 border border-rose-200 bg-rose-50 hover:bg-rose-100 transition cursor-pointer active:scale-95 shadow-2xs">
+                                                    class="px-2.5 py-1.5 rounded-lg font-mono text-[10px] uppercase font-bold text-stone-600 border border-[#E4DCCC] bg-[#FAF7F2] hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 transition cursor-pointer active:scale-95 shadow-2xs">
                                                 ✕ Hapus
                                             </button>
                                         </div>
@@ -1110,6 +1131,87 @@
             </form>
         </div>
     </div>
+
+    <!-- MODAL CEPAT INPUT BAN LIST (BISA DIBUKA DARI TAB APAPUN TANPA GANTI TAB) -->
+    <div x-show="showBanModal"
+         x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in"
+         @keydown.escape.window="closeBanModal()">
+        <div class="bg-white border border-rose-200 rounded-2xl max-w-md w-full p-6 shadow-2xl relative text-[#1F1812] overflow-hidden"
+             @click.outside="closeBanModal()">
+
+            <div class="flex items-center justify-between border-b border-[#E4DCCC] pb-3 mb-4">
+                <div class="flex items-center gap-2">
+                    <span class="w-8 h-8 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 inline-flex items-center justify-center text-sm shadow-2xs font-bold">🚫</span>
+                    <div>
+                        <h3 class="font-serif font-bold text-base text-[#1F1812]">Tambah ke Ban List</h3>
+                        <p class="text-[10px] font-mono text-[#7A6A58]">Lagu dilarang di-request pelanggan</p>
+                    </div>
+                </div>
+                <button type="button" @click="closeBanModal()" class="text-[#7A6A58] hover:text-[#1F1812] text-lg font-bold leading-none cursor-pointer">
+                    ✕
+                </button>
+            </div>
+
+            <form @submit.prevent="submitBanModal()" class="space-y-3.5">
+                <div>
+                    <label class="block text-xs font-mono uppercase text-[#7A6A58] mb-1 font-bold">
+                        Judul Lagu / Kata Kunci <span class="text-rose-600">*</span>
+                    </label>
+                    <input type="text" id="banModalInput" required
+                           x-model="banForm.title"
+                           placeholder="Contoh: DJ Remix, Despacito, lagu tertentu..."
+                           class="w-full px-3.5 py-2 bg-white border border-[#D6CBB8] rounded-xl text-xs text-[#1F1812] placeholder-[#A89A85] focus:outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 font-medium shadow-2xs">
+                    <p class="text-[10px] text-[#7A6A58] mt-1 font-mono">
+                        Bisa berupa judul lengkap atau kata kunci larangan.
+                    </p>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-mono uppercase text-[#7A6A58] mb-1 font-bold">
+                        Link / ID Video YouTube (Opsional)
+                    </label>
+                    <input type="text"
+                           x-model="banForm.youtube_url"
+                           placeholder="https://youtu.be/... atau ID YouTube 11 digit"
+                           class="w-full px-3.5 py-2 bg-white border border-[#D6CBB8] rounded-xl text-xs text-[#1F1812] placeholder-[#A89A85] focus:outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 font-mono shadow-2xs">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-mono uppercase text-[#7A6A58] mb-1 font-bold">
+                        Nama Artis (Opsional)
+                    </label>
+                    <input type="text"
+                           x-model="banForm.artist"
+                           placeholder="Nama penyanyi / band"
+                           class="w-full px-3.5 py-2 bg-white border border-[#D6CBB8] rounded-xl text-xs text-[#1F1812] placeholder-[#A89A85] focus:outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 font-medium shadow-2xs">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-mono uppercase text-[#7A6A58] mb-1 font-bold">
+                        Alasan Larangan (Opsional)
+                    </label>
+                    <input type="text"
+                           x-model="banForm.reason"
+                           placeholder="Contoh: Terlalu bising / lirik vulgar"
+                           class="w-full px-3.5 py-2 bg-white border border-[#D6CBB8] rounded-xl text-xs text-[#1F1812] placeholder-[#A89A85] focus:outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 font-medium shadow-2xs">
+                </div>
+
+                <div class="pt-3 border-t border-[#E4DCCC] flex justify-end gap-2">
+                    <button type="button" @click="closeBanModal()"
+                            class="px-4 py-2 bg-[#FAF7F2] border border-[#E4DCCC] text-[#7A6A58] font-mono text-xs uppercase tracking-wider rounded-xl hover:bg-[#F0EAE1] hover:text-[#1F1812] transition cursor-pointer shadow-2xs">
+                        Batal
+                    </button>
+                    <button type="submit"
+                            :disabled="isSubmittingBan || (!banForm.title && !banForm.youtube_url)"
+                            class="px-5 py-2 bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-mono text-xs uppercase tracking-wider font-bold rounded-xl transition shadow-xs disabled:opacity-50 flex items-center gap-1.5 cursor-pointer active:scale-95">
+                        <span x-show="isSubmittingBan" class="animate-spin text-xs">⟳</span>
+                        <span>🚫 Masukkan ke Ban List</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -1153,6 +1255,7 @@ function musicStationPage() {
         // BAN LIST (BLACKLIST) STATE
         bannedTracks: {!! json_encode($bannedTracks ?? []) !!},
         banSearchQuery: '',
+        showBanModal: false,
         banForm: {
             youtube_url: '',
             title: '',
@@ -1964,6 +2067,7 @@ function musicStationPage() {
                         artist: '',
                         reason: 'Dilarang oleh kasir'
                     };
+                    this.showBanModal = false;
                     if (window.customToast) {
                         window.customToast({ message: data.message || 'Lagu berhasil dimasukkan ke Ban List.', type: 'success' });
                     }
@@ -2222,6 +2326,96 @@ function musicStationPage() {
                     }
                 }
             } catch (e) {
+                if (window.customToast) {
+                    window.customToast({ message: 'Terjadi kesalahan jaringan.', type: 'danger' });
+                }
+            }
+        },
+
+        openBanModal() {
+            this.showBanModal = true;
+            this.$nextTick(() => {
+                const el = document.getElementById('banModalInput');
+                if (el) el.focus();
+            });
+        },
+
+        closeBanModal() {
+            this.showBanModal = false;
+        },
+
+        async submitBanModal() {
+            await this.submitBanManual();
+            this.showBanModal = false;
+        },
+
+        async autoBanDefaultTrack(track) {
+            if (!track) return;
+            const title = track.title || 'Lagu ini';
+
+            if (window.customConfirm) {
+                const ok = await window.customConfirm({
+                    title: 'Ban Lagu Bawaan',
+                    message: `Hapus "${title}" dari Playlist Bawaan dan masukkan ke Ban List agar tidak dapat diputar lagi?`,
+                    type: 'danger',
+                    confirmText: 'Ban & Hapus',
+                    cancelText: 'Batal'
+                });
+                if (!ok) return;
+            } else if (!confirm(`Ban lagu "${title}" dan hapus dari playlist bawaan?`)) {
+                return;
+            }
+
+            const targetId = track.id;
+            const targetIndex = this.defaultTracks.findIndex(t => t.id === targetId);
+            const backupTrack = { ...track };
+            this.defaultTracks = this.defaultTracks.filter(t => t.id !== targetId);
+
+            try {
+                // 1. Masukkan ke ban list
+                const res = await fetch('{{ route('kasir.music.ban.store') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        youtube_id: track.youtube_id,
+                        title: track.title,
+                        artist: track.artist,
+                        reason: 'Dilarang oleh kasir dari playlist bawaan'
+                    })
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    if (data.banned_track) {
+                        this.bannedTracks.unshift(data.banned_track);
+                    }
+                    // 2. Hapus dari database default tracks
+                    fetch('{{ url('/kasir/music/default-tracks') }}/' + targetId, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                            'Accept': 'application/json'
+                        }
+                    });
+                    if (window.customToast) {
+                        window.customToast({ message: `Lagu "${title}" berhasil di-ban dan dihapus dari playlist.`, type: 'success' });
+                    }
+                } else {
+                    if (targetIndex !== -1) {
+                        this.defaultTracks.splice(targetIndex, 0, backupTrack);
+                    }
+                    if (window.customToast) {
+                        window.customToast({ message: data.message || 'Gagal melakukan ban.', type: 'danger' });
+                    }
+                }
+            } catch (e) {
+                if (targetIndex !== -1) {
+                    this.defaultTracks.splice(targetIndex, 0, backupTrack);
+                }
                 if (window.customToast) {
                     window.customToast({ message: 'Terjadi kesalahan jaringan.', type: 'danger' });
                 }
