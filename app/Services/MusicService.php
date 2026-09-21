@@ -20,6 +20,11 @@ class MusicService
     public const OWNER_CODE = '123123';
 
     /**
+     * Kode Khusus Struk Testing: Bisa request berkali-kali dengan aturan pelanggan biasa.
+     */
+    public const TEST_CODE = 'TEST';
+
+    /**
      * Cek apakah kode merupakan kode owner.
      */
     public function isOwnerCode(string $rawCode): bool
@@ -28,9 +33,17 @@ class MusicService
     }
 
     /**
+     * Cek apakah kode merupakan kode testing struk kafe.
+     */
+    public function isTestCode(string $rawCode): bool
+    {
+        return strtoupper(trim($rawCode)) === self::TEST_CODE;
+    }
+
+    /**
      * Validasi apakah kode musik dari struk transaksi valid dan bisa digunakan.
      *
-     * @return array{valid: bool, is_owner?: bool, message: string, order?: Order|null, request?: MusicRequest|null, already_used?: bool}
+     * @return array{valid: bool, is_owner?: bool, is_test?: bool, message: string, order?: Order|null, request?: MusicRequest|null, already_used?: bool}
      */
     public function validateMusicCode(string $rawCode): array
     {
@@ -40,6 +53,7 @@ class MusicService
             return [
                 'valid' => false,
                 'is_owner' => false,
+                'is_test' => false,
                 'message' => 'Silakan masukkan kode musik dari struk transaksi Anda.',
             ];
         }
@@ -49,8 +63,26 @@ class MusicService
             return [
                 'valid' => true,
                 'is_owner' => true,
+                'is_test' => false,
                 'order' => null,
                 'message' => '👑 Kode Master Owner Aktif! Anda memiliki akses VIP request lagu tanpa batas (Unlimited).',
+            ];
+        }
+
+        // Cek Kode Testing Struk Belanja (Bisa request berkali-kali dengan rules pelanggan biasa)
+        if ($this->isTestCode($rawCode)) {
+            /** @var Order|null $testOrder */
+            $testOrder = Order::with('musicRequest')
+                ->where('music_code', self::TEST_CODE)
+                ->orWhere('code', self::TEST_CODE)
+                ->first();
+
+            return [
+                'valid' => true,
+                'is_owner' => false,
+                'is_test' => true,
+                'order' => $testOrder,
+                'message' => '🧪 Kode Struk Testing Valid! Mode simulasi pelanggan (Dapat request berkali-kali untuk testing).',
             ];
         }
 
@@ -64,6 +96,7 @@ class MusicService
             return [
                 'valid' => false,
                 'is_owner' => false,
+                'is_test' => false,
                 'message' => 'Kode transaksi tidak ditemukan. Pastikan kode diketik persis seperti pada struk.',
             ];
         }
@@ -72,6 +105,7 @@ class MusicService
             return [
                 'valid' => false,
                 'is_owner' => false,
+                'is_test' => false,
                 'message' => 'Transaksi ini berstatus '.strtoupper($order->status).' dan tidak memenuhi syarat request musik.',
             ];
         }
@@ -83,6 +117,7 @@ class MusicService
             return [
                 'valid' => false,
                 'is_owner' => false,
+                'is_test' => false,
                 'already_used' => true,
                 'order' => $order,
                 'request' => $existing,
@@ -93,6 +128,7 @@ class MusicService
         return [
             'valid' => true,
             'is_owner' => false,
+            'is_test' => false,
             'order' => $order,
             'message' => 'Kode struk valid! Silakan cari atau pilih lagu yang ingin diputar di kafe.',
         ];
@@ -177,7 +213,22 @@ class MusicService
     }
 
     /**
-     * Ambil metadata lengkap video YouTube (judul, channel/artist, thumbnail, dan durasi) dengan cache.
+     * Cek apakah teks (judul, artis, atau query) memuat kata kunci NSFW atau konten dewasa.
+     */
+    public function containsNsfwKeywords(string $text): bool
+    {
+        $trimmed = trim($text);
+        if ($trimmed === '') {
+            return false;
+        }
+
+        $pattern = '/(?:^|[^a-zA-Z0-9])(?:18\+|nsfw|bokep|porn|porno|hentai|ecchi|sex|xxx|gore|kontol|memek)(?:$|[^a-zA-Z0-9])/i';
+
+        return (bool) preg_match($pattern, $trimmed);
+    }
+
+    /**
+     * Ambil metadata lengkap video YouTube (judul, channel/artist, thumbnail, durasi, status live stream, dan NSFW) dengan cache.
      *
      * @return array{
      *     youtube_id: string,
@@ -186,8 +237,12 @@ class MusicService
      *     thumbnail_url: string,
      *     duration_seconds: int|null,
      *     duration_formatted: string,
+     *     is_live: bool,
+     *     is_nsfw: bool,
      *     is_valid_duration: bool,
-     *     duration_error: string|null
+     *     is_valid: bool,
+     *     duration_error: string|null,
+     *     error_message: string|null
      * }
      */
     public function fetchYouTubeDetails(string $youtubeId): array
@@ -199,8 +254,10 @@ class MusicService
             $artist = 'YouTube';
             $thumbnailUrl = "https://img.youtube.com/vi/{$youtubeId}/hqdefault.jpg";
             $durationSeconds = null;
+            $isLive = false;
+            $isNsfw = false;
 
-            // 1. Coba scraping halaman video YouTube untuk ekstraksi durasi & judul
+            // 1. Coba scraping halaman video YouTube untuk ekstraksi durasi, judul, status live & NSFW
             try {
                 $response = Http::timeout(4)
                     ->withHeaders(['User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'])
@@ -208,6 +265,26 @@ class MusicService
 
                 if ($response->successful()) {
                     $html = $response->body();
+
+                    // Ekstraksi apakah siaran langsung (live stream)
+                    if (
+                        preg_match('/"(?:isLive|isLiveStream|isLiveContent)":\s*true/i', $html) ||
+                        preg_match('/<meta\s+itemprop="isLiveBroadcast"\s+content="true"/i', $html) ||
+                        preg_match('/"liveBroadcastDetails"/i', $html)
+                    ) {
+                        $isLive = true;
+                    }
+
+                    // Ekstraksi apakah konten dewasa / NSFW / Age-Restricted (18+)
+                    if (
+                        preg_match('/"familySafe":\s*false/i', $html) ||
+                        preg_match('/"(?:isAgeRestricted|ageRestricted|ageGate)":\s*true/i', $html) ||
+                        preg_match('/<meta\s+property="og:restrictions:age"\s+content="18\+"/i', $html) ||
+                        (preg_match('/"status":\s*"(?:LOGIN_REQUIRED|AGE_CHECK_REQUIRED)"/i', $html) && preg_match('/(?:confirm your age|inappropriate|dewasa|18\+)/i', $html)) ||
+                        preg_match('/"reason":\s*"[^"]*(?:age-restricted|confirm your age|inappropriate for some users)[^"]*"/i', $html)
+                    ) {
+                        $isNsfw = true;
+                    }
 
                     // Ekstraksi durasi
                     if (preg_match('/"lengthSeconds":"([0-9]+)"/', $html, $mSeconds)) {
@@ -260,16 +337,36 @@ class MusicService
                 }
             }
 
+            // Periksa juga apakah judul atau artis mengandung kata kunci NSFW
+            if ($this->containsNsfwKeywords($title) || $this->containsNsfwKeywords($artist)) {
+                $isNsfw = true;
+            }
+
             return [
                 'youtube_id' => $youtubeId,
                 'title' => $title,
                 'artist' => $artist,
                 'thumbnail_url' => $thumbnailUrl,
                 'duration_seconds' => $durationSeconds,
+                'is_live' => $isLive,
+                'is_nsfw' => $isNsfw,
             ];
         });
 
         $durationCheck = $this->validateTrackDuration($raw['duration_seconds']);
+        $isLive = ! empty($raw['is_live']);
+        $isNsfw = ! empty($raw['is_nsfw']);
+
+        $isValid = $durationCheck['valid'] && ! $isLive && ! $isNsfw;
+        $errorMessage = null;
+
+        if ($isLive) {
+            $errorMessage = 'Tautan siaran langsung (live stream) tidak dapat di-request demi kenyamanan giliran antrean pengunjung kafe.';
+        } elseif ($isNsfw) {
+            $errorMessage = 'Video ini terdeteksi memuat konten dewasa / NSFW (Age-Restricted) dan tidak diperkenankan diputar di area publik kafe demi kenyamanan bersama.';
+        } elseif (! $durationCheck['valid']) {
+            $errorMessage = $durationCheck['message'];
+        }
 
         return [
             'youtube_id' => $raw['youtube_id'],
@@ -278,8 +375,12 @@ class MusicService
             'thumbnail_url' => $raw['thumbnail_url'],
             'duration_seconds' => $raw['duration_seconds'],
             'duration_formatted' => $durationCheck['duration_formatted'],
+            'is_live' => $isLive,
+            'is_nsfw' => $isNsfw,
             'is_valid_duration' => $durationCheck['valid'],
+            'is_valid' => $isValid,
             'duration_error' => $durationCheck['message'],
+            'error_message' => $errorMessage,
         ];
     }
 
@@ -312,9 +413,9 @@ class MusicService
      *
      * @throws InvalidArgumentException
      */
-    public function submitRequest(?Order $order, array $data, bool $isOwner = false): MusicRequest
+    public function submitRequest(?Order $order, array $data, bool $isOwner = false, bool $isTest = false): MusicRequest
     {
-        if (! $isOwner) {
+        if (! $isOwner && ! $isTest) {
             if (! $order || ! $order->canRequestMusic()) {
                 throw new InvalidArgumentException('Struk transaksi ini sudah pernah digunakan untuk me-request lagu.');
             }
@@ -325,13 +426,24 @@ class MusicService
             throw new InvalidArgumentException('Tautan atau ID YouTube tidak valid.');
         }
 
+        $details = $this->fetchYouTubeDetails($youtubeId);
+
+        // Validasi tautan siaran langsung (live stream)
+        if (! empty($details['is_live'])) {
+            throw new InvalidArgumentException('Tautan siaran langsung (live stream) tidak dapat di-request demi kenyamanan giliran antrean pengunjung kafe.');
+        }
+
+        // Validasi konten dewasa / NSFW / Age-Restricted
+        if (! empty($details['is_nsfw']) || $this->containsNsfwKeywords($data['song_title'] ?? '') || $this->containsNsfwKeywords($data['artist'] ?? '')) {
+            throw new InvalidArgumentException('Lagu ini terdeteksi memuat konten dewasa / NSFW (Age-Restricted) dan tidak diperkenankan diputar di area publik kafe demi kenyamanan bersama.');
+        }
+
         // Validasi aturan durasi lagu kafe (anti lagu 10 menit / 1 jam)
         $duration = isset($data['duration_seconds']) && is_numeric($data['duration_seconds'])
             ? (int) $data['duration_seconds']
             : null;
 
         if ($duration === null || $duration <= 0) {
-            $details = $this->fetchYouTubeDetails($youtubeId);
             if (! empty($details['duration_seconds'])) {
                 $duration = (int) $details['duration_seconds'];
             }
@@ -344,9 +456,9 @@ class MusicService
             }
         }
 
-        return DB::transaction(function () use ($order, $data, $youtubeId, $duration, $isOwner) {
-            // Kunci order hanya jika bukan owner (1 transaksi = 1 lagu untuk pelanggan biasa)
-            if ($order && ! $isOwner) {
+        return DB::transaction(function () use ($order, $data, $youtubeId, $duration, $isOwner, $isTest) {
+            // Kunci order hanya jika bukan owner dan bukan testing (1 transaksi = 1 lagu untuk pelanggan biasa)
+            if ($order && ! $isOwner && ! $isTest) {
                 $order->update(['music_request_used_at' => now()]);
             }
 
@@ -356,7 +468,7 @@ class MusicService
 
             $customerName = ! empty($data['customer_name'])
                 ? trim($data['customer_name'])
-                : ($order?->customer_name ?: ($isOwner ? '👑 Owner' : 'Pelanggan'));
+                : ($order?->customer_name ?: ($isOwner ? '👑 Owner' : ($isTest ? 'Pelanggan (Testing)' : 'Pelanggan')));
 
             return MusicRequest::create([
                 'order_id' => $order?->id,

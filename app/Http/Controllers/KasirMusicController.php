@@ -28,11 +28,13 @@ class KasirMusicController extends Controller
     public function index(): View
     {
         $state = $this->musicService->getPlayerState();
-        $defaultTracks = MusicDefaultTrack::orderBy('sort_order')->orderBy('id')->get();
+        $defaultTracks = MusicDefaultTrack::orderBy('sort_order')
+            ->orderBy('id')
+            ->get(['id', 'title', 'artist', 'youtube_id', 'duration_seconds', 'sort_order', 'is_active']);
         $recentHistory = MusicRequest::whereIn('status', ['played', 'skipped', 'rejected'])
             ->latest('updated_at')
             ->limit(30)
-            ->get();
+            ->get(['id', 'song_title', 'artist', 'youtube_id', 'duration_seconds', 'customer_name', 'status', 'notes', 'updated_at']);
 
         return view('kasir.music', compact('state', 'defaultTracks', 'recentHistory'));
     }

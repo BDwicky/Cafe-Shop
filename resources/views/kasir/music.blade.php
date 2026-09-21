@@ -3,27 +3,64 @@
 @section('title', 'Sound Station — Pemutar Musik Kafe')
 
 @section('content')
-<div class="h-full flex flex-col overflow-hidden"
+<style>
+    .title-marquee-wrap {
+        overflow: hidden;
+        white-space: nowrap;
+        position: relative;
+        max-width: 100%;
+        display: block;
+    }
+
+    .title-marquee-text {
+        display: inline-block;
+        max-width: 100%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        vertical-align: middle;
+        transform: translateX(0);
+        transition: transform 0.25s ease-out;
+    }
+
+    .title-marquee-text.animate-marquee-hover {
+        overflow: visible !important;
+        text-overflow: clip !important;
+        max-width: none !important;
+        animation: marqueeScrollText var(--marquee-dur, 4s) cubic-bezier(0.35, 0, 0.65, 1) infinite alternate;
+    }
+
+    @keyframes marqueeScrollText {
+        0%, 18% {
+            transform: translateX(0);
+        }
+        82%, 100% {
+            transform: translateX(var(--marquee-dist, -50px));
+        }
+    }
+</style>
+<div class="h-full flex flex-col overflow-hidden bg-[#FAF7F2]"
      x-data="musicStationPage()"
      x-init="init()">
 
     <!-- TOPBAR SOUND STATION (WARM MODERN ESPRESSO) -->
     <header class="px-4 sm:px-6 py-3.5 border-b border-[#3A3026] bg-[#1A130D] text-[#F7F3EC] flex flex-wrap items-center justify-between gap-4 shrink-0 select-none shadow-md">
         <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-2xl bg-[#D9973E] text-[#1F1812] flex items-center justify-center font-bold text-lg shadow-sm">
-                ♫
+            <div class="w-10 h-10 rounded-2xl bg-[#D9973E] text-[#1F1812] flex items-center justify-center font-bold text-lg shadow-sm transition-all"
+                 :class="isPlaying ? 'shadow-[0_0_12px_rgba(217,151,62,0.4)]' : ''">
+                <span :class="isPlaying ? 'animate-spin' : ''">♫</span>
             </div>
             <div>
                 <div class="flex items-center gap-2">
                     <h1 class="text-base sm:text-lg font-serif font-bold tracking-tight text-[#F7F3EC]">
                         Sound Station Kafe
                     </h1>
-                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#5F7F42]/20 text-[#85BF5C] border border-[#5F7F42]/40">
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#5F7F42]/20 text-[#85BF5C] border border-[#5F7F42]/40 shadow-2xs">
                         <span class="w-1.5 h-1.5 rounded-full bg-[#85BF5C] animate-pulse"></span>
-                        Tersinkronisasi Realtime
+                        <span>Tersinkronisasi Realtime</span>
                     </span>
                 </div>
-                <p class="text-[11px] text-[#A89A85] font-mono">
+                <p class="text-[11px] text-[#A89A85] font-mono mt-0.5">
                     Terkoneksi langsung dengan pemutar audio di Navbar Widget & Display TV
                 </p>
             </div>
@@ -37,12 +74,12 @@
                 <span>Mini Player</span>
             </button>
             <a href="{{ route('music.display') }}" target="_blank"
-               class="px-3.5 py-2 rounded-xl bg-[#2A211A] hover:bg-[#3A3026] border border-[#3A3026] text-[#F7F3EC] text-xs font-mono tracking-wider uppercase transition-all flex items-center gap-1.5 active:scale-95">
+               class="px-3.5 py-2 rounded-xl bg-[#2A211A] hover:bg-[#3A3026] border border-[#3A3026] text-[#F7F3EC] text-xs font-mono tracking-wider uppercase transition-all flex items-center gap-1.5 active:scale-95 shadow-2xs">
                 <span>Display TV</span>
                 <span>↗</span>
             </a>
             <a href="{{ route('music.request') }}" target="_blank"
-               class="px-3.5 py-2 rounded-xl bg-[#2A211A] hover:bg-[#3A3026] border border-[#3A3026] text-[#D9973E] text-xs font-mono tracking-wider uppercase transition-all flex items-center gap-1.5 active:scale-95">
+               class="px-3.5 py-2 rounded-xl bg-[#2A211A] hover:bg-[#3A3026] border border-[#3A3026] text-[#D9973E] text-xs font-mono tracking-wider uppercase transition-all flex items-center gap-1.5 active:scale-95 shadow-2xs font-bold">
                 <span>Request Tamu</span>
                 <span>↗</span>
             </a>
@@ -50,7 +87,7 @@
     </header>
 
     <!-- BANNER VOICE ANNOUNCER & AUDIO DUCKING -->
-    <div class="px-4 sm:px-6 py-2.5 bg-[#140E0A] border-b border-[#3A3026] flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+    <div class="px-4 sm:px-6 py-2.5 bg-[#140E0A] border-b border-[#3A3026] flex flex-wrap items-center justify-between gap-3 text-xs font-mono shrink-0">
         <div class="flex items-center gap-3">
             <span class="flex items-center gap-2 font-bold" :class="isAnnouncing ? 'text-[#E5A44B] animate-pulse' : (voiceAnnouncerEnabled ? 'text-[#85BF5C]' : 'text-[#7A6A58]')">
                 <span class="w-2 h-2 rounded-full" :class="isAnnouncing ? 'bg-[#E5A44B] animate-ping' : (voiceAnnouncerEnabled ? 'bg-[#85BF5C]' : 'bg-gray-500')"></span>
@@ -61,40 +98,40 @@
 
         <div class="flex items-center gap-2">
             <button type="button" @click="testAnnouncer()"
-                    class="px-3 py-1.5 rounded-xl bg-[#2A211A] hover:bg-[#3A3026] border border-[#3A3026] text-[11px] text-[#D9973E] hover:text-[#F7F3EC] transition flex items-center gap-1 cursor-pointer active:scale-95">
+                    class="px-3 py-1.5 rounded-xl bg-[#2A211A] hover:bg-[#3A3026] border border-[#3A3026] text-[11px] text-[#D9973E] hover:text-[#F7F3EC] transition flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs">
                 <span>▶</span>
                 <span>Tes Suara</span>
             </button>
             <button type="button" @click="toggleVoiceAnnouncer()"
-                    class="px-3 py-1.5 rounded-xl text-[11px] border transition font-mono cursor-pointer active:scale-95"
+                    class="px-3 py-1.5 rounded-xl text-[11px] border transition font-mono cursor-pointer active:scale-95 shadow-2xs"
                     :class="voiceAnnouncerEnabled ? 'bg-[#5F7F42]/15 border-[#5F7F42]/60 text-[#85BF5C]' : 'bg-[#2A211A] border-[#3A3026] text-[#A89A85]'">
                 <span x-text="voiceAnnouncerEnabled ? 'Matikan Suara' : 'Aktifkan Suara'"></span>
             </button>
         </div>
     </div>
 
-    <!-- MAIN BODY GRID -->
+    <!-- MAIN BODY GRID (SCROLLABLE CONTENT AREA) -->
     <main class="flex-1 overflow-y-auto p-4 sm:p-6 bg-[#FAF7F2]">
-        <div class="max-w-7xl 2xl:max-w-[1520px] w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-5 xl:gap-6 items-start">
+        <div class="max-w-7xl 2xl:max-w-[1520px] w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-5 xl:gap-6 items-stretch">
 
             <!-- KIRI: PLAYER KAFE & KONTROL (5 COLS) -->
-            <div class="lg:col-span-5 space-y-4">
+            <div class="lg:col-span-5 flex flex-col gap-4 lg:h-[700px] xl:h-[750px]">
 
                 <!-- KARTU NOW PLAYING & KONTROL PLAYER (DECK HI-FI ROUNDED-2XL) -->
-                <div class="bg-[#1F1812] text-[#F7F3EC] border border-[#3A3026] rounded-2xl p-5 shadow-xl relative overflow-hidden">
+                <div class="bg-[#1F1812] text-[#F7F3EC] border border-[#3A3026] rounded-2xl p-5 shadow-xl relative overflow-hidden shrink-0">
                     <div class="flex items-center justify-between border-b border-[#3A3026] pb-3 mb-3.5">
                         <div class="flex items-center gap-2.5">
-                            <!-- Equalizer Visualizer -->
+                            <!-- Equalizer Visualizer Bars (Warm Amber Theme) -->
                             <div class="flex items-end gap-1 h-3.5 w-4 shrink-0">
-                                <span class="w-1 bg-[#85BF5C] rounded-full transition-all duration-150"
+                                <span class="w-1 bg-[#D9973E] rounded-full transition-all duration-150"
                                       :class="isPlaying ? 'h-3.5 animate-pulse' : 'h-1'"></span>
-                                <span class="w-1 bg-[#85BF5C] rounded-full transition-all duration-150 delay-75"
+                                <span class="w-1 bg-[#D9973E] rounded-full transition-all duration-150 delay-75"
                                       :class="isPlaying ? 'h-2.5 animate-pulse' : 'h-1.5'"></span>
-                                <span class="w-1 bg-[#85BF5C] rounded-full transition-all duration-150 delay-150"
+                                <span class="w-1 bg-[#D9973E] rounded-full transition-all duration-150 delay-150"
                                       :class="isPlaying ? 'h-3.5 animate-pulse' : 'h-1'"></span>
                             </div>
                             <span class="font-mono text-[10px] uppercase tracking-[0.2em] font-bold"
-                                  :class="isPlaying ? 'text-[#85BF5C]' : 'text-amber-400'"
+                                  :class="isPlaying ? 'text-[#D9973E]' : 'text-amber-400'"
                                   x-text="isPlaying ? 'SEDANG MEMUTAR' : 'TERJEDA'"></span>
                         </div>
                         <template x-if="currentTrack">
@@ -110,133 +147,143 @@
                             <img :src="currentTrack.thumbnail_url" alt="Thumb" class="w-full h-full object-cover opacity-85 group-hover:scale-105 transition-transform duration-500">
                         </template>
                         <template x-if="!currentTrack || !currentTrack.thumbnail_url">
-                            <div class="w-full h-full flex items-center justify-center bg-[#140E0A]">
-                                <span class="text-4xl text-[#D9973E]" :class="isPlaying ? 'animate-spin' : ''">♫</span>
+                            <div class="w-full h-full flex flex-col items-center justify-center bg-[#140E0A] text-[#D9973E]">
+                                <span class="text-4xl" :class="isPlaying ? 'animate-spin' : ''">♫</span>
+                                <span class="text-[10px] font-mono uppercase tracking-widest text-[#A89A85] mt-2 font-bold">Sound Station Kafe</span>
                             </div>
                         </template>
 
                         <!-- Center Play/Pause Quick Action on Hover -->
-                        <div class="absolute inset-0 flex items-center justify-center pointer-events-none group-hover:pointer-events-auto">
+                        <div class="absolute inset-0 flex items-center justify-center pointer-events-none group-hover:pointer-events-auto bg-black/40 backdrop-blur-xs transition-all opacity-0 group-hover:opacity-100">
                             <button type="button"
                                     @click.stop="togglePlayPause()"
                                     :title="isPlaying ? 'Jeda Lagu' : 'Putar Lagu'"
-                                    class="w-13 h-13 rounded-full bg-black/75 hover:bg-[#D9973E] text-white hover:text-[#140E0A] border border-white/20 hover:border-[#D9973E] backdrop-blur-md flex items-center justify-center transition-all duration-200 transform scale-90 opacity-0 group-hover:scale-100 group-hover:opacity-100 shadow-2xl active:scale-95 cursor-pointer">
+                                    class="w-13 h-13 rounded-full bg-black/75 hover:bg-[#D9973E] text-white hover:text-[#140E0A] border border-white/20 hover:border-[#D9973E] backdrop-blur-md flex items-center justify-center transition-all duration-200 transform scale-90 group-hover:scale-100 shadow-2xl active:scale-95 cursor-pointer">
                                 <svg x-show="isPlaying" class="w-6 h-6 fill-current" viewBox="0 0 24 24">
                                     <rect x="6" y="4" width="4" height="16" rx="1.5"/>
                                     <rect x="14" y="4" width="4" height="16" rx="1.5"/>
                                 </svg>
-                                <svg x-show="!isPlaying" class="w-6 h-6 fill-current ml-1" viewBox="0 0 24 24">
-                                    <path d="M8 5.14v14.72a1 1 0 001.5.86l11.5-7.36a1 1 0 000-1.72L9.5 4.28A1 1 0 008 5.14z"/>
+                                <svg x-show="!isPlaying" class="w-6 h-6 fill-current" viewBox="0 0 24 24">
+                                    <path d="M7 5.14v13.72a1 1 0 001.5.86l10.5-6.86a1 1 0 000-1.72L8.5 4.28A1 1 0 007 5.14z"/>
                                 </svg>
                             </button>
                         </div>
 
                         <!-- Bottom Gradient Overlay -->
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent flex flex-col justify-between p-3 pointer-events-none">
-                            <div class="flex justify-end">
-                                <span class="px-2 py-0.5 bg-black/70 border border-white/10 font-mono text-[9px] text-[#A89A85] rounded-md">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent flex flex-col justify-between p-3 pointer-events-none text-white">
+                            <div class="flex items-center justify-between">
+                                <template x-if="isLive">
+                                    <span class="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-red-600 text-white shadow-sm flex items-center gap-1">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-white animate-ping"></span>
+                                        LIVE
+                                    </span>
+                                </template>
+                                <span class="px-2 py-0.5 bg-black/70 border border-white/10 font-mono text-[9px] text-[#A89A85] rounded-md ml-auto">
                                     Audio Master: Navbar Widget
                                 </span>
                             </div>
                             <div class="flex items-center justify-between text-xs">
                                 <div class="flex items-center gap-2">
                                     <span class="w-2.5 h-2.5 rounded-full" :class="isPlaying ? 'bg-[#85BF5C] animate-pulse' : 'bg-amber-400'"></span>
-                                    <span class="font-mono text-xs text-[#F7F3EC]" x-text="isPlaying ? 'Memutar di Suara Kafe' : 'Musik Terjeda'"></span>
+                                    <span class="font-mono text-xs text-[#F7F3EC] font-semibold" x-text="isPlaying ? 'Memutar di Suara Kafe' : 'Musik Terjeda'"></span>
                                 </div>
                                 <span class="font-mono text-[11px] font-bold text-[#E5A44B]" x-text="currentTimeFormatted + ' / ' + durationFormatted"></span>
                             </div>
                         </div>
                     </div>
 
-                    <!-- TRACK INFO -->
+                    <!-- TRACK INFO & MARQUEE -->
                     <div class="mb-3.5">
-                        <h2 class="text-base sm:text-lg font-serif font-bold text-[#F7F3EC] truncate"
-                            x-text="currentTrack ? currentTrack.title : 'Memuat lagu...'"></h2>
+                        <div class="title-marquee-wrap track-row-marquee">
+                            <h2 class="title-marquee-text text-base sm:text-lg font-serif font-bold text-[#F7F3EC]"
+                                :title="currentTrack ? (currentTrack.song_title || currentTrack.title) : ''"
+                                x-text="currentTrack ? (currentTrack.song_title || currentTrack.title) : 'Memuat lagu...'"></h2>
+                        </div>
                         <div class="text-xs text-[#A89A85] font-mono truncate mt-0.5"
                              x-text="currentTrack ? (currentTrack.artist || 'Artis Kafe') : '-'"></div>
 
+                        <!-- Badge Permintaan Pelanggan -->
                         <template x-if="currentTrack && currentTrack.customer_name">
                             <div class="mt-2.5 text-xs font-mono text-[#E5A44B] bg-[#D9973E]/10 border border-[#D9973E]/30 p-2.5 rounded-xl flex items-center justify-between">
-                                <span>Permintaan dari: <b x-text="currentTrack.customer_name"></b></span>
-                                <span class="font-bold">★ Antrean #1</span>
+                                <span>Permintaan dari: <b class="text-[#F7F3EC]" x-text="currentTrack.customer_name"></b></span>
+                                <span class="font-bold text-[#D9973E]">★ Antrean #1</span>
                             </div>
                         </template>
 
                         <!-- INDIKATOR MUSIK KASIR TERJEDA OLEH REQUEST PELANGGAN -->
                         <template x-if="pausedCashierTrack">
-                            <div class="mt-2.5 text-xs font-mono text-[#E5A44B] bg-[#D9973E]/15 border border-[#D9973E]/40 p-2.5 rounded-xl flex items-center justify-between gap-2 animate-pulse">
-                                <div class="truncate">
-                                    <span class="font-bold">⏸️ Musik Kasir Terjeda:</span>
-                                    <span class="text-[#F7F3EC] font-medium" x-text="pausedCashierTrack.title"></span>
-                                    <span class="text-[#A89A85]" x-text="'(' + ((pausedCashierTrack.position > 86400 || pausedCashierTrack.isLive) ? 'LIVE' : formatTime(pausedCashierTrack.position)) + ')'"></span>
+                            <div class="track-row-marquee mt-2 text-xs font-mono text-[#E5A44B] bg-[#2A211A] border border-[#D9973E]/40 p-2.5 rounded-xl flex items-center justify-between gap-2 animate-pulse">
+                                <div class="flex items-center gap-1.5 min-w-0 flex-1">
+                                    <span class="font-bold shrink-0 text-[#D9973E]">⏸️ Musik Kasir:</span>
+                                    <div class="title-marquee-wrap min-w-0 flex-1">
+                                        <span class="title-marquee-text text-[#F7F3EC] font-semibold"
+                                              :title="pausedCashierTrack.title"
+                                              x-text="pausedCashierTrack.title"></span>
                                 </div>
-                                <span class="text-[9px] bg-[#D9973E]/20 text-[#E5A44B] px-2 py-0.5 rounded-full shrink-0 font-bold border border-[#D9973E]/30">Auto-Resume</span>
+                                <span class="text-[#A89A85] shrink-0" x-text="'(' + ((pausedCashierTrack.position > 86400 || pausedCashierTrack.isLive) ? 'LIVE' : formatTime(pausedCashierTrack.position)) + ')'"></span>
                             </div>
-                        </template>
-                    </div>
+                            <span class="text-[9px] bg-[#D9973E]/20 text-[#E5A44B] px-2 py-0.5 rounded-full shrink-0 font-bold border border-[#D9973E]/40">Auto-Resume</span>
+                        </div>
+                    </template>
+                </div>
 
                     <!-- REAL-TIME TIMELINE PROGRESS SCRUBBER -->
                     <div class="mb-3.5">
-                        <div class="w-full bg-[#2A211A] h-2 rounded-full overflow-hidden cursor-pointer relative group/bar"
+                        <div class="w-full bg-[#140E0A] h-2.5 rounded-full overflow-hidden cursor-pointer relative group/bar border border-[#3A3026]"
                              @click="seekFromBar($event)"
                              :title="isLive ? 'Siaran Langsung Radio 24/7' : 'Klik untuk melompat ke detik yang dipilih'">
                             <template x-if="!isLive">
-                                <div class="bg-[#D9973E] h-full transition-all duration-300 rounded-full"
+                                <div class="bg-gradient-to-r from-[#D9973E] to-[#F59E0B] h-full transition-all duration-300 rounded-full"
                                      :style="'width: ' + Math.min(100, Math.max(0, progressPercent)) + '%'"></div>
                             </template>
                             <template x-if="isLive">
                                 <div class="w-full h-full bg-gradient-to-r from-[#D9973E] via-red-500 to-[#D9973E] animate-pulse"></div>
                             </template>
-                            <div class="absolute inset-0 bg-white/10 opacity-0 group-hover/bar:opacity-100 transition-opacity"></div>
+                            <div class="absolute inset-0 bg-white/5 opacity-0 group-hover/bar:opacity-100 transition-opacity"></div>
                         </div>
-                        <div class="mt-1.5 flex items-center justify-between font-mono text-[10px] text-[#A89A85]">
+                        <div class="mt-1.5 flex items-center justify-between font-mono text-[11px] text-[#A89A85]">
                             <div class="flex items-center gap-1.5">
                                 <template x-if="isLive">
-                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-red-500/20 text-red-300 border border-red-500/40">
-                                        <span class="w-1.5 h-1.5 rounded-full bg-red-400 animate-ping"></span>
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-red-950 text-red-300 border border-red-800">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-red-600 animate-ping"></span>
                                         LIVE
                                     </span>
                                 </template>
-                                <span x-text="currentTimeFormatted">00:00</span>
+                                <span class="font-bold text-[#F7F3EC]" x-text="currentTimeFormatted">00:00</span>
                             </div>
-                            <span class="text-[9px] text-[#7A6A58]" x-text="isLive ? '// Radio Siaran Langsung 24/7' : '// Geser atau klik garis'"></span>
-                            <span x-text="durationFormatted">00:00</span>
+                            <span class="text-[10px] text-[#7A6A58]" x-text="isLive ? '// Radio Siaran Langsung 24/7' : '// Geser atau klik garis'"></span>
+                            <span class="font-bold text-[#F7F3EC]" x-text="durationFormatted">00:00</span>
                         </div>
                     </div>
 
-                    <!-- KONTROL PEMUTAR AUDIO SINKRON (DECK HI-FI KAFE) -->
-                    <div class="pt-3.5 border-t border-[#3A3026] flex flex-wrap items-center justify-between gap-3">
+                    <!-- KONTROL PEMUTAR AUDIO SINKRON (HI-FI CONSOLE) -->
+                    <div class="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-[#3A3026]">
                         <!-- Cluster Tombol Playback -->
-                        <div class="flex items-center gap-2.5">
+                        <div class="flex items-center gap-2">
                             <!-- REPLAY / DARI AWAL -->
                             <button type="button"
                                     @click="replayCurrentTrack()"
                                     title="Putar ulang lagu dari detik 0:00"
-                                    class="w-9 h-9 rounded-full bg-[#2A211A] hover:bg-[#3A3026] text-[#A89A85] hover:text-[#D9973E] border border-[#3A3026] hover:border-[#D9973E]/40 flex items-center justify-center transition-all duration-150 active:scale-90 group/replay cursor-pointer">
+                                    class="w-9 h-9 rounded-full bg-[#2A211A] hover:bg-[#3A3026] text-[#A89A85] hover:text-[#F7F3EC] border border-[#3A3026] flex items-center justify-center transition-all duration-150 active:scale-90 shadow-sm group/replay cursor-pointer">
                                 <svg class="w-4 h-4 group-hover/replay:-rotate-45 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.334 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z" />
                                 </svg>
                             </button>
 
-                            <!-- PRIMARY PLAY / PAUSE (AMBER GLOW & TACTILE) -->
+                            <!-- PRIMARY PLAY / PAUSE (HERO AMBER GOLD) -->
                             <button type="button"
                                     @click="togglePlayPause()"
                                     :title="isPlaying ? 'Jeda Lagu' : 'Putar Lagu'"
-                                    class="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 transform active:scale-95 shadow-xl relative group/play cursor-pointer select-none"
-                                    :class="isPlaying
-                                        ? 'bg-gradient-to-br from-[#D9973E] to-[#B37829] text-[#140E0A] shadow-[0_0_20px_rgba(217,151,62,0.45)] ring-2 ring-[#D9973E]/60'
-                                        : 'bg-[#2A211A] hover:bg-[#D9973E] text-[#D9973E] hover:text-[#140E0A] border-2 border-[#D9973E]/70 hover:border-[#D9973E] hover:shadow-[0_0_18px_rgba(217,151,62,0.35)]'">
-                                <span x-show="isPlaying" class="absolute -inset-1 rounded-full border border-[#D9973E]/40 animate-ping pointer-events-none opacity-40"></span>
-
+                                    class="w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 transform active:scale-95 shadow-lg hover:shadow-[0_4px_16px_rgba(217,151,62,0.45)] cursor-pointer select-none bg-gradient-to-br from-[#D9973E] to-[#B87728] hover:from-[#E5A44B] hover:to-[#C2822B] text-[#1F1812] font-bold">
                                 <!-- PAUSE ICON -->
                                 <svg x-show="isPlaying" class="w-5 h-5 fill-current" viewBox="0 0 24 24">
                                     <rect x="6" y="4" width="4" height="16" rx="1.5"/>
                                     <rect x="14" y="4" width="4" height="16" rx="1.5"/>
                                 </svg>
 
-                                <!-- PLAY ICON -->
-                                <svg x-show="!isPlaying" class="w-5 h-5 fill-current ml-0.5" viewBox="0 0 24 24">
-                                    <path d="M8 5.14v14.72a1 1 0 001.5.86l11.5-7.36a1 1 0 000-1.72L9.5 4.28A1 1 0 008 5.14z"/>
+                                <!-- PLAY ICON (PERFECTLY CENTERED) -->
+                                <svg x-show="!isPlaying" class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                                    <path d="M7 5.14v13.72a1 1 0 001.5.86l10.5-6.86a1 1 0 000-1.72L8.5 4.28A1 1 0 007 5.14z"/>
                                 </svg>
                             </button>
 
@@ -253,12 +300,18 @@
                             </button>
                         </div>
 
-                        <!-- VOLUME SLIDER SINKRON -->
+                        <!-- VOLUME SLIDER SINKRON (SVG ICONS) -->
                         <div class="flex items-center gap-2 bg-[#140E0A] border border-[#2A211A] px-3 py-1.5 rounded-full shadow-inner">
-                            <button type="button" @click="toggleMute()" class="text-xs text-[#A89A85] hover:text-[#D9973E] transition p-0.5 cursor-pointer">
-                                <span x-show="!isMuted && volume > 30">🔊</span>
-                                <span x-show="!isMuted && volume <= 30 && volume > 0">🔉</span>
-                                <span x-show="isMuted || volume === 0">🔇</span>
+                            <button type="button" @click="toggleMute()" class="text-[#A89A85] hover:text-[#D9973E] transition p-0.5 cursor-pointer flex items-center justify-center">
+                                <svg x-show="!isMuted && volume > 30" class="w-4 h-4 fill-current text-[#D9973E]" viewBox="0 0 24 24">
+                                    <path d="M13.5 4.06c0-1.336-1.616-2.005-2.56-1.06l-4.5 4.5H4.5A2.25 2.25 0 002.25 9.75v4.5A2.25 2.25 0 004.5 16.5h1.94l4.5 4.5c.944.945 2.56.276 2.56-1.06V4.06zM17.75 12c0-1.34-.54-2.56-1.42-3.44a1 1 0 10-1.42 1.42c.52.52.84 1.24.84 2.02s-.32 1.5-.84 2.02a1 1 0 101.42 1.42c.88-.88 1.42-2.1 1.42-3.44zM21.25 12c0-2.31-.94-4.41-2.46-5.93a1 1 0 10-1.42 1.42A6.38 6.38 0 0119.25 12c0 1.76-.72 3.36-1.88 4.51a1 1 0 101.42 1.42A8.38 8.38 0 0021.25 12z"/>
+                                </svg>
+                                <svg x-show="!isMuted && volume <= 30 && volume > 0" class="w-4 h-4 fill-current text-[#D9973E]" viewBox="0 0 24 24">
+                                    <path d="M13.5 4.06c0-1.336-1.616-2.005-2.56-1.06l-4.5 4.5H4.5A2.25 2.25 0 002.25 9.75v4.5A2.25 2.25 0 004.5 16.5h1.94l4.5 4.5c.944.945 2.56.276 2.56-1.06V4.06zM17.75 12c0-1.34-.54-2.56-1.42-3.44a1 1 0 10-1.42 1.42c.52.52.84 1.24.84 2.02s-.32 1.5-.84 2.02a1 1 0 101.42 1.42c.88-.88 1.42-2.1 1.42-3.44z"/>
+                                </svg>
+                                <svg x-show="isMuted || volume === 0" class="w-4 h-4 fill-current text-rose-400" viewBox="0 0 24 24">
+                                    <path d="M13.5 4.06c0-1.336-1.616-2.005-2.56-1.06l-4.5 4.5H4.5A2.25 2.25 0 002.25 9.75v4.5A2.25 2.25 0 004.5 16.5h1.94l4.5 4.5c.944.945 2.56.276 2.56-1.06V4.06zM17.78 9.22a.75.75 0 10-1.06 1.06L18.44 12l-1.72 1.72a.75.75 0 001.06 1.06l1.72-1.72 1.72 1.72a.75.75 0 101.06-1.06L20.56 12l1.72-1.72a.75.75 0 00-1.06-1.06l-1.72 1.72-1.72-1.72z"/>
+                                </svg>
                             </button>
                             <input type="range" min="0" max="100"
                                    x-model="volume"
@@ -270,46 +323,56 @@
                     </div>
                 </div>
 
-                <!-- CARA KERJA SOUND STATION KAFE (ROUNDED-2XL) -->
-                <div class="bg-white border border-[#E4DCCC] rounded-2xl p-4.5 text-xs shadow-xs">
-                    <div class="font-mono text-[10px] uppercase tracking-wider text-[#1F1812] font-bold flex items-center justify-between pb-2 mb-2.5 border-b border-[#E4DCCC]">
+                <!-- CARA KERJA SOUND STATION KAFE (LIGHT IVORY CARD) -->
+                <div class="bg-white border border-[#E4DCCC] rounded-2xl p-4.5 text-xs shadow-xs flex-1 flex flex-col justify-between min-h-0 overflow-hidden">
+                    <div class="font-mono text-[10px] uppercase tracking-wider text-[#1F1812] font-bold flex items-center justify-between pb-2 mb-2.5 border-b border-[#E4DCCC] shrink-0">
                         <span class="flex items-center gap-1.5">
                             <span class="text-[#D9973E]">ℹ</span>
                             <span>Aturan Pemutaran Musik Kafe</span>
                         </span>
                         <span class="text-[9px] text-[#5F7F42] bg-[#5F7F42]/10 border border-[#5F7F42]/20 px-2 py-0.5 rounded-full font-mono font-bold">Auto-Sync</span>
                     </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-[#5C4D3C]">
-                        <div class="p-2.5 bg-[#FAF7F2] border border-[#E4DCCC] rounded-xl">
-                            <div class="font-bold text-[#1F1812] flex items-center gap-1">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-[#5C4D3C] flex-1 min-h-0">
+                        <div class="p-2.5 sm:p-3 bg-[#FAF7F2] border border-[#E4DCCC] rounded-xl hover:border-[#D9973E]/60 hover:bg-[#FFFDF9] transition-all flex flex-col justify-center">
+                            <div class="font-bold text-[#1F1812] flex items-center gap-1 text-[11px]">
                                 <span>🎧</span> Pengecualian Kasir
                             </div>
-                            <div class="text-[10px] text-[#7A6A58] mt-0.5">Bebas putar playlist panjang (lofi, ambient) tanpa batas durasi.</div>
+                            <div class="text-[10px] text-[#7A6A58] mt-1 leading-snug">Bebas putar playlist panjang (lofi, ambient) tanpa batas durasi.</div>
                         </div>
-                        <div class="p-2.5 bg-[#FAF7F2] border border-[#E4DCCC] rounded-xl">
-                            <div class="font-bold text-[#1F1812] flex items-center gap-1">
+                        <div class="p-2.5 sm:p-3 bg-[#FAF7F2] border border-[#E4DCCC] rounded-xl hover:border-[#D9973E]/60 hover:bg-[#FFFDF9] transition-all flex flex-col justify-center">
+                            <div class="font-bold text-[#1F1812] flex items-center gap-1 text-[11px]">
                                 <span>⏯️</span> Fade-Out & Resume
                             </div>
-                            <div class="text-[10px] text-[#7A6A58] mt-0.5">Musik kasir fade-out 5s saat request masuk, dan resume saat selesai.</div>
+                            <div class="text-[10px] text-[#7A6A58] mt-1 leading-snug">Musik kasir fade-out 5s saat request masuk, dan resume saat selesai.</div>
                         </div>
-                        <div class="p-2.5 bg-[#FAF7F2] border border-[#E4DCCC] rounded-xl">
-                            <div class="font-bold text-[#1F1812] flex items-center gap-1">
+                        <div class="p-2.5 sm:p-3 bg-[#FAF7F2] border border-[#E4DCCC] rounded-xl hover:border-[#D9973E]/60 hover:bg-[#FFFDF9] transition-all flex flex-col justify-center">
+                            <div class="font-bold text-[#1F1812] flex items-center gap-1 text-[11px]">
                                 <span>⏱️</span> Batas Request Tamu
                             </div>
-                            <div class="text-[10px] text-[#7A6A58] mt-0.5">Maksimal 7 menit per lagu untuk request dari struk pelanggan.</div>
+                            <div class="text-[10px] text-[#7A6A58] mt-1 leading-snug">Maksimal 7 menit per lagu untuk request dari struk pelanggan.</div>
                         </div>
-                        <div class="p-2.5 bg-[#FAF7F2] border border-[#E4DCCC] rounded-xl">
-                            <div class="font-bold text-[#1F1812] flex items-center gap-1">
+                        <div class="p-2.5 sm:p-3 bg-[#FAF7F2] border border-[#E4DCCC] rounded-xl hover:border-[#D9973E]/60 hover:bg-[#FFFDF9] transition-all flex flex-col justify-center">
+                            <div class="font-bold text-[#1F1812] flex items-center gap-1 text-[11px]">
                                 <span>📢</span> Audio Ducking
                             </div>
-                            <div class="text-[10px] text-[#7A6A58] mt-0.5">Volume mengecil otomatis saat suara pemanggilan pesanan aktif.</div>
+                            <div class="text-[10px] text-[#7A6A58] mt-1 leading-snug">Volume mengecil otomatis saat suara pemanggilan pesanan aktif.</div>
                         </div>
+                    </div>
+                    <div class="mt-2.5 pt-2 border-t border-[#E4DCCC] flex items-center justify-between text-[10px] font-mono text-[#7A6A58] shrink-0">
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 rounded-full bg-[#5F7F42] animate-pulse"></span>
+                            <span>Audio Engine: Terkoneksi</span>
+                        </span>
+                        <a href="{{ route('kasir.announcer.settings') }}" class="text-[#D9973E] hover:text-[#B87728] font-bold flex items-center gap-1 transition-colors">
+                            <span>Pengaturan Suara</span>
+                            <span>⚙️</span>
+                        </a>
                     </div>
                 </div>
 
             </div>
 
-            <!-- KANAN: TABS (ROUNDED-2XL DENGAN TINGGI KONSISTEN) (7 COLS) -->
+            <!-- KANAN: TABS (LIGHT CONTAINER DENGAN TINGGI KONSISTEN) (7 COLS) -->
             <div class="lg:col-span-7 bg-white border border-[#E4DCCC] shadow-xs flex flex-col h-[700px] xl:h-[750px] rounded-2xl overflow-hidden">
 
                 <!-- TAB HEADERS (ROUNDED PILL TABS) -->
@@ -343,92 +406,92 @@
                 </div>
 
                 <!-- TAB CONTENT WRAPPER -->
-                <div class="flex-1 overflow-y-auto p-4 sm:p-5">
+                <div class="flex-1 overflow-y-auto p-4 sm:p-5 bg-white">
 
                     <!-- TAB 1: ANTREAN REQUEST PELANGGAN -->
                     <div x-show="activeTab === 'queue'" class="h-full flex flex-col">
                         <div class="flex items-center justify-between mb-3.5 pb-2 border-b border-[#E4DCCC] shrink-0">
                             <div class="flex items-center gap-2">
                                 <span class="font-mono text-xs uppercase tracking-wider font-bold text-[#1F1812]">Daftar Antrean Aktif</span>
-                                <span class="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full"
-                                      :class="queue.length > 0 ? 'bg-[#D9973E]/20 text-[#8F5E1D]' : 'bg-gray-100 text-gray-600'"
-                                      x-text="queue.length > 0 ? (queue.length + ' Lagu Mengantre') : 'Antrean Bersih'"></span>
+                                <span class="px-2.5 py-0.5 text-[11px] font-mono font-bold rounded-full"
+                                      :class="queue.length > 0 ? 'bg-[#D9973E]/15 text-[#B87728] border border-[#D9973E]/30' : 'bg-[#FAF7F2] text-[#7A6A58] border border-[#E4DCCC]'"
+                                      x-text="queue.length + ' Lagu Mengantre'"></span>
                             </div>
-                            <button type="button" @click="refreshQueue()" class="text-xs font-mono font-bold text-[#D9973E] hover:underline flex items-center gap-1 cursor-pointer">
-                                <span>⟳</span>
+                            <button type="button"
+                                    @click="refreshQueue()"
+                                    class="text-[11px] font-mono text-[#7A6A58] hover:text-[#1F1812] transition flex items-center gap-1 cursor-pointer">
+                                <span>🔄</span>
                                 <span>Segarkan Antrean</span>
                             </button>
                         </div>
 
-                        <!-- KONDISI KOSONG -->
+                        <!-- STATE KOSONG: BELUM ADA REQUEST TAMU -->
                         <template x-if="queue.length === 0">
-                            <div class="flex-1 flex flex-col justify-between py-2">
-                                <div class="bg-[#FAF7F2] border border-[#E4DCCC] p-6 text-center rounded-2xl my-auto">
-                                    <div class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-[#EFE9DF] text-[#D9973E] flex items-center justify-center text-2xl shadow-inner">
-                                        ♫
+                            <div class="flex-1 flex flex-col items-center justify-center text-center p-6 sm:p-8">
+                                <div class="bg-[#FAF7F2] border border-[#E4DCCC] p-6 text-center rounded-2xl my-auto shadow-2xs max-w-sm w-full">
+                                    <div class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-white text-[#D9973E] border border-[#E4DCCC] flex items-center justify-center text-2xl shadow-xs">
+                                        ☕
                                     </div>
-                                    <h4 class="font-serif font-bold text-base text-[#1F1812]">Tidak Ada Lagu yang Sedang Mengantre</h4>
-                                    <p class="text-xs text-[#7A6A58] mt-1 max-w-md mx-auto leading-relaxed">
-                                        Sound Station saat ini memainkan <b>playlist bawaan kafe</b> secara otomatis. Pelanggan dapat menambahkan request lagu melalui barcode pada struk transaksi.
+                                    <div class="font-serif font-bold text-base text-[#1F1812]">Antrean Request Kosong</div>
+                                    <p class="font-sans text-xs text-[#7A6A58] mt-1.5 leading-relaxed">
+                                        Saat ini tidak ada request lagu dari tamu. Sound station memutar <b>Playlist Bawaan Kafe</b> secara otomatis.
                                     </p>
-                                    <div class="mt-4 flex flex-wrap items-center justify-center gap-2">
+                                    <div class="mt-4 pt-3 border-t border-[#E4DCCC] flex flex-wrap items-center justify-center gap-2">
                                         <button type="button"
                                                 @click="activeTab = 'default_tracks'"
-                                                class="px-4 py-2 bg-[#1F1812] text-[#F7F3EC] hover:bg-[#D9973E] hover:text-[#1F1812] font-mono text-xs uppercase tracking-wider font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer active:scale-95">
-                                            <span>📂</span>
+                                                class="px-4 py-2 bg-[#1F1812] hover:bg-[#3A3026] text-white font-mono text-xs uppercase tracking-wider font-bold rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer active:scale-95">
+                                            <span>🎵</span>
                                             <span>Kelola Playlist Bawaan</span>
                                         </button>
                                         <a href="{{ route('music.request') }}" target="_blank"
-                                           class="px-4 py-2 bg-white border border-[#E4DCCC] text-[#1F1812] hover:bg-[#FAF7F2] font-mono text-xs uppercase tracking-wider font-bold rounded-xl transition-all flex items-center gap-1.5 shadow-2xs active:scale-95">
-                                            <span>Form Request Pelanggan</span>
+                                           class="px-4 py-2 bg-white border border-[#E4DCCC] text-[#5C4D3C] hover:bg-[#FAF7F2] hover:text-[#1F1812] font-mono text-xs uppercase tracking-wider font-bold rounded-xl transition-all flex items-center gap-1.5 shadow-2xs active:scale-95">
+                                            <span>Buka Form Tamu</span>
                                             <span>↗</span>
                                         </a>
-                                    </div>
-                                </div>
-
-                                <!-- MINI SUMMARY RINGKASAN STATUS KAFE -->
-                                <div class="grid grid-cols-3 gap-2.5 pt-4 border-t border-[#E4DCCC] shrink-0 text-center">
-                                    <div class="p-3 bg-[#FAF7F2] border border-[#E4DCCC] rounded-xl">
-                                        <div class="text-[10px] font-mono uppercase text-[#7A6A58]">Durasi Maks.</div>
-                                        <div class="text-xs font-bold font-mono text-[#1F1812] mt-0.5">7 Menit</div>
-                                    </div>
-                                    <div class="p-3 bg-[#FAF7F2] border border-[#E4DCCC] rounded-xl">
-                                        <div class="text-[10px] font-mono uppercase text-[#7A6A58]">Struk Kasir</div>
-                                        <div class="text-xs font-bold font-mono text-[#5F7F42] mt-0.5">1 Request / Struk</div>
-                                    </div>
-                                    <div class="p-3 bg-[#FAF7F2] border border-[#E4DCCC] rounded-xl">
-                                        <div class="text-[10px] font-mono uppercase text-[#7A6A58]">Prioritas Lagu</div>
-                                        <div class="text-xs font-bold font-mono text-[#D9973E] mt-0.5">Request > Bawaan</div>
                                     </div>
                                 </div>
                             </div>
                         </template>
 
-                        <!-- JIKA ADA LAGU DI DALAM ANTREAN -->
+                        <!-- LIST KARTU ANTREAN (IMPROVED STYLING DENGAN NOMOR DAN HOVER) -->
                         <template x-if="queue.length > 0">
-                            <div class="space-y-2.5">
-                                <template x-for="(item, index) in queue" :key="item.id + '_' + (item.type || 'req')">
-                                    <div class="p-3 bg-[#FAF7F2] border border-[#E4DCCC] hover:border-[#D9973E]/60 transition-all flex items-center justify-between gap-3 text-xs rounded-xl shadow-2xs">
-                                        <div class="flex items-center gap-3 min-w-0">
-                                            <span class="font-mono font-bold text-sm text-[#D9973E] w-5 shrink-0" x-text="'#' + (index + 1)"></span>
-                                            <img :src="item.thumbnail_url" alt="Thumb" class="w-12 h-9 object-cover rounded-lg border border-[#E4DCCC] shrink-0">
-                                            <div class="min-w-0">
+                            <div class="space-y-2.5 overflow-y-auto pr-1">
+                                <template x-for="(item, index) in queue" :key="item.id">
+                                    <div class="track-row-marquee p-3 bg-white hover:bg-[#FAF7F2] border border-[#E4DCCC] hover:border-[#D9973E]/70 rounded-xl flex items-center justify-between gap-3 text-xs transition-all shadow-2xs group/track">
+                                        
+                                        <!-- NOMOR URUT & THUMBNAIL -->
+                                        <div class="flex items-center gap-3 min-w-0 flex-1">
+                                            <span class="font-mono text-xs font-bold text-[#8A7B66] w-6 text-center shrink-0"
+                                                  x-text="'#' + (index + 1)"></span>
+                                            
+                                            <div class="w-13 h-10 bg-black border border-[#E4DCCC] rounded-lg overflow-hidden shrink-0 relative">
+                                                <template x-if="item.thumbnail_url">
+                                                    <img :src="item.thumbnail_url" alt="Thumb" loading="lazy" decoding="async" class="w-full h-full object-cover">
+                                                </template>
+                                                <template x-if="!item.thumbnail_url">
+                                                    <div class="w-full h-full flex items-center justify-center bg-[#140E0A] text-[#D9973E] text-xs">
+                                                        ♫
+                                                    </div>
+                                                </template>
+                                            </div>
+
+                                            <div class="min-w-0 flex-1">
                                                 <div class="flex items-center gap-2">
-                                                    <div class="font-bold text-xs text-[#1F1812] truncate" x-text="item.song_title || item.title"></div>
-                                                    <!-- BADGE INDIKATOR: REQUEST vs BAWAAN -->
+                                                    <div class="title-marquee-wrap min-w-0 flex-1">
+                                                        <span class="title-marquee-text font-bold text-xs text-[#1F1812] group-hover/track:text-[#B87728] transition-colors"
+                                                              :title="item.title"
+                                                              x-text="item.title"></span>
+                                                    </div>
                                                     <template x-if="item.type === 'request' || item.is_request">
-                                                        <span class="px-2 py-0.5 bg-[#D9973E]/15 text-[#8F5E1D] border border-[#D9973E]/30 text-[9px] font-mono font-bold rounded-full shrink-0">★ Request</span>
+                                                        <span class="px-2 py-0.5 bg-[#D9973E]/15 text-[#B87728] border border-[#D9973E]/30 text-[9px] font-mono font-bold rounded-full shrink-0">★ Request</span>
                                                     </template>
                                                     <template x-if="item.type === 'default' || !item.is_request">
                                                         <span class="px-2 py-0.5 bg-[#5F7F42]/15 text-[#5F7F42] border border-[#5F7F42]/30 text-[9px] font-mono font-bold rounded-full shrink-0">🎵 Bawaan</span>
                                                     </template>
                                                 </div>
-                                                <div class="text-[11px] text-[#7A6A58] truncate" x-text="item.artist || 'YouTube'"></div>
+                                                <div class="text-[11px] text-[#7A6A58] truncate mt-0.5" x-text="item.artist || 'YouTube'"></div>
                                                 <template x-if="item.customer_name">
-                                                    <div class="font-mono text-[10px] text-[#D9973E] mt-0.5" x-text="'Oleh: ' + item.customer_name"></div>
-                                                </template>
-                                                <template x-if="!item.customer_name && (item.type === 'default' || !item.is_request)">
-                                                    <div class="font-mono text-[10px] text-[#5F7F42] mt-0.5">Playlist Bawaan Kafe</div>
+                                                    <div class="font-mono text-[10px] text-[#B87728] mt-0.5 truncate font-semibold" x-text="'Oleh: ' + item.customer_name"></div>
                                                 </template>
                                             </div>
                                         </div>
@@ -439,12 +502,12 @@
                                                 <div class="flex items-center gap-1.5">
                                                     <button type="button"
                                                             @click="skipQueueItem(item.id)"
-                                                            class="px-2.5 py-1.5 bg-white hover:bg-gray-100 border border-[#E4DCCC] text-[10px] font-mono uppercase font-bold text-[#1F1812] rounded-lg transition cursor-pointer active:scale-95">
+                                                            class="px-2.5 py-1.5 bg-[#FAF7F2] hover:bg-[#F0EAE1] border border-[#E4DCCC] text-[10px] font-mono uppercase font-bold text-[#5C4D3C] hover:text-[#1F1812] rounded-lg transition cursor-pointer active:scale-95 shadow-2xs">
                                                         Lewati
                                                     </button>
                                                     <button type="button"
                                                             @click="rejectQueueItem(item.id)"
-                                                            class="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 border border-red-200 text-[10px] font-mono uppercase font-bold text-red-700 rounded-lg transition cursor-pointer active:scale-95">
+                                                            class="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-[10px] font-mono uppercase font-bold text-rose-700 rounded-lg transition cursor-pointer active:scale-95 shadow-2xs">
                                                         Tolak
                                                     </button>
                                                 </div>
@@ -455,7 +518,7 @@
                                                 <div class="flex items-center gap-1.5">
                                                     <button type="button"
                                                             @click="playDefaultTrackDirect(item)"
-                                                            class="px-2.5 py-1.5 bg-white hover:bg-[#5F7F42] hover:text-white border border-[#E4DCCC] text-[10px] font-mono uppercase font-bold text-[#5F7F42] rounded-lg transition cursor-pointer flex items-center gap-1 active:scale-95">
+                                                            class="px-3 py-1.5 bg-[#FAF7F2] hover:bg-[#D9973E] text-[#1F1812] hover:text-white border border-[#E4DCCC] hover:border-[#D9973E] text-[10px] font-mono uppercase font-bold rounded-lg transition cursor-pointer flex items-center gap-1 active:scale-95 shadow-2xs">
                                                         <span>▶</span>
                                                         <span>Putar</span>
                                                     </button>
@@ -480,7 +543,7 @@
                         </div>
 
                         <!-- FORM TAMBAH LAGU BAWAAN (AUTO METADATA DARI LINK) -->
-                        <div class="p-4 bg-[#FAF7F2] border border-[#E4DCCC] rounded-2xl shadow-2xs">
+                        <div class="p-4 bg-[#FAF7F2] border border-[#E4DCCC] rounded-2xl shadow-2xs text-[#1F1812]">
                             <div class="flex items-center justify-between mb-3 border-b border-[#E4DCCC] pb-2.5">
                                 <div>
                                     <div class="font-mono text-xs uppercase tracking-wider text-[#1F1812] font-bold">
@@ -491,15 +554,15 @@
                                     </p>
                                 </div>
                                 <!-- SWITCH MODE: 1 LINK ATAU BANYAK LINK (BATCH) -->
-                                <div class="flex items-center gap-1 bg-[#EFE9DF] p-1 rounded-xl text-[10px] font-mono">
+                                <div class="flex items-center gap-1 bg-white border border-[#E4DCCC] p-1 rounded-xl text-[10px] font-mono">
                                     <button type="button" @click="importMode = 'single'"
                                             class="px-2.5 py-1 rounded-lg transition cursor-pointer"
-                                            :class="importMode === 'single' ? 'bg-[#1F1812] text-[#F7F3EC] font-bold shadow-xs' : 'text-[#7A6A58] hover:text-[#1F1812]'">
+                                            :class="importMode === 'single' ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-xs' : 'text-[#7A6A58] hover:text-[#1F1812]'">
                                         1 Link (Auto)
                                     </button>
                                     <button type="button" @click="importMode = 'batch'"
                                             class="px-2.5 py-1 rounded-lg transition cursor-pointer"
-                                            :class="importMode === 'batch' ? 'bg-[#1F1812] text-[#F7F3EC] font-bold shadow-xs' : 'text-[#7A6A58] hover:text-[#1F1812]'">
+                                            :class="importMode === 'batch' ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-xs' : 'text-[#7A6A58] hover:text-[#1F1812]'">
                                         Banyak (Batch)
                                     </button>
                                 </div>
@@ -518,7 +581,7 @@
                                                    @input.debounce.400ms="inspectUrl()"
                                                    @paste="setTimeout(() => inspectUrl(), 50)"
                                                    placeholder="Tempel link YouTube (misal: https://youtu.be/...)"
-                                                   class="w-full px-3.5 py-2 bg-white border border-[#E4DCCC] rounded-xl text-xs text-[#1F1812] focus:outline-none focus:border-[#D9973E] shadow-2xs font-medium">
+                                                   class="w-full px-3.5 py-2 bg-white border border-[#D6CBB8] rounded-xl text-xs text-[#1F1812] placeholder-[#A89A85] focus:outline-none focus:border-[#D9973E] focus:ring-1 focus:ring-[#D9973E] shadow-2xs font-medium">
                                             <div x-show="inspectingLink" class="absolute right-3 top-2 text-xs text-[#D9973E] font-mono animate-pulse flex items-center gap-1">
                                                 <span>⏳</span>
                                                 <span>Mendeteksi judul...</span>
@@ -526,7 +589,7 @@
                                         </div>
                                         <button type="submit"
                                                 :disabled="inspectingLink || !importLink || isSubmittingSingle"
-                                                class="px-4 py-2 bg-[#1F1812] text-[#F7F3EC] font-mono text-xs uppercase tracking-wider hover:bg-[#D9973E] hover:text-[#1F1812] rounded-xl transition font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95">
+                                                class="px-4 py-2 bg-gradient-to-r from-[#D9973E] to-[#B87728] hover:from-[#E5A44B] hover:to-[#C2822B] text-[#1F1812] font-mono text-xs uppercase tracking-wider border border-[#B87728] rounded-xl transition font-bold disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95">
                                             <span x-show="isSubmittingSingle" class="animate-spin text-xs">⟳</span>
                                             <span x-text="isSubmittingSingle ? 'Menyimpan...' : 'Simpan Lagu'"></span>
                                         </button>
@@ -535,14 +598,18 @@
 
                                 <!-- PRATINJAU OTOMATIS VIDEO YOUTUBE -->
                                 <template x-if="inspectedVideo">
-                                    <div class="p-3 border rounded-xl flex items-center gap-3 animate-fade-in bg-white border-[#5F7F42]/40 shadow-2xs">
-                                        <img :src="inspectedVideo.thumbnail_url" alt="Thumb" class="w-14 h-10 object-cover rounded-lg border border-[#3A3026] shrink-0">
+                                    <div class="p-3 border rounded-xl flex items-center gap-3 animate-fade-in bg-white border-[#D9973E]/40 shadow-2xs">
+                                        <img :src="inspectedVideo.thumbnail_url" alt="Thumb" class="w-14 h-10 object-cover rounded-lg border border-[#E4DCCC] shrink-0">
                                         <div class="min-w-0 flex-1 text-xs">
-                                            <div class="font-bold text-[#1F1812] truncate" x-text="inspectedVideo.title"></div>
+                                            <div class="title-marquee-wrap track-row-marquee">
+                                                <div class="title-marquee-text font-bold text-[#1F1812]"
+                                                     :title="inspectedVideo.title"
+                                                     x-text="inspectedVideo.title"></div>
+                                            </div>
                                             <div class="text-[#7A6A58] text-[11px] truncate" x-text="inspectedVideo.artist || 'YouTube Channel'"></div>
                                             <div class="mt-0.5 flex items-center gap-2 font-mono text-[10px]">
-                                                <span class="px-2 py-0.5 rounded-full bg-[#5F7F42]/10 text-[#5F7F42] border border-[#5F7F42]/30 font-bold"
-                                                      x-text="'⏱️ ' + inspectedVideo.duration_formatted"></span>
+                                                <span class="px-2 py-0.5 rounded-full bg-[#5F7F42]/10 text-[#5F7F42] border border-[#5F7F42]/20 font-bold"
+                                                      x-text="'⏱️ ' + (inspectedVideo.duration_formatted || formatTime(inspectedVideo.duration_seconds || 0))"></span>
                                                 <span class="text-[#7A6A58]">Judul otomatis terisi</span>
                                             </div>
                                         </div>
@@ -550,7 +617,7 @@
                                 </template>
 
                                 <!-- PESAN ERROR INSPECT -->
-                                <div x-show="inspectError" class="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-mono" x-text="inspectError"></div>
+                                <div x-show="inspectError" class="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-mono" x-text="inspectError"></div>
 
                                 <!-- OPTIONAL EDITABLE TITLE & ARTIST -->
                                 <div class="pt-2 border-t border-[#E4DCCC]">
@@ -563,12 +630,12 @@
                                             <div>
                                                 <label class="block text-[10px] font-mono text-[#7A6A58] mb-1 font-bold">Judul Lagu</label>
                                                 <input type="text" name="title" x-model="importTitle" placeholder="Gunakan judul YouTube"
-                                                       class="w-full px-3 py-1.5 bg-white border border-[#E4DCCC] rounded-xl text-xs text-[#1F1812]">
+                                                       class="w-full px-3 py-1.5 bg-white border border-[#D6CBB8] rounded-xl text-xs text-[#1F1812] placeholder-[#A89A85] focus:border-[#D9973E]">
                                             </div>
                                             <div>
                                                 <label class="block text-[10px] font-mono text-[#7A6A58] mb-1 font-bold">Nama Artis</label>
                                                 <input type="text" name="artist" x-model="importArtist" placeholder="Gunakan channel YouTube"
-                                                       class="w-full px-3 py-1.5 bg-white border border-[#E4DCCC] rounded-xl text-xs text-[#1F1812]">
+                                                       class="w-full px-3 py-1.5 bg-white border border-[#D6CBB8] rounded-xl text-xs text-[#1F1812] placeholder-[#A89A85] focus:border-[#D9973E]">
                                             </div>
                                         </div>
                                     </details>
@@ -583,14 +650,14 @@
                                     </label>
                                     <textarea x-model="batchUrls" rows="3" required
                                               placeholder="Tempel beberapa link YouTube di sini, misal:&#10;https://youtu.be/RO75uUZiAw0&#10;https://youtu.be/GxldQ9GyXLA"
-                                              class="w-full p-2.5 bg-white border border-[#E4DCCC] rounded-xl text-xs font-mono text-[#1F1812] focus:outline-none focus:border-[#D9973E] shadow-2xs"></textarea>
+                                              class="w-full p-2.5 bg-white border border-[#D6CBB8] rounded-xl text-xs font-mono text-[#1F1812] placeholder-[#A89A85] focus:outline-none focus:border-[#D9973E] focus:ring-1 focus:ring-[#D9973E] shadow-2xs"></textarea>
                                     <p class="text-[10px] text-[#7A6A58] mt-1 font-mono">
                                         Sistem otomatis mengambil judul dan durasi untuk tiap lagu.
                                     </p>
                                 </div>
                                 <button type="submit"
                                         :disabled="isSubmittingBatch || !batchUrls"
-                                        class="px-4 py-2 bg-[#1F1812] text-[#F7F3EC] font-mono text-xs uppercase tracking-wider hover:bg-[#D9973E] hover:text-[#1F1812] rounded-xl transition font-bold disabled:opacity-50 flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95">
+                                        class="px-4 py-2 bg-gradient-to-r from-[#D9973E] to-[#B87728] hover:from-[#E5A44B] hover:to-[#C2822B] text-[#1F1812] font-mono text-xs uppercase tracking-wider border border-[#B87728] rounded-xl transition font-bold disabled:opacity-50 flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95">
                                     <span x-show="isSubmittingBatch" class="animate-spin text-xs">⟳</span>
                                     <span x-text="isSubmittingBatch ? 'Mengimpor...' : '📥 Import Semua Lagu Sekaligus'"></span>
                                 </button>
@@ -619,30 +686,34 @@
                                          @dragleave="dragOverIndex = (dragOverIndex === index ? null : dragOverIndex)"
                                          @drop="onTrackDrop($event, index)"
                                          @dragend="onTrackDragEnd($event)"
-                                         class="p-3 bg-white border rounded-xl flex items-center justify-between gap-2.5 text-xs transition-all select-none shadow-2xs"
+                                         class="track-row-marquee p-3 bg-white hover:bg-[#FAF7F2] border rounded-xl flex items-center justify-between gap-2.5 text-xs transition-all select-none shadow-2xs text-[#1F1812]"
                                          :class="{
-                                             'border-[#D9973E] bg-[#D9973E]/10 shadow-md ring-2 ring-[#D9973E]/30': dragOverIndex === index,
+                                             'border-[#D9973E] bg-[#FFFBF5] shadow-md ring-2 ring-[#D9973E]/30': dragOverIndex === index,
                                              'opacity-40 border-dashed border-[#D9973E]': draggedIndex === index,
                                              'border-[#E4DCCC] hover:border-[#D9973E]/60': dragOverIndex !== index && draggedIndex !== index,
-                                             'border-l-4 border-l-[#D9973E] bg-[#D9973E]/5': currentTrack && currentTrack.id === track.id && currentTrack.type === 'default_track'
+                                             'border-l-4 border-l-[#D9973E] bg-[#FFFBF5] border-[#E4DCCC] shadow-xs': currentTrack && currentTrack.id === track.id && currentTrack.type === 'default_track'
                                          }">
                                         
                                         <!-- DRAG HANDLE & NUMBER -->
                                         <div class="flex items-center gap-1.5 shrink-0 cursor-grab active:cursor-grabbing text-[#A89A85] hover:text-[#1F1812] px-1 py-1"
                                              title="Tahan dan geser untuk memindahkan urutan lagu">
                                             <span class="text-sm font-bold leading-none tracking-tighter select-none">⋮⋮</span>
-                                            <span class="font-mono text-[11px] font-semibold text-[#7A6A58] w-4 text-center" x-text="index + 1"></span>
+                                            <span class="font-mono text-[11px] font-semibold text-[#8A7B66] w-6 h-6 rounded-lg bg-[#FAF7F2] border border-[#E4DCCC] flex items-center justify-center shadow-2xs" x-text="index + 1"></span>
                                         </div>
 
                                         <div class="min-w-0 flex-1">
-                                            <div class="font-bold text-[#1F1812] truncate flex items-center gap-2">
-                                                <span x-text="track.title"></span>
+                                            <div class="flex items-center gap-2">
+                                                <div class="title-marquee-wrap min-w-0 flex-1">
+                                                    <span class="title-marquee-text font-bold text-[#1F1812]"
+                                                          :title="track.title"
+                                                          x-text="track.title"></span>
+                                                </div>
                                                 <template x-if="track.duration_seconds > 0 && track.duration_seconds < 86400 && !(track.title && (track.title.toLowerCase().includes('radio') || track.title.toLowerCase().includes('live 24/7') || track.title.toLowerCase().includes('[live]')))">
-                                                    <span class="font-mono text-[10px] text-[#5F7F42] bg-[#5F7F42]/10 border border-[#5F7F42]/20 px-2 py-0.5 rounded-full font-bold"
+                                                    <span class="font-mono text-[10px] text-[#7A6A58] bg-[#FAF7F2] border border-[#E4DCCC] px-2 py-0.5 rounded-full font-bold shrink-0"
                                                           x-text="'⏱️ ' + formatTime(track.duration_seconds)"></span>
                                                 </template>
                                                 <template x-if="track.duration_seconds >= 86400 || (track.title && (track.title.toLowerCase().includes('radio') || track.title.toLowerCase().includes('live 24/7') || track.title.toLowerCase().includes('[live]')))">
-                                                    <span class="font-mono text-[10px] text-[#D9973E] bg-[#D9973E]/15 border border-[#D9973E]/30 px-2 py-0.5 rounded-full inline-flex items-center gap-1 font-bold">
+                                                    <span class="font-mono text-[10px] text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full inline-flex items-center gap-1 font-bold shrink-0">
                                                         <span class="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
                                                         <span>RADIO 24/7</span>
                                                     </span>
@@ -658,17 +729,17 @@
                                             <button type="button"
                                                     @click="playDefaultTrackDirect(track)"
                                                     title="Putar lagu ini sekarang"
-                                                    class="px-2.5 py-1.5 rounded-lg font-mono text-[10px] uppercase font-bold border transition-all flex items-center gap-1 cursor-pointer active:scale-95"
+                                                    class="px-2.5 py-1.5 rounded-lg font-mono text-[10px] uppercase font-bold border transition-all flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs"
                                                     :class="(currentTrack && currentTrack.id === track.id && isPlaying)
-                                                        ? 'bg-[#D9973E] text-[#1F1812] border-[#D9973E] shadow-[0_0_8px_rgba(217,151,62,0.35)]'
-                                                        : 'bg-[#1F1812] text-[#F7F3EC] border-[#1F1812] hover:bg-[#D9973E] hover:text-[#1F1812]'">
+                                                        ? 'bg-gradient-to-r from-[#D9973E] to-[#B87728] text-[#1F1812] border-[#B87728] shadow-[0_0_8px_rgba(217,151,62,0.4)]'
+                                                        : 'bg-[#FAF7F2] hover:bg-[#D9973E] text-[#1F1812] hover:text-white border-[#E4DCCC]'">
                                                 <span x-text="(currentTrack && currentTrack.id === track.id && isPlaying) ? '▶ Diputar' : '▶ Putar'"></span>
                                             </button>
 
                                             <!-- EDIT -->
                                             <button type="button"
                                                     @click="openEditModal(track)"
-                                                    class="px-2.5 py-1.5 rounded-lg font-mono text-[10px] uppercase border border-[#E4DCCC] text-[#1F1812] hover:bg-[#FAF7F2] transition flex items-center gap-1 cursor-pointer active:scale-95">
+                                                    class="px-2.5 py-1.5 rounded-lg font-mono text-[10px] uppercase border border-[#E4DCCC] text-[#5C4D3C] hover:bg-[#FAF7F2] hover:text-[#1F1812] transition flex items-center gap-1 cursor-pointer active:scale-95 shadow-2xs">
                                                 <span>✏️</span>
                                                 <span>Edit</span>
                                             </button>
@@ -676,8 +747,8 @@
                                             <!-- TOGGLE ACTIVE -->
                                             <button type="button"
                                                     @click="toggleTrack(track)"
-                                                    class="px-2.5 py-1.5 rounded-lg font-mono text-[10px] uppercase font-bold border transition cursor-pointer active:scale-95"
-                                                    :class="track.is_active ? 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100' : 'bg-gray-100 text-gray-500 border-gray-300 hover:bg-gray-200'"
+                                                    class="px-2.5 py-1.5 rounded-lg font-mono text-[10px] uppercase font-bold border transition cursor-pointer active:scale-95 shadow-2xs"
+                                                    :class="track.is_active ? 'bg-[#5F7F42]/10 text-[#5F7F42] border border-[#5F7F42]/30 hover:bg-[#5F7F42]/20' : 'bg-[#FAF7F2] text-[#A89A85] border border-[#E4DCCC] hover:bg-[#F0EAE1]'"
                                                     :title="track.is_active ? 'Klik untuk nonaktifkan' : 'Klik untuk aktifkan'">
                                                 <span x-text="track.is_active ? '✓ Aktif' : 'Nonaktif'"></span>
                                             </button>
@@ -686,7 +757,7 @@
                                             <button type="button"
                                                     @click="deleteTrack(track)"
                                                     title="Hapus lagu ini dari playlist bawaan"
-                                                    class="px-2.5 py-1.5 rounded-lg font-mono text-[10px] uppercase font-bold text-red-600 border border-red-200 hover:bg-red-50 transition cursor-pointer active:scale-95">
+                                                    class="px-2.5 py-1.5 rounded-lg font-mono text-[10px] uppercase font-bold text-rose-600 border border-rose-200 bg-rose-50 hover:bg-rose-100 transition cursor-pointer active:scale-95 shadow-2xs">
                                                 ✕ Hapus
                                             </button>
                                         </div>
@@ -707,19 +778,22 @@
                         </div>
                         <div class="space-y-2">
                             @forelse ($recentHistory as $hist)
-                                <div class="p-3 bg-[#FAF7F2] border border-[#E4DCCC] hover:border-[#D9973E]/60 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs rounded-xl shadow-2xs">
+                                <div class="track-row-marquee p-3 bg-white hover:bg-[#FAF7F2] border border-[#E4DCCC] hover:border-[#D9973E]/60 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs rounded-xl shadow-2xs text-[#1F1812]">
                                     <div class="min-w-0 flex-1">
-                                        <div class="font-medium text-[#1F1812] truncate flex items-center gap-2">
-                                            <span class="font-bold text-xs truncate">{{ $hist->song_title }}</span>
+                                        <div class="flex items-center gap-2 min-w-0">
+                                            <div class="title-marquee-wrap min-w-0 flex-1">
+                                                <span class="title-marquee-text font-bold text-xs text-[#1F1812]"
+                                                      title="{{ $hist->song_title }}">{{ $hist->song_title }}</span>
+                                            </div>
                                             @if ($hist->artist)
-                                                <span class="text-[#7A6A58] text-[11px] font-normal truncate font-mono">({{ $hist->artist }})</span>
+                                                <span class="text-[#7A6A58] text-[11px] font-normal truncate font-mono shrink-0">({{ $hist->artist }})</span>
                                             @endif
                                         </div>
                                         <div class="text-[#7A6A58] text-[11px] truncate mt-0.5 font-mono">
                                             Peminta: <span class="font-medium text-[#1F1812]">{{ $hist->customer_name ?: 'Pelanggan' }}</span> &bull; {{ $hist->updated_at->format('H:i') }}
                                         </div>
                                         @if ($hist->notes)
-                                            <div class="text-[10px] text-amber-700 mt-0.5 truncate flex items-center gap-1 font-mono">
+                                            <div class="text-[10px] text-amber-600 mt-0.5 truncate flex items-center gap-1 font-mono">
                                                 <span>⚠️</span>
                                                 <span>{{ $hist->notes }}</span>
                                             </div>
@@ -730,7 +804,7 @@
                                         <span class="font-mono text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border
                                             @if($hist->status === 'played') bg-blue-50 text-blue-700 border-blue-200
                                             @elseif($hist->status === 'skipped') bg-yellow-50 text-yellow-700 border-yellow-200
-                                            @else bg-red-50 text-red-700 border-red-200 @endif">
+                                            @else bg-rose-50 text-rose-700 border-rose-200 @endif">
                                             {{ strtoupper($hist->status) }}
                                         </span>
 
@@ -746,7 +820,7 @@
                                                         'type' => 'history'
                                                     ]) }})"
                                                     title="Putar langsung lagu ini sekarang"
-                                                    class="px-2.5 py-1 bg-white hover:bg-[#1F1812] text-[#1F1812] hover:text-[#F7F3EC] border border-[#E4DCCC] rounded-lg font-mono text-[11px] font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer active:scale-95">
+                                                    class="px-2.5 py-1 bg-[#FAF7F2] hover:bg-[#D9973E] text-[#1F1812] hover:text-white border border-[#E4DCCC] hover:border-[#D9973E] rounded-lg font-mono text-[11px] font-bold transition flex items-center gap-1 shadow-2xs cursor-pointer active:scale-95">
                                                 <span>▶</span>
                                                 <span class="hidden md:inline">Putar</span>
                                             </button>
@@ -757,8 +831,8 @@
                                                     :disabled="addingToDefaultId === {{ $hist->id }} || isInDefaultPlaylist('{{ $hist->youtube_id }}')"
                                                     class="px-3 py-1 font-mono text-[11px] rounded-lg transition flex items-center gap-1.5 shadow-2xs"
                                                     :class="isInDefaultPlaylist('{{ $hist->youtube_id }}')
-                                                        ? 'bg-[#5F7F42]/10 text-[#5F7F42] border border-[#5F7F42]/30 cursor-default font-semibold'
-                                                        : 'bg-white hover:bg-[#D9973E] text-[#1F1812] hover:text-[#1F1812] border border-[#E4DCCC] hover:border-[#D9973E] font-bold cursor-pointer active:scale-95'"
+                                                        ? 'bg-[#5F7F42]/15 text-[#5F7F42] border border-[#5F7F42]/30 cursor-default font-semibold'
+                                                        : 'bg-white hover:bg-[#D9973E] text-[#5C4D3C] hover:text-[#1F1812] border border-[#E4DCCC] hover:border-[#D9973E] font-bold cursor-pointer active:scale-95'"
                                                     :title="isInDefaultPlaylist('{{ $hist->youtube_id }}') ? 'Lagu ini sudah ada di playlist bawaan' : 'Tambahkan lagu ini ke playlist bawaan kafe'">
                                                 <span x-show="addingToDefaultId === {{ $hist->id }}" class="animate-spin text-xs">⟳</span>
                                                 <span x-show="addingToDefaultId !== {{ $hist->id }} && isInDefaultPlaylist('{{ $hist->youtube_id }}')">✓</span>
@@ -769,7 +843,7 @@
                                     </div>
                                 </div>
                             @empty
-                                <div class="text-center py-10 text-[#A89A85] font-mono text-xs bg-[#FAF7F2] border border-[#E4DCCC] rounded-2xl">
+                                <div class="text-center py-10 text-[#7A6A58] font-mono text-xs bg-[#FAF7F2] border border-[#E4DCCC] rounded-2xl">
                                     Belum ada riwayat pemutaran request.
                                 </div>
                             @endforelse
@@ -786,13 +860,14 @@
     <!-- MODAL EDIT LAGU BAWAAN KAFE (AJAX NO REFRESH) -->
     <div x-show="isEditingTrack"
          x-cloak
-         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in"
+         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in"
          @keydown.escape.window="closeEditModal()">
-        <div class="bg-white border border-[#E4DCCC] rounded-2xl max-w-md w-full p-6 shadow-2xl relative"
+        <div class="bg-white border border-[#E4DCCC] rounded-2xl max-w-md w-full p-6 shadow-2xl relative text-[#1F1812] pt-6 overflow-hidden"
              @click.outside="closeEditModal()">
+
             <div class="flex items-center justify-between border-b border-[#E4DCCC] pb-3 mb-4">
                 <div class="flex items-center gap-2">
-                    <span class="text-base text-[#D9973E]">✏️</span>
+                    <span class="w-7 h-7 rounded-lg bg-[#FAF7F2] border border-[#E4DCCC] text-[#D9973E] inline-flex items-center justify-center text-sm shadow-2xs">✏️</span>
                     <h3 class="font-serif font-bold text-base text-[#1F1812]">Edit Lagu Bawaan Kafe</h3>
                 </div>
                 <button type="button" @click="closeEditModal()" class="text-[#7A6A58] hover:text-[#1F1812] text-lg font-bold leading-none cursor-pointer">
@@ -807,7 +882,7 @@
                     </label>
                     <input type="text" name="title" required
                            x-model="editForm.title"
-                           class="w-full px-3.5 py-2 bg-[#FAF7F2] border border-[#E4DCCC] rounded-xl text-xs text-[#1F1812] focus:outline-none focus:border-[#D9973E] font-medium">
+                           class="w-full px-3.5 py-2 bg-white border border-[#D6CBB8] rounded-xl text-xs text-[#1F1812] placeholder-[#A89A85] focus:outline-none focus:border-[#D9973E] focus:ring-1 focus:ring-[#D9973E] font-medium shadow-2xs">
                 </div>
 
                 <div>
@@ -817,7 +892,7 @@
                     <input type="text" name="artist"
                            x-model="editForm.artist"
                            placeholder="Kosongkan jika tidak ada"
-                           class="w-full px-3.5 py-2 bg-[#FAF7F2] border border-[#E4DCCC] rounded-xl text-xs text-[#1F1812] focus:outline-none focus:border-[#D9973E] font-medium">
+                           class="w-full px-3.5 py-2 bg-white border border-[#D6CBB8] rounded-xl text-xs text-[#1F1812] placeholder-[#A89A85] focus:outline-none focus:border-[#D9973E] focus:ring-1 focus:ring-[#D9973E] font-medium shadow-2xs">
                 </div>
 
                 <div>
@@ -827,7 +902,7 @@
                     <input type="text" name="youtube_url"
                            x-model="editForm.youtube_url"
                            placeholder="Contoh: https://youtu.be/... atau ID YouTube 11 digit"
-                           class="w-full px-3.5 py-2 bg-[#FAF7F2] border border-[#E4DCCC] rounded-xl text-xs text-[#1F1812] focus:outline-none focus:border-[#D9973E] font-medium">
+                           class="w-full px-3.5 py-2 bg-white border border-[#D6CBB8] rounded-xl text-xs text-[#1F1812] placeholder-[#A89A85] focus:outline-none focus:border-[#D9973E] focus:ring-1 focus:ring-[#D9973E] font-medium shadow-2xs">
                     <p class="text-[10px] text-[#7A6A58] mt-1 font-mono">
                         Biarkan tautan tetap seperti ini jika hanya ingin mengubah nama lagu/artis.
                     </p>
@@ -839,17 +914,17 @@
                     </label>
                     <input type="number" name="sort_order" min="0"
                            x-model="editForm.sort_order"
-                           class="w-28 px-3.5 py-1.5 bg-[#FAF7F2] border border-[#E4DCCC] rounded-xl text-xs text-[#1F1812] focus:outline-none focus:border-[#D9973E] font-mono font-bold">
+                           class="w-28 px-3.5 py-1.5 bg-white border border-[#D6CBB8] rounded-xl text-xs text-[#1F1812] placeholder-[#A89A85] focus:outline-none focus:border-[#D9973E] focus:ring-1 focus:ring-[#D9973E] font-mono font-bold shadow-2xs">
                 </div>
 
                 <div class="pt-3 border-t border-[#E4DCCC] flex justify-end gap-2">
                     <button type="button" @click="closeEditModal()"
-                            class="px-4 py-2 border border-[#E4DCCC] text-[#1F1812] font-mono text-xs uppercase tracking-wider rounded-xl hover:bg-[#FAF7F2] transition cursor-pointer">
+                            class="px-4 py-2 bg-[#FAF7F2] border border-[#E4DCCC] text-[#7A6A58] font-mono text-xs uppercase tracking-wider rounded-xl hover:bg-[#F0EAE1] hover:text-[#1F1812] transition cursor-pointer shadow-2xs">
                         Batal
                     </button>
                     <button type="submit"
                             :disabled="isSavingEdit || !editForm.title"
-                            class="px-5 py-2 bg-[#1F1812] text-[#F7F3EC] font-mono text-xs uppercase tracking-wider hover:bg-[#D9973E] hover:text-[#1F1812] rounded-xl transition font-bold shadow-xs disabled:opacity-50 flex items-center gap-1.5 cursor-pointer active:scale-95">
+                            class="px-5 py-2 bg-gradient-to-r from-[#D9973E] to-[#B87728] hover:from-[#E5A44B] hover:to-[#C2822B] text-[#1F1812] font-mono text-xs uppercase tracking-wider border border-[#B87728] rounded-xl transition font-bold shadow-xs disabled:opacity-50 flex items-center gap-1.5 cursor-pointer active:scale-95">
                         <span x-show="isSavingEdit" class="animate-spin text-xs">⟳</span>
                         <span x-text="isSavingEdit ? 'Menyimpan...' : 'Simpan Perubahan'"></span>
                     </button>
@@ -1328,21 +1403,7 @@ function musicStationPage() {
             }
         },
 
-        playDefaultTrackDirect(track) {
-            if (!track) return;
-            if (window.SoundStation && window.SoundStation.isMasterHost) {
-                window.SoundStation.playDirectTrack(track);
-            } else if (window.SoundStationHub) {
-                window.SoundStationHub.sendCommand('PLAY_TRACK', { track: track });
-            }
-            if (window.customToast) {
-                window.customToast({
-                    message: '▶ Memutar "' + track.title + '" sekarang...',
-                    type: 'success',
-                    duration: 2500
-                });
-            }
-        },
+
 
         isInDefaultPlaylist(youtubeId) {
             if (!youtubeId || !Array.isArray(this.defaultTracks)) return false;
@@ -1666,5 +1727,67 @@ function musicStationPage() {
         }
     };
 }
+
+// AUTO-RUNNING TITLE ON HOVER (MARQUEE UNTUK JUDUL LAGU PANJANG)
+(function initMarqueeHover() {
+    function handleTitleMarqueeEnter(trigger) {
+        const wraps = trigger.classList.contains('title-marquee-wrap')
+            ? [trigger]
+            : trigger.querySelectorAll('.title-marquee-wrap');
+
+        wraps.forEach(wrap => {
+            const text = wrap.querySelector('.title-marquee-text') || wrap;
+            if (!text || text.classList.contains('animate-marquee-hover')) return;
+
+            const originalMaxWidth = text.style.maxWidth;
+            const originalOverflow = text.style.overflow;
+            text.style.maxWidth = 'none';
+            text.style.overflow = 'visible';
+
+            const fullWidth = text.scrollWidth;
+            const visibleWidth = wrap.clientWidth;
+            const overflow = fullWidth - visibleWidth;
+
+            text.style.maxWidth = originalMaxWidth;
+            text.style.overflow = originalOverflow;
+
+            if (overflow > 4) {
+                const speed = 36; // px per second
+                const duration = Math.max(2.4, Math.min(14, (overflow + 16) / speed));
+                text.style.setProperty('--marquee-dist', `-${overflow + 14}px`);
+                text.style.setProperty('--marquee-dur', `${duration.toFixed(2)}s`);
+                text.classList.add('animate-marquee-hover');
+            }
+        });
+    }
+
+    function handleTitleMarqueeLeave(trigger) {
+        const wraps = trigger.classList.contains('title-marquee-wrap')
+            ? [trigger]
+            : trigger.querySelectorAll('.title-marquee-wrap');
+
+        wraps.forEach(wrap => {
+            const text = wrap.querySelector('.title-marquee-text') || wrap;
+            if (!text) return;
+            text.classList.remove('animate-marquee-hover');
+            text.style.removeProperty('--marquee-dist');
+            text.style.removeProperty('--marquee-dur');
+        });
+    }
+
+    document.addEventListener('mouseover', (e) => {
+        const trigger = e.target.closest('.track-row-marquee, .title-marquee-wrap');
+        if (trigger && (!e.relatedTarget || !trigger.contains(e.relatedTarget))) {
+            handleTitleMarqueeEnter(trigger);
+        }
+    });
+
+    document.addEventListener('mouseout', (e) => {
+        const trigger = e.target.closest('.track-row-marquee, .title-marquee-wrap');
+        if (trigger && (!e.relatedTarget || !trigger.contains(e.relatedTarget))) {
+            handleTitleMarqueeLeave(trigger);
+        }
+    });
+})();
 </script>
 @endsection

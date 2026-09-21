@@ -104,6 +104,8 @@ class MusicRequestController extends Controller
         }
 
         // Fallback jika tidak ditemukan
+        $isNsfw = $this->musicService->containsNsfwKeywords($query);
+
         return response()->json([
             'results' => [
                 [
@@ -113,8 +115,12 @@ class MusicRequestController extends Controller
                     'thumbnail_url' => null,
                     'duration_seconds' => null,
                     'duration_formatted' => '--:--',
+                    'is_live' => false,
+                    'is_nsfw' => $isNsfw,
                     'is_valid_duration' => true,
+                    'is_valid' => ! $isNsfw,
                     'duration_error' => null,
+                    'error_message' => $isNsfw ? 'Judul pencarian terdeteksi memuat konten dewasa / NSFW.' : null,
                     'is_search_query' => true,
                 ],
             ],
@@ -138,8 +144,9 @@ class MusicRequestController extends Controller
 
         $val = $this->musicService->validateMusicCode($validated['code']);
         $isOwner = ! empty($val['is_owner']);
+        $isTest = ! empty($val['is_test']);
 
-        if (! $val['valid'] || (! $isOwner && ! isset($val['order']))) {
+        if (! $val['valid'] || (! $isOwner && ! $isTest && ! isset($val['order']))) {
             return response()->json([
                 'message' => $val['message'] ?? 'Kode transaksi tidak valid atau sudah digunakan.',
             ], 422);
@@ -153,9 +160,10 @@ class MusicRequestController extends Controller
         $thumbnailUrl = $validated['thumbnail_url'] ?? null;
         $durationSeconds = $validated['duration_seconds'] ?? null;
 
+        $details = $this->musicService->fetchYouTubeDetails($youtubeId);
+
         // Jika judul tidak diinput secara manual, otomatis ambil judul & detail dari YouTube
         if ($title === '') {
-            $details = $this->musicService->fetchYouTubeDetails($youtubeId);
             $title = $details['title'] ?? "Lagu YouTube ({$youtubeId})";
             if (empty($artist) && ! empty($details['artist']) && $details['artist'] !== 'YouTube') {
                 $artist = $details['artist'];
@@ -168,6 +176,19 @@ class MusicRequestController extends Controller
             }
         }
 
+        // Cek apakah video adalah live stream atau mengandung NSFW / konten dewasa
+        if (! empty($details['is_live'])) {
+            return response()->json([
+                'message' => 'Tautan siaran langsung (live stream) tidak dapat di-request demi kenyamanan giliran antrean pengunjung kafe.',
+            ], 422);
+        }
+
+        if (! empty($details['is_nsfw']) || $this->musicService->containsNsfwKeywords($title) || $this->musicService->containsNsfwKeywords($artist ?? '')) {
+            return response()->json([
+                'message' => 'Lagu ini terdeteksi memuat konten dewasa / NSFW (Age-Restricted) dan tidak diperkenankan diputar di area publik kafe demi kenyamanan bersama.',
+            ], 422);
+        }
+
         try {
             $musicRequest = $this->musicService->submitRequest($val['order'] ?? null, [
                 'song_title' => $title,
@@ -176,7 +197,7 @@ class MusicRequestController extends Controller
                 'thumbnail_url' => $thumbnailUrl,
                 'duration_seconds' => $durationSeconds,
                 'customer_name' => $validated['customer_name'] ?? null,
-            ], $isOwner);
+            ], $isOwner, $isTest);
 
             // Hitung posisi antrean saat ini
             $queuePosition = MusicRequest::queued()->where('id', '<=', $musicRequest->id)->count();
@@ -184,10 +205,13 @@ class MusicRequestController extends Controller
             return response()->json([
                 'message' => $isOwner
                     ? '👑 Lagu Owner berhasil masuk antrean musik kafe (Akses Unlimited)!'
-                    : 'Lagu berhasil dimasukkan ke antrean musik kafe!',
+                    : ($isTest
+                        ? '🧪 Lagu testing berhasil masuk antrean! Anda dapat me-request lagu lagi.'
+                        : 'Lagu berhasil dimasukkan ke antrean musik kafe!'),
                 'request' => $musicRequest,
                 'queue_position' => $queuePosition,
                 'is_owner' => $isOwner,
+                'is_test' => $isTest,
             ], 201);
         } catch (Exception $e) {
             return response()->json([

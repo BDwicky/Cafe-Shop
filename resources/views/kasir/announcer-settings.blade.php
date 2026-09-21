@@ -406,7 +406,11 @@
                             <span class="font-serif font-bold text-xs text-[#1F1812]">Ding-Dong Kafe</span>
                         </div>
                         <button type="button" @click.stop="playChime('ding_dong')" title="Dengarkan Nada"
-                                class="text-xs text-[#D9973E] hover:text-[#1F1812] font-bold p-1">🔊</button>
+                                class="text-[#D9973E] hover:text-[#1F1812] hover:bg-[#D9973E]/20 p-1.5 rounded-lg transition flex items-center justify-center cursor-pointer">
+                            <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                                <path d="M13.5 4.06c0-1.336-1.616-2.005-2.56-1.06l-4.5 4.5H4.5A2.25 2.25 0 002.25 9.75v4.5A2.25 2.25 0 004.5 16.5h1.94l4.5 4.5c.944.945 2.56.276 2.56-1.06V4.06zM17.75 12c0-1.34-.54-2.56-1.42-3.44a1 1 0 10-1.42 1.42c.52.52.84 1.24.84 2.02s-.32 1.5-.84 2.02a1 1 0 101.42 1.42c.88-.88 1.42-2.1 1.42-3.44zM21.25 12c0-2.31-.94-4.41-2.46-5.93a1 1 0 10-1.42 1.42A6.38 6.38 0 0119.25 12c0 1.76-.72 3.36-1.88 4.51a1 1 0 101.42 1.42A8.38 8.38 0 0021.25 12z"/>
+                            </svg>
+                        </button>
                     </div>
 
                     <!-- Chime 2: Airport Chime -->
@@ -418,7 +422,11 @@
                             <span class="font-serif font-bold text-xs text-[#1F1812]">Airport 3-Tone</span>
                         </div>
                         <button type="button" @click.stop="playChime('airport')" title="Dengarkan Nada"
-                                class="text-xs text-[#D9973E] hover:text-[#1F1812] font-bold p-1">🔊</button>
+                                class="text-[#D9973E] hover:text-[#1F1812] hover:bg-[#D9973E]/20 p-1.5 rounded-lg transition flex items-center justify-center cursor-pointer">
+                            <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                                <path d="M13.5 4.06c0-1.336-1.616-2.005-2.56-1.06l-4.5 4.5H4.5A2.25 2.25 0 002.25 9.75v4.5A2.25 2.25 0 004.5 16.5h1.94l4.5 4.5c.944.945 2.56.276 2.56-1.06V4.06zM17.75 12c0-1.34-.54-2.56-1.42-3.44a1 1 0 10-1.42 1.42c.52.52.84 1.24.84 2.02s-.32 1.5-.84 2.02a1 1 0 101.42 1.42c.88-.88 1.42-2.1 1.42-3.44zM21.25 12c0-2.31-.94-4.41-2.46-5.93a1 1 0 10-1.42 1.42A6.38 6.38 0 0119.25 12c0 1.76-.72 3.36-1.88 4.51a1 1 0 101.42 1.42A8.38 8.38 0 0021.25 12z"/>
+                            </svg>
+                        </button>
                     </div>
 
                     <!-- Chime 3: Elevator Bell -->
@@ -430,7 +438,11 @@
                             <span class="font-serif font-bold text-xs text-[#1F1812]">Denting Bel (Soft)</span>
                         </div>
                         <button type="button" @click.stop="playChime('bell')" title="Dengarkan Nada"
-                                class="text-xs text-[#D9973E] hover:text-[#1F1812] font-bold p-1">🔊</button>
+                                class="text-[#D9973E] hover:text-[#1F1812] hover:bg-[#D9973E]/20 p-1.5 rounded-lg transition flex items-center justify-center cursor-pointer">
+                            <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                                <path d="M13.5 4.06c0-1.336-1.616-2.005-2.56-1.06l-4.5 4.5H4.5A2.25 2.25 0 002.25 9.75v4.5A2.25 2.25 0 004.5 16.5h1.94l4.5 4.5c.944.945 2.56.276 2.56-1.06V4.06zM17.75 12c0-1.34-.54-2.56-1.42-3.44a1 1 0 10-1.42 1.42c.52.52.84 1.24.84 2.02s-.32 1.5-.84 2.02a1 1 0 101.42 1.42c.88-.88 1.42-2.1 1.42-3.44zM21.25 12c0-2.31-.94-4.41-2.46-5.93a1 1 0 10-1.42 1.42A6.38 6.38 0 0119.25 12c0 1.76-.72 3.36-1.88 4.51a1 1 0 101.42 1.42A8.38 8.38 0 0021.25 12z"/>
+                            </svg>
+                        </button>
                     </div>
 
                     <!-- Chime 4: None -->

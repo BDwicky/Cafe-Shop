@@ -518,6 +518,124 @@ class MusicRequestTest extends TestCase
             ->assertSee('AKSES OWNER: UNLIMITED REQUEST');
     }
 
+    public function test_test_code_validates_as_testing_mode_and_not_owner(): void
+    {
+        // Pengujian huruf kecil "test"
+        $responseLower = $this->postJson(route('music.validate_code'), [
+            'code' => 'test',
+        ]);
+
+        $responseLower->assertOk()
+            ->assertJsonPath('valid', true)
+            ->assertJsonPath('is_owner', false)
+            ->assertJsonPath('is_test', true)
+            ->assertJsonPath('message', fn ($m) => str_contains($m, 'Testing'));
+
+        // Pengujian huruf besar "TEST"
+        $responseUpper = $this->postJson(route('music.validate_code'), [
+            'code' => 'TEST',
+        ]);
+
+        $responseUpper->assertOk()
+            ->assertJsonPath('valid', true)
+            ->assertJsonPath('is_owner', false)
+            ->assertJsonPath('is_test', true);
+    }
+
+    public function test_test_code_allows_unlimited_consecutive_requests_with_customer_rules(): void
+    {
+        // Request 1 dengan kode "test"
+        $res1 = $this->postJson(route('music.store'), [
+            'code' => 'test',
+            'song_title' => 'Testing Song 1',
+            'artist' => 'Tester Artist',
+            'youtube_id' => 'TESTTRACK01',
+            'duration_seconds' => 180,
+            'customer_name' => 'Tester Budi',
+        ]);
+
+        $res1->assertCreated()
+            ->assertJsonPath('is_owner', false)
+            ->assertJsonPath('is_test', true)
+            ->assertJsonPath('request.song_title', 'Testing Song 1')
+            ->assertJsonPath('request.customer_name', 'Tester Budi');
+
+        // Request 2 berturut-turut tanpa batas / tidak terkunci
+        $res2 = $this->postJson(route('music.store'), [
+            'code' => 'test',
+            'song_title' => 'Testing Song 2',
+            'artist' => 'Tester Artist',
+            'youtube_id' => 'TESTTRACK02',
+            'duration_seconds' => 200,
+        ]);
+
+        $res2->assertCreated()
+            ->assertJsonPath('is_owner', false)
+            ->assertJsonPath('is_test', true)
+            ->assertJsonPath('request.song_title', 'Testing Song 2')
+            ->assertJsonPath('request.customer_name', 'Pelanggan (Testing)');
+
+        // Request 3
+        $res3 = $this->postJson(route('music.store'), [
+            'code' => 'test',
+            'song_title' => 'Testing Song 3',
+            'youtube_id' => 'TESTTRACK03',
+            'duration_seconds' => 210,
+        ]);
+
+        $res3->assertCreated()
+            ->assertJsonPath('is_owner', false)
+            ->assertJsonPath('is_test', true);
+
+        $this->assertSame(3, MusicRequest::whereIn('youtube_id', ['TESTTRACK01', 'TESTTRACK02', 'TESTTRACK03'])->count());
+    }
+
+    public function test_test_code_enforces_duration_limits_like_normal_codes(): void
+    {
+        // Uji lagu > 7 menit (3600 detik) harus tetap ditolak sesuai aturan kafe
+        $resTooLong = $this->postJson(route('music.store'), [
+            'code' => 'test',
+            'song_title' => '1 Hour Chill Coffee',
+            'youtube_id' => 'TESTLONGSNG',
+            'duration_seconds' => 3600,
+        ]);
+
+        $resTooLong->assertStatus(422)
+            ->assertJsonPath('message', fn ($m) => str_contains($m, 'terlalu panjang'));
+
+        // Uji lagu < 45 detik harus tetap ditolak
+        $resTooShort = $this->postJson(route('music.store'), [
+            'code' => 'test',
+            'song_title' => 'Short Sound Meme',
+            'youtube_id' => 'TESTSHORTSG',
+            'duration_seconds' => 15,
+        ]);
+
+        $resTooShort->assertStatus(422)
+            ->assertJsonPath('message', fn ($m) => str_contains($m, 'terlalu pendek'));
+    }
+
+    public function test_music_request_page_renders_test_mode_when_code_test_provided(): void
+    {
+        $response = $this->get(route('music.request', ['code' => 'test']));
+
+        $response->assertOk()
+            ->assertSee('TEST')
+            ->assertSee('TESTING: MULTI-REQUEST')
+            ->assertSee('isOwner: false', false)
+            ->assertSee('isTest: true', false);
+    }
+
+    public function test_music_request_page_displays_priority_and_instant_play_notices(): void
+    {
+        $response = $this->get(route('music.request'));
+
+        $response->assertOk()
+            ->assertSee('Prioritas Utama & Putar Langsung', false)
+            ->assertSee('di-pause', false)
+            ->assertSee('Antrean Prioritas', false);
+    }
+
     public function test_next_track_marks_request_as_skipped_with_notes_when_was_blocked(): void
     {
         $user = User::factory()->create();
@@ -1319,5 +1437,120 @@ class MusicRequestTest extends TestCase
             @unlink($testFile);
         }
         Cache::flush();
+    }
+
+    public function test_customer_and_test_code_cannot_request_live_stream_video(): void
+    {
+        Cache::flush();
+        Http::fake([
+            'https://www.youtube.com/watch?v=LIVE_STRM_1' => Http::response(
+                '<html><head><meta itemprop="isLiveBroadcast" content="True"></head><body><script>var ytInitialPlayerResponse = {"videoDetails":{"isLive":true,"isLiveContent":true,"title":"24/7 Lo-Fi Chill Radio Live Stream"}};</script></body></html>',
+                200
+            ),
+        ]);
+
+        // 1. Uji dengan kode struk transaksi biasa
+        $order = Order::factory()->create(['status' => 'paid']);
+        $resCustomer = $this->postJson(route('music.store'), [
+            'code' => $order->music_code,
+            'song_title' => '24/7 Lo-Fi Live',
+            'youtube_id' => 'LIVE_STRM_1',
+            'duration_seconds' => 0,
+        ]);
+
+        $resCustomer->assertStatus(422)
+            ->assertJsonPath('message', fn ($m) => str_contains($m, 'siaran langsung') || str_contains($m, 'live stream'));
+
+        // Struk transaksi tidak boleh hangus/terkunci jika request gagal karena live stream
+        $this->assertNull($order->fresh()->music_request_used_at);
+
+        // 2. Uji dengan kode testing "test"
+        $resTest = $this->postJson(route('music.store'), [
+            'code' => 'test',
+            'song_title' => '24/7 Lo-Fi Live',
+            'youtube_id' => 'LIVE_STRM_1',
+            'duration_seconds' => 0,
+        ]);
+
+        $resTest->assertStatus(422)
+            ->assertJsonPath('message', fn ($m) => str_contains($m, 'siaran langsung') || str_contains($m, 'live stream'));
+    }
+
+    public function test_customer_and_test_code_cannot_request_nsfw_or_age_restricted_video(): void
+    {
+        Cache::flush();
+        Http::fake([
+            'https://www.youtube.com/watch?v=NSFW_VID_01' => Http::response(
+                '<html><head><meta property="og:restrictions:age" content="18+"></head><body><script>var ytInitialPlayerResponse = {"playerMicroformatRenderer":{"familySafe":false},"playabilityStatus":{"status":"LOGIN_REQUIRED","reason":"Sign in to confirm your age. This video may be inappropriate for some users."}};</script></body></html>',
+                200
+            ),
+        ]);
+
+        // 1. Uji video dengan penanda YouTube age-restricted via struk transaksi
+        $order = Order::factory()->create(['status' => 'paid']);
+        $resNsfwCustomer = $this->postJson(route('music.store'), [
+            'code' => $order->music_code,
+            'youtube_id' => 'NSFW_VID_01',
+            'duration_seconds' => 180,
+        ]);
+
+        $resNsfwCustomer->assertStatus(422)
+            ->assertJsonPath('message', fn ($m) => str_contains(strtolower($m), 'dewasa') || str_contains(strtolower($m), 'nsfw'));
+
+        // 2. Uji video dengan penanda YouTube age-restricted via kode "test"
+        $resNsfwTest = $this->postJson(route('music.store'), [
+            'code' => 'test',
+            'youtube_id' => 'NSFW_VID_01',
+            'duration_seconds' => 180,
+        ]);
+
+        $resNsfwTest->assertStatus(422)
+            ->assertJsonPath('message', fn ($m) => str_contains(strtolower($m), 'dewasa') || str_contains(strtolower($m), 'nsfw'));
+
+        // 3. Uji penolakan berdasarkan kata kunci eksplisit NSFW pada judul
+        $resKeyword = $this->postJson(route('music.store'), [
+            'code' => 'test',
+            'song_title' => 'Video Musik 18+ Hentai Uncensored',
+            'youtube_id' => 'CLEAN_YT_01',
+            'duration_seconds' => 180,
+        ]);
+
+        $resKeyword->assertStatus(422)
+            ->assertJsonPath('message', fn ($m) => str_contains(strtolower($m), 'dewasa') || str_contains(strtolower($m), 'nsfw'));
+    }
+
+    public function test_search_endpoint_flags_live_stream_and_nsfw_content(): void
+    {
+        Cache::flush();
+        Http::fake([
+            'https://www.youtube.com/watch?v=LIVE_SRCH_1' => Http::response(
+                '<html><head><meta itemprop="isLiveBroadcast" content="True"></head><body><script>var ytInitialPlayerResponse = {"videoDetails":{"isLive":true,"title":"Live Stream Station"}};</script></body></html>',
+                200
+            ),
+            'https://www.youtube.com/watch?v=NSFW_SRCH_1' => Http::response(
+                '<html><head></head><body><script>var ytInitialPlayerResponse = {"playerMicroformatRenderer":{"familySafe":false}};</script></body></html>',
+                200
+            ),
+        ]);
+
+        // 1. Pencarian URL live stream
+        $searchLive = $this->getJson(route('music.search', ['q' => 'https://www.youtube.com/watch?v=LIVE_SRCH_1']));
+        $searchLive->assertOk()
+            ->assertJsonPath('results.0.is_live', true)
+            ->assertJsonPath('results.0.is_valid', false)
+            ->assertJsonPath('results.0.error_message', fn ($m) => str_contains($m, 'siaran langsung'));
+
+        // 2. Pencarian URL NSFW
+        $searchNsfw = $this->getJson(route('music.search', ['q' => 'https://www.youtube.com/watch?v=NSFW_SRCH_1']));
+        $searchNsfw->assertOk()
+            ->assertJsonPath('results.0.is_nsfw', true)
+            ->assertJsonPath('results.0.is_valid', false)
+            ->assertJsonPath('results.0.error_message', fn ($m) => str_contains(strtolower($m), 'dewasa') || str_contains(strtolower($m), 'nsfw'));
+
+        // 3. Pencarian query teks bebas dengan kata kunci NSFW
+        $searchQueryNsfw = $this->getJson(route('music.search', ['q' => 'hentai opening ost']));
+        $searchQueryNsfw->assertOk()
+            ->assertJsonPath('results.0.is_nsfw', true)
+            ->assertJsonPath('results.0.is_valid', false);
     }
 }

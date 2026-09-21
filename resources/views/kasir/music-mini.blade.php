@@ -7,6 +7,35 @@
     <link rel="icon" type="image/svg+xml" href="{{ asset('images/logo-mark.svg') }}">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <style>
+        .title-marquee-wrap {
+            overflow: hidden;
+            white-space: nowrap;
+            position: relative;
+            max-width: 100%;
+            display: block;
+        }
+        .title-marquee-text {
+            display: inline-block;
+            max-width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            vertical-align: middle;
+            transform: translateX(0);
+            transition: transform 0.25s ease-out;
+        }
+        .title-marquee-text.animate-marquee-hover {
+            overflow: visible !important;
+            text-overflow: clip !important;
+            max-width: none !important;
+            animation: marqueeScrollText var(--marquee-dur, 4s) cubic-bezier(0.35, 0, 0.65, 1) infinite alternate;
+        }
+        @keyframes marqueeScrollText {
+            0%, 18% { transform: translateX(0); }
+            82%, 100% { transform: translateX(var(--marquee-dist, -50px)); }
+        }
+    </style>
 </head>
 <body class="bg-[#140E0A] text-[#F7F3EC] h-full overflow-hidden antialiased font-sans select-none flex flex-col justify-between p-4"
       x-data="soundStationMini()"
@@ -45,8 +74,11 @@
         </div>
 
         <div class="min-w-0 flex-1">
-            <div class="text-xs font-bold text-[#F7F3EC] truncate"
-                 x-text="currentTrack ? currentTrack.title : 'Memuat Musik Kafe...'"></div>
+            <div class="title-marquee-wrap track-row-marquee">
+                <span class="title-marquee-text text-xs font-bold text-[#F7F3EC]"
+                     :title="currentTrack ? (currentTrack.song_title || currentTrack.title) : ''"
+                     x-text="currentTrack ? (currentTrack.song_title || currentTrack.title) : 'Memuat Musik Kafe...'"></span>
+            </div>
             <div class="text-[10px] text-[#A89A85] truncate mt-0.5"
                  x-text="currentTrack ? (currentTrack.artist || 'Playlist Kafe') : '-'"></div>
             <template x-if="currentTrack && currentTrack.customer_name">
@@ -97,8 +129,8 @@
                     <rect x="6" y="4" width="4" height="16" rx="1"/>
                     <rect x="14" y="4" width="4" height="16" rx="1"/>
                 </svg>
-                <svg x-show="!isPlaying" class="w-3.5 h-3.5 fill-current ml-0.5" viewBox="0 0 24 24">
-                    <path d="M8 5.14v14.72a1 1 0 001.5.86l11.5-7.36a1 1 0 000-1.72L9.5 4.28A1 1 0 008 5.14z"/>
+                <svg x-show="!isPlaying" class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                    <path d="M6 5.14v14.72a1 1 0 001.5.86l11.5-7.36a1 1 0 000-1.72L7.5 4.28A1 1 0 006 5.14z"/>
                 </svg>
             </button>
 
@@ -115,10 +147,16 @@
 
         <!-- VOLUME & MUTE -->
         <div class="flex items-center gap-1.5">
-            <button type="button" @click="toggleMute()" class="text-xs text-[#A89A85] hover:text-[#F7F3EC] p-0.5">
-                <span x-show="!isMuted && volume > 30">🔊</span>
-                <span x-show="!isMuted && volume <= 30 && volume > 0">🔉</span>
-                <span x-show="isMuted || volume === 0">🔇</span>
+            <button type="button" @click="toggleMute()" class="text-[#A89A85] hover:text-[#D9973E] p-0.5 flex items-center justify-center cursor-pointer">
+                <svg x-show="!isMuted && volume > 30" class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                    <path d="M13.5 4.06c0-1.336-1.616-2.005-2.56-1.06l-4.5 4.5H4.5A2.25 2.25 0 002.25 9.75v4.5A2.25 2.25 0 004.5 16.5h1.94l4.5 4.5c.944.945 2.56.276 2.56-1.06V4.06zM17.75 12c0-1.34-.54-2.56-1.42-3.44a1 1 0 10-1.42 1.42c.52.52.84 1.24.84 2.02s-.32 1.5-.84 2.02a1 1 0 101.42 1.42c.88-.88 1.42-2.1 1.42-3.44zM21.25 12c0-2.31-.94-4.41-2.46-5.93a1 1 0 10-1.42 1.42A6.38 6.38 0 0119.25 12c0 1.76-.72 3.36-1.88 4.51a1 1 0 101.42 1.42A8.38 8.38 0 0021.25 12z"/>
+                </svg>
+                <svg x-show="!isMuted && volume <= 30 && volume > 0" class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                    <path d="M13.5 4.06c0-1.336-1.616-2.005-2.56-1.06l-4.5 4.5H4.5A2.25 2.25 0 002.25 9.75v4.5A2.25 2.25 0 004.5 16.5h1.94l4.5 4.5c.944.945 2.56.276 2.56-1.06V4.06zM17.75 12c0-1.34-.54-2.56-1.42-3.44a1 1 0 10-1.42 1.42c.52.52.84 1.24.84 2.02s-.32 1.5-.84 2.02a1 1 0 101.42 1.42c.88-.88 1.42-2.1 1.42-3.44z"/>
+                </svg>
+                <svg x-show="isMuted || volume === 0" class="w-3.5 h-3.5 fill-current text-red-400" viewBox="0 0 24 24">
+                    <path d="M13.5 4.06c0-1.336-1.616-2.005-2.56-1.06l-4.5 4.5H4.5A2.25 2.25 0 002.25 9.75v4.5A2.25 2.25 0 004.5 16.5h1.94l4.5 4.5c.944.945 2.56.276 2.56-1.06V4.06zM17.78 9.22a.75.75 0 10-1.06 1.06L18.44 12l-1.72 1.72a.75.75 0 001.06 1.06l1.72-1.72 1.72 1.72a.75.75 0 101.06-1.06L20.56 12l1.72-1.72a.75.75 0 00-1.06-1.06l-1.72 1.72-1.72-1.72z"/>
+                </svg>
             </button>
             <input type="range" min="0" max="100"
                    x-model="volume"
@@ -349,6 +387,51 @@
             }
         };
     }
+
+    (function initMarqueeHoverMini() {
+        function handleTitleMarqueeEnter(trigger) {
+            const wraps = trigger.classList.contains('title-marquee-wrap') ? [trigger] : trigger.querySelectorAll('.title-marquee-wrap');
+            wraps.forEach(wrap => {
+                const text = wrap.querySelector('.title-marquee-text') || wrap;
+                if (!text || text.classList.contains('animate-marquee-hover')) return;
+                const originalMaxWidth = text.style.maxWidth;
+                const originalOverflow = text.style.overflow;
+                text.style.maxWidth = 'none';
+                text.style.overflow = 'visible';
+                const overflow = text.scrollWidth - wrap.clientWidth;
+                text.style.maxWidth = originalMaxWidth;
+                text.style.overflow = originalOverflow;
+                if (overflow > 4) {
+                    const duration = Math.max(2.4, Math.min(14, (overflow + 16) / 36));
+                    text.style.setProperty('--marquee-dist', `-${overflow + 14}px`);
+                    text.style.setProperty('--marquee-dur', `${duration.toFixed(2)}s`);
+                    text.classList.add('animate-marquee-hover');
+                }
+            });
+        }
+        function handleTitleMarqueeLeave(trigger) {
+            const wraps = trigger.classList.contains('title-marquee-wrap') ? [trigger] : trigger.querySelectorAll('.title-marquee-wrap');
+            wraps.forEach(wrap => {
+                const text = wrap.querySelector('.title-marquee-text') || wrap;
+                if (!text) return;
+                text.classList.remove('animate-marquee-hover');
+                text.style.removeProperty('--marquee-dist');
+                text.style.removeProperty('--marquee-dur');
+            });
+        }
+        document.addEventListener('mouseover', (e) => {
+            const trigger = e.target.closest('.track-row-marquee, .title-marquee-wrap');
+            if (trigger && (!e.relatedTarget || !trigger.contains(e.relatedTarget))) {
+                handleTitleMarqueeEnter(trigger);
+            }
+        });
+        document.addEventListener('mouseout', (e) => {
+            const trigger = e.target.closest('.track-row-marquee, .title-marquee-wrap');
+            if (trigger && (!e.relatedTarget || !trigger.contains(e.relatedTarget))) {
+                handleTitleMarqueeLeave(trigger);
+            }
+        });
+    })();
     </script>
 </body>
 </html>
