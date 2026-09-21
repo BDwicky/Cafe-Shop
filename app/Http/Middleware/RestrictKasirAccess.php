@@ -27,10 +27,28 @@ class RestrictKasirAccess
             return $next($request);
         }
 
-        // 2. Cek Whitelist IP / Jaringan Wi-Fi Kafe
+        // Jika perangkat membawa token yang telah dicabut (Banned) oleh Owner,
+        // tolak akses seketika meskipun perangkat sedang terhubung ke IP / Wi-Fi kafe!
         $clientIp = $request->ip();
         $allowedIps = config('cafe.kasir_allowed_ips', ['127.0.0.1', '::1']);
 
+        if ($tokenStatus['revoked']) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Akses perangkat ini telah dicabut / diblokir oleh Owner.',
+                    'client_ip' => $clientIp,
+                    'is_revoked' => true,
+                ], 403);
+            }
+
+            return response()->view('errors.kasir-restricted', [
+                'clientIp' => $clientIp,
+                'allowedIps' => $allowedIps,
+                'isRevoked' => true,
+            ], 403);
+        }
+
+        // 2. Cek Whitelist IP / Jaringan Wi-Fi Kafe (hanya untuk perangkat tanpa token atau yang belum terdaftar)
         if ($clientIp && $this->isIpAllowed($clientIp, $allowedIps)) {
             return $next($request);
         }
@@ -38,11 +56,9 @@ class RestrictKasirAccess
         // 3. Akses Ditolak (Unauthorized Network / Device)
         if ($request->expectsJson()) {
             return response()->json([
-                'message' => $tokenStatus['revoked']
-                    ? 'Akses perangkat ini telah dicabut oleh Owner.'
-                    : 'Akses ditolak. Web kasir hanya dapat dibuka melalui jaringan Wi-Fi/IP kafe resmi atau perangkat terdaftar.',
+                'message' => 'Akses ditolak. Web kasir hanya dapat dibuka melalui jaringan Wi-Fi/IP kafe resmi atau perangkat terdaftar.',
                 'client_ip' => $clientIp,
-                'is_revoked' => $tokenStatus['revoked'],
+                'is_revoked' => false,
             ], 403);
         }
 

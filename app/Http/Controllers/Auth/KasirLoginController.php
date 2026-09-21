@@ -77,6 +77,26 @@ class KasirLoginController extends Controller
                 ->with('error', 'Kunci otorisasi perangkat tidak valid. Hubungi owner untuk mendapatkan akses.');
         }
 
+        // Cek apakah perangkat ini membawa token yang berstatus dicabut (Banned) oleh Owner
+        $cookieToken = $request->cookie('kasir_device_token');
+        if ($cookieToken) {
+            $existingHash = hash('sha256', (string) $cookieToken);
+            $existingDevice = KasirAuthorizedDevice::where('device_token_hash', $existingHash)->first();
+
+            if ($existingDevice && $existingDevice->is_revoked) {
+                return redirect()->route('kasir.login')
+                    ->with('error', "Perangkat ini ('{$existingDevice->device_name}') telah dicabut izinnya / diblokir oleh Owner. Pendaftaran ulang via QR ditolak. Hubungi Owner untuk mengaktifkan kembali via dashboard.");
+            }
+
+            // Jika perangkat sudah terdaftar dan masih aktif, segarkan status tanpa membuat entri duplikat
+            if ($existingDevice && ! $existingDevice->is_revoked) {
+                $existingDevice->touchActivity($request->ip());
+
+                return redirect()->route('kasir.login')
+                    ->with('status', "Perangkat '{$existingDevice->device_name}' sudah terdaftar dan aktif sebagai terminal kasir resmi!");
+            }
+        }
+
         // Generate unique token per device
         $plainToken = Str::random(64);
         $tokenHash = hash('sha256', $plainToken);

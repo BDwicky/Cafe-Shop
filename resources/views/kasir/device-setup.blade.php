@@ -491,7 +491,7 @@
                                         @else
                                             <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200">
                                                 <span>🔒</span>
-                                                <span>Akses Dicabut</span>
+                                                <span>Akses Dicabut (Banned)</span>
                                             </span>
                                         @endif
                                     </div>
@@ -535,12 +535,12 @@
                                 @if (! $device->is_revoked)
                                     <!-- Revoke Button -->
                                     <form method="POST" action="{{ route('kasir.devices.revoke', $device) }}"
-                                          onsubmit="return confirm('Apakah Anda yakin ingin mencabut izin akses untuk \'{{ addslashes($device->device_name) }}\'? Perangkat tersebut akan langsung diblokir seketika.');">
+                                          onsubmit="return confirm('Apakah Anda yakin ingin memblokir/mencabut izin akses untuk \'{{ addslashes($device->device_name) }}\'? Perangkat ini akan langsung diblokir seketika dan tidak dapat mendaftar ulang via scan QR.');">
                                         @csrf
                                         <button type="submit"
                                                 class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-mono font-bold uppercase tracking-wider transition-all shadow-2xs cursor-pointer active:scale-95">
                                             <span>🔒</span>
-                                            <span>Cabut Izin</span>
+                                            <span>Cabut Izin (Blokir)</span>
                                         </button>
                                     </form>
                                 @else
@@ -558,7 +558,7 @@
 
                                 <!-- Delete Button -->
                                 <form method="POST" action="{{ route('kasir.devices.destroy', $device) }}"
-                                      onsubmit="return confirm('Hapus perangkat \'{{ addslashes($device->device_name) }}\' dari riwayat pendaftaran?');">
+                                      onsubmit="return confirm('Hapus perangkat \'{{ addslashes($device->device_name) }}\' dari riwayat pendaftaran? Catatan: Jika ingin memblokir perangkat agar tidak bisa scan QR lagi, gunakan tombol \'Cabut Izin (Blokir)\'.');">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit"

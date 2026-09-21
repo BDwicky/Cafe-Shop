@@ -377,4 +377,77 @@ class KasirAccessRestrictionTest extends TestCase
         $secret = KasirLoginController::getDeviceSecret();
         $this->assertStringStartsWith('pos-sec-', $secret);
     }
+
+    public function test_revoked_device_is_blocked_even_on_allowed_ip(): void
+    {
+        Config::set('cafe.kasir_ip_restriction_enabled', true);
+        Config::set('cafe.kasir_allowed_ips', ['127.0.0.1', '192.168.1.*']);
+
+        $token = Str::random(64);
+        KasirAuthorizedDevice::create([
+            'device_name' => 'Tablet Diblokir',
+            'device_token_hash' => hash('sha256', $token),
+            'device_type' => 'tablet',
+            'is_revoked' => true,
+            'revoked_at' => now(),
+            'last_active_at' => now(),
+        ]);
+
+        $response = $this->withServerVariables(['REMOTE_ADDR' => '127.0.0.1'])
+            ->withCookie('kasir_device_token', $token)
+            ->get('/kasir/login');
+
+        $response->assertStatus(403);
+        $response->assertSee('Otorisasi Dicabut');
+    }
+
+    public function test_revoked_device_cannot_reregister_via_qr_authorization(): void
+    {
+        $secret = 'test-secret-device-key';
+        Config::set('cafe.kasir_device_secret', $secret);
+
+        $token = Str::random(64);
+        $device = KasirAuthorizedDevice::create([
+            'device_name' => 'HP Karyawan',
+            'device_token_hash' => hash('sha256', $token),
+            'device_type' => 'mobile',
+            'is_revoked' => true,
+            'revoked_at' => now(),
+            'last_active_at' => now(),
+        ]);
+
+        $initialCount = KasirAuthorizedDevice::count();
+
+        $response = $this->withCookie('kasir_device_token', $token)
+            ->get('/kasir/authorize-device?key='.$secret);
+
+        $response->assertRedirect('/kasir/login');
+        $response->assertSessionHas('error');
+        $this->assertEquals($initialCount, KasirAuthorizedDevice::count());
+        $this->assertTrue($device->fresh()->is_revoked);
+    }
+
+    public function test_active_device_rescanning_qr_does_not_create_duplicate_record(): void
+    {
+        $secret = 'test-secret-device-key';
+        Config::set('cafe.kasir_device_secret', $secret);
+
+        $token = Str::random(64);
+        $device = KasirAuthorizedDevice::create([
+            'device_name' => 'Tablet Barista',
+            'device_token_hash' => hash('sha256', $token),
+            'device_type' => 'tablet',
+            'is_revoked' => false,
+            'last_active_at' => now()->subDay(),
+        ]);
+
+        $initialCount = KasirAuthorizedDevice::count();
+
+        $response = $this->withCookie('kasir_device_token', $token)
+            ->get('/kasir/authorize-device?key='.$secret);
+
+        $response->assertRedirect('/kasir/login');
+        $response->assertSessionHas('status');
+        $this->assertEquals($initialCount, KasirAuthorizedDevice::count());
+    }
 }
