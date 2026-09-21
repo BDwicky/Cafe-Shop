@@ -266,12 +266,8 @@ class MusicService
                 if ($response->successful()) {
                     $html = $response->body();
 
-                    // Ekstraksi apakah siaran langsung (live stream)
-                    if (
-                        preg_match('/"(?:isLive|isLiveStream|isLiveContent)":\s*true/i', $html) ||
-                        preg_match('/<meta\s+itemprop="isLiveBroadcast"\s+content="true"/i', $html) ||
-                        preg_match('/"liveBroadcastDetails"/i', $html)
-                    ) {
+                    // Ekstraksi apakah siaran langsung (live stream aktif)
+                    if (preg_match('/"(?:isLive|isLiveStream|isLiveContent)":\s*true/i', $html)) {
                         $isLive = true;
                     }
 
@@ -280,8 +276,7 @@ class MusicService
                         preg_match('/"familySafe":\s*false/i', $html) ||
                         preg_match('/"(?:isAgeRestricted|ageRestricted|ageGate)":\s*true/i', $html) ||
                         preg_match('/<meta\s+property="og:restrictions:age"\s+content="18\+"/i', $html) ||
-                        (preg_match('/"status":\s*"(?:LOGIN_REQUIRED|AGE_CHECK_REQUIRED)"/i', $html) && preg_match('/(?:confirm your age|inappropriate|dewasa|18\+)/i', $html)) ||
-                        preg_match('/"reason":\s*"[^"]*(?:age-restricted|confirm your age|inappropriate for some users)[^"]*"/i', $html)
+                        preg_match('/"reason":\s*"[^"]*(?:age-restricted|confirm your age)[^"]*"/i', $html)
                     ) {
                         $isNsfw = true;
                     }
@@ -312,8 +307,8 @@ class MusicService
                 // Lanjut ke fallback oEmbed jika scraping gagal
             }
 
-            // 2. Fallback YouTube oEmbed jika judul masih default
-            if ($title === "Lagu YouTube ({$youtubeId})") {
+            // 2. Fallback YouTube oEmbed jika judul masih default atau kosong
+            if (empty($title) || $title === "Lagu YouTube ({$youtubeId})") {
                 try {
                     $oembedRes = Http::timeout(3)->get('https://www.youtube.com/oembed', [
                         'url' => "https://www.youtube.com/watch?v={$youtubeId}",
@@ -428,17 +423,7 @@ class MusicService
 
         $details = $this->fetchYouTubeDetails($youtubeId);
 
-        // Validasi tautan siaran langsung (live stream)
-        if (! empty($details['is_live'])) {
-            throw new InvalidArgumentException('Tautan siaran langsung (live stream) tidak dapat di-request demi kenyamanan giliran antrean pengunjung kafe.');
-        }
-
-        // Validasi konten dewasa / NSFW / Age-Restricted
-        if (! empty($details['is_nsfw']) || $this->containsNsfwKeywords($data['song_title'] ?? '') || $this->containsNsfwKeywords($data['artist'] ?? '')) {
-            throw new InvalidArgumentException('Lagu ini terdeteksi memuat konten dewasa / NSFW (Age-Restricted) dan tidak diperkenankan diputar di area publik kafe demi kenyamanan bersama.');
-        }
-
-        // Validasi aturan durasi lagu kafe (anti lagu 10 menit / 1 jam)
+        // Tentukan durasi lagu dari input atau metadata YouTube
         $duration = isset($data['duration_seconds']) && is_numeric($data['duration_seconds'])
             ? (int) $data['duration_seconds']
             : null;
@@ -449,10 +434,24 @@ class MusicService
             }
         }
 
-        if ($duration !== null && $duration > 0) {
-            $durationCheck = $this->validateTrackDuration($duration);
-            if (! $durationCheck['valid']) {
-                throw new InvalidArgumentException($durationCheck['message']);
+        // Validasi rules hanya berlaku untuk pelanggan biasa (Owner bypass semua rules, mirip admin menambah lagu bawaan)
+        if (! $isOwner) {
+            // Validasi tautan siaran langsung (live stream)
+            if (! empty($details['is_live'])) {
+                throw new InvalidArgumentException('Tautan siaran langsung (live stream) tidak dapat di-request demi kenyamanan giliran antrean pengunjung kafe.');
+            }
+
+            // Validasi konten dewasa / NSFW / Age-Restricted
+            if (! empty($details['is_nsfw']) || $this->containsNsfwKeywords($data['song_title'] ?? '') || $this->containsNsfwKeywords($data['artist'] ?? '')) {
+                throw new InvalidArgumentException('Lagu ini terdeteksi memuat konten dewasa / NSFW (Age-Restricted) dan tidak diperkenankan diputar di area publik kafe demi kenyamanan bersama.');
+            }
+
+            // Validasi aturan durasi lagu kafe (anti lagu 10 menit / 1 jam)
+            if ($duration !== null && $duration > 0) {
+                $durationCheck = $this->validateTrackDuration($duration);
+                if (! $durationCheck['valid']) {
+                    throw new InvalidArgumentException($durationCheck['message']);
+                }
             }
         }
 

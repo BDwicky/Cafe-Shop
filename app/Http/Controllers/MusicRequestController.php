@@ -176,17 +176,19 @@ class MusicRequestController extends Controller
             }
         }
 
-        // Cek apakah video adalah live stream atau mengandung NSFW / konten dewasa
-        if (! empty($details['is_live'])) {
-            return response()->json([
-                'message' => 'Tautan siaran langsung (live stream) tidak dapat di-request demi kenyamanan giliran antrean pengunjung kafe.',
-            ], 422);
-        }
+        // Cek apakah video adalah live stream atau mengandung NSFW / konten dewasa (Hanya berlaku untuk pelanggan biasa)
+        if (! $isOwner) {
+            if (! empty($details['is_live'])) {
+                return response()->json([
+                    'message' => 'Tautan siaran langsung (live stream) tidak dapat di-request demi kenyamanan giliran antrean pengunjung kafe.',
+                ], 422);
+            }
 
-        if (! empty($details['is_nsfw']) || $this->musicService->containsNsfwKeywords($title) || $this->musicService->containsNsfwKeywords($artist ?? '')) {
-            return response()->json([
-                'message' => 'Lagu ini terdeteksi memuat konten dewasa / NSFW (Age-Restricted) dan tidak diperkenankan diputar di area publik kafe demi kenyamanan bersama.',
-            ], 422);
+            if (! empty($details['is_nsfw']) || $this->musicService->containsNsfwKeywords($title) || $this->musicService->containsNsfwKeywords($artist ?? '')) {
+                return response()->json([
+                    'message' => 'Lagu ini terdeteksi memuat konten dewasa / NSFW (Age-Restricted) dan tidak diperkenankan diputar di area publik kafe demi kenyamanan bersama.',
+                ], 422);
+            }
         }
 
         try {

@@ -259,7 +259,7 @@
                         error_message: first.error_message || first.duration_error || null
                     };
 
-                    if (!this.selectedSong.is_valid) {
+                    if (!this.isOwner && !this.selectedSong.is_valid) {
                         let alertTitle = 'Lagu Tidak Memenuhi Aturan Kafe';
                         if (this.selectedSong.is_live) {
                             alertTitle = '🔴 Siaran Langsung (Live Stream) Ditolak';
@@ -355,7 +355,7 @@
                 return;
             }
 
-            if (this.selectedSong.is_valid === false || this.selectedSong.is_valid_duration === false || this.selectedSong.is_live || this.selectedSong.is_nsfw) {
+            if (!this.isOwner && (this.selectedSong.is_valid === false || this.selectedSong.is_valid_duration === false || this.selectedSong.is_live || this.selectedSong.is_nsfw)) {
                 let alertTitle = 'Lagu Tidak Memenuhi Aturan';
                 if (this.selectedSong.is_live) alertTitle = '🔴 Live Stream Ditolak';
                 else if (this.selectedSong.is_nsfw) alertTitle = '🔞 Konten Dewasa / NSFW Ditolak';
@@ -778,7 +778,7 @@
                                     Atau pilih lagu santai kafe sekali klik:
                                 </span>
                                 <div class="flex flex-wrap gap-1.5">
-                                    <button type="button" @click="selectPreset('Until I Found You', 'Stephen Sanchez', 'GxldQ9GyXfk', 177, '02:57')"
+                                    <button type="button" @click="selectPreset('Until I Found You', 'Stephen Sanchez', 'GxldQ9eX2wo', 177, '02:57')"
                                             class="px-2.5 py-1 bg-[#FAF7F2] hover:bg-[#D9973E]/15 hover:border-[#D9973E] border border-[#D5CCC0] rounded-lg text-xs text-[#1F1812] transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95">
                                         <span>☕ Until I Found You</span>
                                         <span class="font-mono text-[10px] text-[#7A6A58]">(02:57)</span>
@@ -788,7 +788,7 @@
                                         <span>🌅 Golden Hour</span>
                                         <span class="font-mono text-[10px] text-[#7A6A58]">(03:29)</span>
                                     </button>
-                                    <button type="button" @click="selectPreset('Sialan', 'Adrian Khalif & Juicy Luicy', 'fG4-oP4e0pQ', 238, '03:58')"
+                                    <button type="button" @click="selectPreset('Sialan', 'Adrian Khalif & Juicy Luicy', '0i-D1eBVKUM', 238, '03:58')"
                                             class="px-2.5 py-1 bg-[#FAF7F2] hover:bg-[#D9973E]/15 hover:border-[#D9973E] border border-[#D5CCC0] rounded-lg text-xs text-[#1F1812] transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95">
                                         <span>📻 Sialan</span>
                                         <span class="font-mono text-[10px] text-[#7A6A58]">(03:58)</span>
@@ -804,7 +804,7 @@
                             <!-- PREVIEW LAGU OTOMATIS -->
                             <template x-if="selectedSong">
                                 <div class="mt-3 p-3.5 bg-gradient-to-br from-[#FAF7F2] to-[#F2EDE4] border rounded-xl animate-fade-in"
-                                     :class="(selectedSong.is_valid && selectedSong.is_valid_duration && !selectedSong.is_live && !selectedSong.is_nsfw) ? 'border-[#D9973E]' : 'border-red-500 bg-red-50/50'">
+                                     :class="(isOwner || (selectedSong.is_valid && selectedSong.is_valid_duration && !selectedSong.is_live && !selectedSong.is_nsfw)) ? 'border-[#D9973E]' : 'border-red-500 bg-red-50/50'">
                                     <div class="flex items-center gap-3">
                                         <div class="relative w-20 h-14 rounded-lg overflow-hidden border border-[#3A3026] shrink-0 shadow-xs bg-black">
                                             <img :src="selectedSong.thumbnail_url" alt="Thumb" class="w-full h-full object-cover">
@@ -816,20 +816,23 @@
                                                  x-text="selectedSong.artist || 'YouTube Video'"></div>
                                             <div class="mt-1 flex flex-wrap items-center gap-1.5 font-mono text-[10px]">
                                                 <span class="font-bold"
-                                                      :class="(selectedSong.is_valid && selectedSong.is_valid_duration && !selectedSong.is_live && !selectedSong.is_nsfw) ? 'text-[#5F7F42]' : 'text-red-600'"
+                                                      :class="(isOwner || (selectedSong.is_valid && selectedSong.is_valid_duration && !selectedSong.is_live && !selectedSong.is_nsfw)) ? 'text-[#5F7F42]' : 'text-red-600'"
                                                       x-text="'⏱️ ' + selectedSong.duration_formatted"></span>
-                                                <template x-if="selectedSong.is_live">
+                                                <template x-if="isOwner">
+                                                    <span class="px-2 py-0.5 bg-[#D9973E]/20 text-[#D9973E] border border-[#D9973E]/40 rounded font-bold">👑 Akses VIP Owner</span>
+                                                </template>
+                                                <template x-if="!isOwner && selectedSong.is_live">
                                                     <span class="px-2 py-0.5 bg-red-100 text-red-700 border border-red-300 rounded font-bold">🔴 Live Stream (Ditolak)</span>
                                                 </template>
-                                                <template x-if="selectedSong.is_nsfw">
+                                                <template x-if="!isOwner && selectedSong.is_nsfw">
                                                     <span class="px-2 py-0.5 bg-red-100 text-red-700 border border-red-300 rounded font-bold">🔞 Konten Dewasa / NSFW (Ditolak)</span>
                                                 </template>
-                                                <template x-if="!selectedSong.is_valid_duration && !selectedSong.is_live && !selectedSong.is_nsfw">
+                                                <template x-if="!isOwner && !selectedSong.is_valid_duration && !selectedSong.is_live && !selectedSong.is_nsfw">
                                                     <span class="text-red-600 font-bold">⚠️ Melebihi batas 7 menit</span>
                                                 </template>
                                             </div>
-                                            <!-- Peringatan ringkas di kartu pratinjau -->
-                                            <template x-if="!selectedSong.is_valid || selectedSong.is_live || selectedSong.is_nsfw || !selectedSong.is_valid_duration">
+                                            <!-- Peringatan ringkas di kartu pratinjau (hanya untuk pelanggan biasa) -->
+                                            <template x-if="!isOwner && (!selectedSong.is_valid || selectedSong.is_live || selectedSong.is_nsfw || !selectedSong.is_valid_duration)">
                                                 <div class="mt-2 p-2 bg-red-100/90 border border-red-300 rounded-lg text-[11px] text-red-800 font-mono flex items-center gap-2">
                                                     <span class="text-sm shrink-0">🚫</span>
                                                     <span class="truncate font-semibold" x-text="selectedSong.error_message || 'Lagu ini melanggar ketentuan pemutar musik kafe.'"></span>
@@ -857,27 +860,27 @@
                         <div class="pt-2">
                             <button type="button"
                                     @click="submitSong()"
-                                    :disabled="submitting || (selectedSong && (selectedSong.is_valid === false || selectedSong.is_valid_duration === false || selectedSong.is_live || selectedSong.is_nsfw))"
+                                    :disabled="submitting || (!isOwner && selectedSong && (selectedSong.is_valid === false || selectedSong.is_valid_duration === false || selectedSong.is_live || selectedSong.is_nsfw))"
                                     class="w-full py-3.5 font-mono text-xs uppercase tracking-widest font-bold rounded-xl transition shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-98"
-                                    :class="selectedSong && (selectedSong.is_valid === false || selectedSong.is_valid_duration === false || selectedSong.is_live || selectedSong.is_nsfw)
+                                    :class="!isOwner && selectedSong && (selectedSong.is_valid === false || selectedSong.is_valid_duration === false || selectedSong.is_live || selectedSong.is_nsfw)
                                         ? '!bg-red-600 !text-white hover:!bg-red-700 cursor-not-allowed opacity-90'
                                         : 'bg-[#1F1812] hover:bg-[#D9973E] text-[#F7F3EC] hover:text-[#1F1812] disabled:opacity-50 disabled:cursor-not-allowed'">
                                 <span x-show="submitting" class="animate-spin text-sm">⟳</span>
                                 <span x-show="submitting">Memproses Request...</span>
-                                <span x-show="!submitting && selectedSong && (selectedSong.is_valid === false || selectedSong.is_valid_duration === false || selectedSong.is_live || selectedSong.is_nsfw)">
+                                <span x-show="!submitting && !isOwner && selectedSong && (selectedSong.is_valid === false || selectedSong.is_valid_duration === false || selectedSong.is_live || selectedSong.is_nsfw)">
                                     🚫 Tautan Melanggar Aturan Kafe (Pilih Lagu Lain)
                                 </span>
-                                <template x-if="!submitting && (!selectedSong || (selectedSong.is_valid && selectedSong.is_valid_duration && !selectedSong.is_live && !selectedSong.is_nsfw))">
+                                <template x-if="!submitting && (isOwner || !selectedSong || (selectedSong.is_valid && selectedSong.is_valid_duration && !selectedSong.is_live && !selectedSong.is_nsfw))">
                                     <span>
-                                        <span x-show="isOwner">👑 Masukkan ke Antrean (Akses Owner Unlimited) ›</span>
+                                        <span x-show="isOwner">👑 Masukkan ke Antrean (Akses VIP Owner) ›</span>
                                         <span x-show="isTest">🧪 Kirim Request Musik (Mode Testing) ›</span>
                                         <span x-show="!isOwner && !isTest">♫ Kirim Request ke Pemutar Kafe ›</span>
                                     </span>
                                 </template>
                             </button>
                             <div class="text-center font-mono text-[10px] mt-2 transition"
-                                 :class="selectedSong && (selectedSong.is_valid === false || selectedSong.is_valid_duration === false || selectedSong.is_live || selectedSong.is_nsfw) ? 'text-red-600 font-bold' : 'text-[#7A6A58]'"
-                                 x-text="selectedSong && (selectedSong.is_valid === false || selectedSong.is_valid_duration === false || selectedSong.is_live || selectedSong.is_nsfw) ? '⚠️ Tombol dinonaktifkan karena tautan melanggar aturan kafe. Silakan tempel tautan lagu lain.' : '* Lagu berputar otomatis bergiliran di speaker kafe segera setelah lagu saat ini selesai.'">
+                                 :class="!isOwner && selectedSong && (selectedSong.is_valid === false || selectedSong.is_valid_duration === false || selectedSong.is_live || selectedSong.is_nsfw) ? 'text-red-600 font-bold' : 'text-[#7A6A58]'"
+                                 x-text="!isOwner && selectedSong && (selectedSong.is_valid === false || selectedSong.is_valid_duration === false || selectedSong.is_live || selectedSong.is_nsfw) ? '⚠️ Tombol dinonaktifkan karena tautan melanggar aturan kafe. Silakan tempel tautan lagu lain.' : (isOwner ? '👑 Akses VIP Owner aktif: Request lagu tanpa batas antrean.' : '* Lagu berputar otomatis bergiliran di speaker kafe segera setelah lagu saat ini selesai.')">
                             </div>
                         </div>
                     </div>
