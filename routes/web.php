@@ -149,5 +149,6 @@ Route::middleware([RestrictKasirAccess::class])->group(function () {
         Route::post('/devices/{device}/restore', [KasirLoginController::class, 'restoreRemoteDevice'])->name('devices.restore');
         Route::delete('/devices/{device}', [KasirLoginController::class, 'destroyRemoteDevice'])->name('devices.destroy');
         Route::patch('/devices/{device}/rename', [KasirLoginController::class, 'renameRemoteDevice'])->name('devices.rename');
+        Route::post('/device-secret/regenerate', [KasirLoginController::class, 'regenerateDeviceSecret'])->name('device-secret.regenerate');
     });
 });

@@ -6,6 +6,7 @@
 <div class="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto space-y-6" x-data="{
     copied: false,
     showSecret: false,
+    showRegenerateModal: false,
     editingDeviceId: null,
     editingDeviceName: '',
     copyLink(url) {
@@ -274,20 +275,80 @@
                                 <span x-text="showSecret ? 'Sembunyikan' : 'Tampilkan Kunci'">Tampilkan Kunci</span>
                             </button>
                         </div>
-                        <div class="p-3 rounded-xl bg-[#FAF7F2] border border-[#E4DCCC] font-mono text-xs flex items-center justify-between">
-                            <span class="text-[#1F1812] font-bold tracking-wider" x-text="showSecret ? '{{ $secret }}' : '••••••••••••••••••••••••••••'">
+                        <div class="p-3 rounded-xl bg-[#FAF7F2] border border-[#E4DCCC] font-mono text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                            <span class="text-[#1F1812] font-bold tracking-wider truncate max-w-[200px] sm:max-w-[240px]" x-text="showSecret ? '{{ $secret }}' : '••••••••••••••••••••••••••••'">
                                 ••••••••••••••••••••••••••••
                             </span>
-                            <button type="button" @click="copyLink('{{ $secret }}')"
-                                    class="text-[11px] font-mono font-bold text-[#8A7B66] hover:text-[#1F1812] cursor-pointer">
-                                Salin Kunci
-                            </button>
+                            <div class="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                                <button type="button" @click="copyLink('{{ $secret }}')"
+                                        class="px-2.5 py-1.5 bg-white hover:bg-stone-100 text-[#1F1812] border border-[#E4DCCC] rounded-lg text-[11px] font-mono font-bold transition-all cursor-pointer shadow-2xs">
+                                    Salin
+                                </button>
+                                <button type="button" @click="showRegenerateModal = true"
+                                        class="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-lg text-[11px] font-mono font-bold transition-all cursor-pointer shadow-2xs flex items-center gap-1">
+                                    <span>🔄</span>
+                                    <span>Regenerate Kunci</span>
+                                </button>
+                            </div>
                         </div>
                         <p class="mt-1.5 text-[11px] text-amber-900 font-sans leading-relaxed">
                             ⚠️ <b>Perhatian Keamanan:</b> Jaga kerahasiaan kunci ini. Hanya bagikan kepada staf yang Anda percaya untuk mendaftarkan terminal kasir resmi.
                         </p>
                     </div>
-                </div>
+
+                    <!-- Modal Konfirmasi Regenerate Kunci Rahasia -->
+                    <div x-show="showRegenerateModal" x-cloak
+                         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs transition-opacity"
+                         @keydown.escape.window="showRegenerateModal = false">
+                        
+                        <div class="bg-white border border-[#E4DCCC] rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative overflow-hidden"
+                             @click.away="showRegenerateModal = false">
+                            
+                            <div class="flex items-center gap-3 pb-4 border-b border-[#E8E1D5]">
+                                <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-lg font-bold shrink-0">
+                                    🔄
+                                </div>
+                                <div>
+                                    <h3 class="font-serif text-lg font-bold text-[#1F1812]">Regenerate Kunci Rahasia</h3>
+                                    <p class="text-xs text-[#8A7B66] font-mono">Keamanan Terminal Kasir</p>
+                                </div>
+                            </div>
+
+                            <p class="mt-4 text-xs text-[#6B5A4B] font-serif leading-relaxed">
+                                Kunci rahasia baru akan digenerate secara acak. <b>QR Code dan tautan otorisasi lama otomatis tidak berlaku lagi</b> untuk mendaftarkan perangkat baru.
+                            </p>
+
+                            <form method="POST" action="{{ route('kasir.device-secret.regenerate') }}" class="mt-4 space-y-4">
+                                @csrf
+
+                                <!-- Checkbox Opsi Cabut Semua Perangkat -->
+                                <div class="p-3.5 rounded-xl bg-rose-50 border border-rose-200">
+                                    <label class="flex items-start gap-2.5 cursor-pointer">
+                                        <input type="checkbox" name="revoke_all_devices" value="1"
+                                               class="mt-0.5 rounded border-rose-300 text-rose-600 focus:ring-rose-500 cursor-pointer">
+                                        <div class="text-xs">
+                                            <span class="font-bold text-rose-900 block">Cabut juga izin SEMUA perangkat yang terdaftar saat ini</span>
+                                            <span class="text-rose-700 text-[11px] block mt-0.5 font-serif">
+                                                Centang ini jika kunci rahasia bocor dan Anda ingin memaksa seluruh tablet kasir scan QR baru.
+                                            </span>
+                                        </div>
+                                    </label>
+                                </div>
+
+                                <div class="flex items-center justify-end gap-2.5 pt-2">
+                                    <button type="button" @click="showRegenerateModal = false"
+                                            class="px-4 py-2 text-xs font-mono font-bold text-stone-600 hover:text-stone-900 rounded-xl cursor-pointer">
+                                        Batal
+                                    </button>
+                                    <button type="submit"
+                                            class="px-4 py-2 bg-[#1F1812] hover:bg-[#B5762A] text-white text-xs font-mono font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs cursor-pointer active:scale-95">
+                                        Ya, Generate Kunci Baru
+                                    </button>
+                                </div>
+                            </form>
+
+                        </div>
+                    </div>
 
             </div>
 

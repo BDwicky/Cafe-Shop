@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\Controllers\Auth\KasirLoginController;
 use App\Models\KasirAuthorizedDevice;
 use Closure;
 use Illuminate\Http\Request;
@@ -87,7 +88,7 @@ class RestrictKasirAccess
         }
 
         // B. Fallback kompatibilitas: token statis HMAC bawaan
-        $secret = config('cafe.kasir_device_secret', 'kopikita-pos-secret-device-2026');
+        $secret = KasirLoginController::getDeviceSecret();
         $legacyExpected = hash_hmac('sha256', 'kopikita-authorized-pos-device', $secret);
 
         if (hash_equals($legacyExpected, $tokenStr)) {

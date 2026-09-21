@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\Auth\KasirLoginController;
 use App\Models\KasirAuthorizedDevice;
 use App\Models\User;
 use Illuminate\Support\Facades\Config;
@@ -314,5 +315,64 @@ class KasirAccessRestrictionTest extends TestCase
         $response->assertRedirect('/kasir/device-setup');
         $response->assertSessionHas('status', 'Otorisasi perangkat ini telah berhasil dicabut.');
         $response->assertCookieExpired('kasir_device_token');
+    }
+
+    public function test_owner_can_regenerate_device_secret(): void
+    {
+        $user = User::factory()->create();
+        $oldSecret = KasirLoginController::getDeviceSecret();
+
+        $response = $this->actingAs($user)
+            ->withServerVariables(['REMOTE_ADDR' => '127.0.0.1'])
+            ->post('/kasir/device-secret/regenerate');
+
+        $response->assertRedirect('/kasir/device-setup');
+        $response->assertSessionHas('status');
+
+        $newSecret = KasirLoginController::getDeviceSecret();
+        $this->assertNotEquals($oldSecret, $newSecret);
+        $this->assertStringStartsWith('pos-sec-', $newSecret);
+    }
+
+    public function test_owner_can_regenerate_device_secret_with_revoke_all(): void
+    {
+        $user = User::factory()->create();
+
+        $deviceA = KasirAuthorizedDevice::create([
+            'device_name' => 'Tablet 1',
+            'device_token_hash' => hash('sha256', Str::random(64)),
+            'device_type' => 'tablet',
+            'is_revoked' => false,
+            'last_active_at' => now(),
+        ]);
+
+        $deviceB = KasirAuthorizedDevice::create([
+            'device_name' => 'Tablet 2',
+            'device_token_hash' => hash('sha256', Str::random(64)),
+            'device_type' => 'tablet',
+            'is_revoked' => false,
+            'last_active_at' => now(),
+        ]);
+
+        $response = $this->actingAs($user)
+            ->withServerVariables(['REMOTE_ADDR' => '127.0.0.1'])
+            ->post('/kasir/device-secret/regenerate', [
+                'revoke_all_devices' => '1',
+            ]);
+
+        $response->assertRedirect('/kasir/device-setup');
+        $this->assertTrue($deviceA->fresh()->is_revoked);
+        $this->assertTrue($deviceB->fresh()->is_revoked);
+        $response->assertCookieExpired('kasir_device_token');
+    }
+
+    public function test_artisan_command_generates_new_secret(): void
+    {
+        $this->artisan('kasir:generate-secret')
+            ->expectsOutputToContain('KASIR_DEVICE_SECRET baru berhasil digenerate')
+            ->assertExitCode(0);
+
+        $secret = KasirLoginController::getDeviceSecret();
+        $this->assertStringStartsWith('pos-sec-', $secret);
     }
 }

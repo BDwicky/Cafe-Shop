@@ -7,6 +7,7 @@ use App\Models\KasirAuthorizedDevice;
 use App\Support\DeviceDetector;
 use App\Support\QrCode;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 
@@ -56,10 +57,20 @@ class KasirLoginController extends Controller
         return redirect('/kasir/login');
     }
 
+    public static function getDeviceSecret(): string
+    {
+        $cached = cache()->get('kasir_dynamic_device_secret');
+        if ($cached && is_string($cached)) {
+            return $cached;
+        }
+
+        return (string) config('cafe.kasir_device_secret', 'kopikita-pos-secret-device-2026');
+    }
+
     public function authorizeDevice(Request $request)
     {
         $inputKey = trim((string) $request->input('key', ''));
-        $secret = config('cafe.kasir_device_secret', 'kopikita-pos-secret-device-2026');
+        $secret = self::getDeviceSecret();
 
         if ($inputKey === '' || ! hash_equals($secret, $inputKey)) {
             return redirect()->route('kasir.login')
@@ -97,7 +108,7 @@ class KasirLoginController extends Controller
     {
         $clientIp = $request->ip();
         $allowedIps = config('cafe.kasir_allowed_ips', ['127.0.0.1', '::1']);
-        $secret = config('cafe.kasir_device_secret', 'kopikita-pos-secret-device-2026');
+        $secret = self::getDeviceSecret();
 
         $devices = KasirAuthorizedDevice::orderBy('last_active_at', 'desc')->get();
 
@@ -195,5 +206,47 @@ class KasirLoginController extends Controller
 
         return redirect()->route('kasir.device-setup')
             ->with('status', "Nama perangkat berhasil diperbarui menjadi '{$device->device_name}'.");
+    }
+
+    public function regenerateDeviceSecret(Request $request)
+    {
+        $newSecret = 'pos-sec-'.Str::random(32);
+        $revokeAll = $request->boolean('revoke_all_devices');
+
+        // 1. Simpan di cache runtime & konfigurasi aplikasi
+        cache()->forever('kasir_dynamic_device_secret', $newSecret);
+        config(['cafe.kasir_device_secret' => $newSecret]);
+
+        // 2. Perbarui file .env secara otomatis agar permanen saat restart server
+        $envPath = app()->environmentFilePath();
+        if (file_exists($envPath) && is_writable($envPath)) {
+            $content = file_get_contents($envPath);
+            if (preg_match('/^KASIR_DEVICE_SECRET=.*$/m', $content)) {
+                $content = preg_replace('/^KASIR_DEVICE_SECRET=.*$/m', 'KASIR_DEVICE_SECRET='.$newSecret, $content);
+            } else {
+                $content .= PHP_EOL.'KASIR_DEVICE_SECRET='.$newSecret.PHP_EOL;
+            }
+            file_put_contents($envPath, $content);
+
+            try {
+                Artisan::call('config:clear');
+            } catch (\Throwable) {
+            }
+        }
+
+        // 3. Jika opsi revoke semua perangkat aktif dicentang
+        if ($revokeAll) {
+            KasirAuthorizedDevice::query()->update([
+                'is_revoked' => true,
+                'revoked_at' => now(),
+            ]);
+
+            return redirect()->route('kasir.device-setup')
+                ->withCookie(cookie()->forget('kasir_device_token'))
+                ->with('status', 'Kunci rahasia keamanan baru berhasil digenerate dan seluruh otorisasi perangkat telah dicabut.');
+        }
+
+        return redirect()->route('kasir.device-setup')
+            ->with('status', 'Kunci rahasia keamanan baru berhasil digenerate. QR Code & tautan otorisasi baru telah diperbarui.');
     }
 }
