@@ -3,66 +3,155 @@
 @section('title', 'Otorisasi Perangkat & Keamanan POS — ' . config('cafe.name'))
 
 @section('content')
-<div class="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto space-y-6" x-data="{
-    copied: false,
-    showSecret: false,
-    showRegenerateModal: false,
-    editingDeviceId: null,
-    editingDeviceName: '',
-    copyLink(url) {
-        navigator.clipboard.writeText(url).then(() => {
-            this.copied = true;
-            setTimeout(() => this.copied = false, 2500);
-        });
-    },
-    startRename(id, currentName) {
-        this.editingDeviceId = id;
-        this.editingDeviceName = currentName;
-        this.$nextTick(() => {
-            const input = document.getElementById('rename-input-' + id);
-            if (input) input.focus();
-        });
-    },
-    cancelRename() {
-        this.editingDeviceId = null;
-        this.editingDeviceName = '';
-    }
-}">
+<div class="h-full flex flex-col overflow-hidden bg-[#FAF7F2]"
+     x-data="{
+         activeTab: 'fleet', // 'fleet', 'register', 'settings'
+         searchQuery: '',
+         statusFilter: 'all', // 'all', 'active', 'revoked'
+         copied: false,
+         showSecret: false,
+         showRegenerateModal: false,
+         editingDeviceId: null,
+         editingDeviceName: '',
 
-    <!-- Top Navigation & Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#E4DCCC]">
-        <div>
-            <div class="flex items-center gap-2 mb-1">
-                <a href="{{ route('kasir.terminal') }}"
-                   class="inline-flex items-center gap-1.5 text-xs font-mono font-bold uppercase tracking-wider text-[#8A7B66] hover:text-[#1F1812] transition-colors group">
-                    <span class="transition-transform group-hover:-translate-x-1">←</span>
-                    <span>Kembali ke POS</span>
-                </a>
-                <span class="text-[#D5CCC0]">•</span>
-                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-amber-50 text-amber-800 border border-amber-200">
-                    <span>🛡️</span>
-                    <span>Sistem Keamanan Terminal</span>
-                </span>
+         copyLink(url) {
+             navigator.clipboard.writeText(url).then(() => {
+                 this.copied = true;
+                 setTimeout(() => this.copied = false, 2500);
+             });
+         },
+
+         startRename(id, currentName) {
+             this.editingDeviceId = id;
+             this.editingDeviceName = currentName;
+             this.$nextTick(() => {
+                 const input = document.getElementById('rename-input-' + id);
+                 if (input) input.focus();
+             });
+         },
+
+         cancelRename() {
+             this.editingDeviceId = null;
+             this.editingDeviceName = '';
+         },
+
+         printQr() {
+             const qrWindow = window.open('', '_blank');
+             qrWindow.document.write(`
+                 <html>
+                 <head>
+                     <title>QR Code Otorisasi Kasir — {{ config('cafe.name') }}</title>
+                     <style>
+                         body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #fff; text-align: center; }
+                         h2 { font-size: 24px; margin-bottom: 8px; color: #1F1812; }
+                         p { font-size: 14px; color: #666; margin-top: 0; margin-bottom: 24px; }
+                         img { width: 280px; height: 280px; border: 2px solid #E8E1D5; border-radius: 16px; padding: 12px; }
+                         .note { margin-top: 20px; font-size: 12px; color: #888; }
+                     </style>
+                 </head>
+                 <body>
+                     <h2>{{ config('cafe.name') }} POS</h2>
+                     <p>Scan menggunakan kamera tablet kasir untuk mengotorisasi terminal resmi</p>
+                     <img src='{{ $qrCodeUri }}' alt='QR Code Otorisasi'>
+                     <div class='note'>Berlaku 1 tahun • Jaga kerahasiaan lembar ini</div>
+                     <script>window.onload = function() { window.print(); }<\/script>
+                 </body>
+                 </html>
+             `);
+             qrWindow.document.close();
+         }
+     }">
+
+    <!-- ===================================================================
+         TOPBAR COMMAND CENTER: DARK ROASTED ESPRESSO STRIP
+         =================================================================== -->
+    <header class="px-4 sm:px-6 py-3.5 border-b border-[#3A3026] bg-[#1A130D] text-[#F7F3EC] flex flex-wrap items-center justify-between gap-4 shrink-0 select-none shadow-md">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-2xl bg-[#D9973E] text-[#1F1812] flex items-center justify-center font-bold text-lg shadow-[0_0_12px_rgba(217,151,62,0.35)] shrink-0">
+                🛡️
             </div>
-            <h1 class="font-serif text-2xl sm:text-3xl font-bold tracking-tight text-[#1F1812]">
-                Otorisasi Perangkat & Jaringan
-            </h1>
-            <p class="mt-1 text-xs sm:text-sm text-[#6B5A4B] font-serif italic">
-                Kelola perangkat kasir resmi, monitor alamat IP jaringan, dan cabut izin (*revoke*) perangkat lain secara instan dari jarak jauh.
-            </p>
+            <div>
+                <div class="flex items-center gap-2">
+                    <h1 class="text-base sm:text-lg font-serif font-bold tracking-tight text-[#F7F3EC]">
+                        Otorisasi Perangkat & Jaringan
+                    </h1>
+                    <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-emerald-950/80 text-emerald-300 border border-emerald-800/60 shadow-2xs">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span>Sistem Aktif</span>
+                    </span>
+                </div>
+                <div class="flex items-center gap-2 text-[11px] font-mono text-[#A89A85]">
+                    <a href="{{ route('kasir.terminal') }}" class="hover:text-[#D9973E] transition-colors">POS</a>
+                    <span>/</span>
+                    <span class="text-[#D9973E]">Perangkat & Jaringan</span>
+                    <span>•</span>
+                    <span>IP Anda: <code class="text-[#F7F3EC] font-bold">{{ $clientIp }}</code></span>
+                </div>
+            </div>
         </div>
 
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 sm:gap-3">
             <a href="{{ route('kasir.terminal') }}"
-               class="px-4 py-2 rounded-xl bg-[#1F1812] hover:bg-[#B5762A] text-white text-xs font-mono font-bold uppercase tracking-wider transition-all shadow-xs active:scale-95">
-                Buka Terminal POS
+               class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#2A2016] hover:bg-[#D9973E] hover:text-[#1F1812] text-[#F7F3EC] text-xs font-mono font-bold uppercase tracking-wider transition-all border border-[#3A3026] shadow-xs active:scale-95">
+                <span>←</span>
+                <span class="hidden sm:inline">Kembali ke POS</span>
+                <span class="sm:hidden">POS</span>
             </a>
+        </div>
+    </header>
+
+    <!-- ===================================================================
+         SUBHEADER: STATS TICKER STRIP & TAB NAVIGATION
+         =================================================================== -->
+    <div class="px-4 sm:px-6 py-2.5 bg-white border-b border-[#E4DCCC] flex flex-wrap items-center justify-between gap-3 shrink-0 shadow-2xs">
+        
+        <!-- Tab Navigation Buttons -->
+        <nav class="flex items-center gap-1.5">
+            <button type="button" @click="activeTab = 'fleet'"
+                    :class="activeTab === 'fleet' ? 'bg-[#1F1812] text-white shadow-xs' : 'text-[#6B5A4B] hover:text-[#1F1812] hover:bg-[#FAF7F2]'"
+                    class="px-3.5 py-2 rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer">
+                <span>🖥️</span>
+                <span>Daftar Perangkat</span>
+                <span :class="activeTab === 'fleet' ? 'bg-[#D9973E] text-[#1F1812]' : 'bg-[#FAF7F2] text-[#6B5A4B] border border-[#E8E1D5]'"
+                      class="px-1.5 py-0.2 rounded-full text-[10px] font-bold">
+                    {{ $devices->count() }}
+                </span>
+            </button>
+
+            <button type="button" @click="activeTab = 'register'"
+                    :class="activeTab === 'register' ? 'bg-[#1F1812] text-white shadow-xs' : 'text-[#6B5A4B] hover:text-[#1F1812] hover:bg-[#FAF7F2]'"
+                    class="px-3.5 py-2 rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer">
+                <span>⚡</span>
+                <span>Scan QR Tablet Baru</span>
+            </button>
+
+            <button type="button" @click="activeTab = 'settings'"
+                    :class="activeTab === 'settings' ? 'bg-[#1F1812] text-white shadow-xs' : 'text-[#6B5A4B] hover:text-[#1F1812] hover:bg-[#FAF7F2]'"
+                    class="px-3.5 py-2 rounded-xl text-xs font-mono font-bold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer">
+                <span>⚙️</span>
+                <span>Jaringan & Kunci</span>
+            </button>
+        </nav>
+
+        <!-- Current Device Status Badge -->
+        <div class="flex items-center gap-2">
+            @if ($isDeviceAuthorized)
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-2xs">
+                    <span class="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+                    <span>Perangkat Ini Terdaftar</span>
+                </span>
+            @else
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold uppercase tracking-wider bg-amber-50 text-amber-800 border border-amber-200">
+                    <span>⚠️</span>
+                    <span>Perangkat Tanpa Token</span>
+                </span>
+            @endif
         </div>
     </div>
 
-    <!-- Status / Flash Notifications -->
+    <!-- Flash Alerts -->
     @if (session('status'))
-        <div class="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs flex items-center justify-between gap-3 shadow-2xs">
+        <div class="mx-4 sm:mx-6 mt-4 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs flex items-center justify-between gap-3 shadow-2xs shrink-0 animate-fadeIn">
             <div class="flex items-center gap-2.5">
                 <span class="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shrink-0">✓</span>
                 <span class="font-medium">{{ session('status') }}</span>
@@ -72,7 +161,7 @@
     @endif
 
     @if (session('error'))
-        <div class="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-xs flex items-center justify-between gap-3 shadow-2xs">
+        <div class="mx-4 sm:mx-6 mt-4 p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-xs flex items-center justify-between gap-3 shadow-2xs shrink-0 animate-fadeIn">
             <div class="flex items-center gap-2.5">
                 <span class="w-6 h-6 rounded-full bg-rose-600 text-white flex items-center justify-center text-xs font-bold shrink-0">!</span>
                 <span class="font-medium">{{ session('error') }}</span>
@@ -81,445 +170,543 @@
         </div>
     @endif
 
-    <!-- Main Grid: 2 Columns (Status Perangkat Ini & Pendaftaran QR) -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <!-- ===================================================================
+         MAIN SCROLLABLE CONTENT BODY
+         =================================================================== -->
+    <div class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
 
-        <!-- ===================================================================
-             KOLOM KIRI: STATUS PERANGKAT SAAT INI (5 Kolom di Desktop)
-             =================================================================== -->
-        <div class="lg:col-span-5 space-y-6">
+        <!-- ===============================================================
+             TAB 1: DAFTAR PERANGKAT TERDAFTAR (FLEET MANAGEMENT)
+             =============================================================== -->
+        <div x-show="activeTab === 'fleet'" x-cloak class="space-y-6">
 
-            <!-- Card Status Perangkat Ini -->
-            <div class="bg-white border border-[#E4DCCC] rounded-2xl p-5 sm:p-6 shadow-[0_4px_20px_rgba(42,33,26,0.04)] relative overflow-hidden">
-                <div class="absolute -right-8 -bottom-8 w-32 h-32 rounded-full border border-[#D9973E]/10 pointer-events-none"></div>
-
-                <div class="flex items-center justify-between pb-4 border-b border-[#E8E1D5]">
-                    <div class="flex items-center gap-2.5">
-                        <div class="w-9 h-9 rounded-xl bg-[#FAF7F2] border border-[#E8E1D5] flex items-center justify-center text-base shadow-2xs">
-                            📱
-                        </div>
-                        <div>
-                            <h2 class="font-bold text-sm text-[#1F1812]">Perangkat Ini</h2>
-                            <div class="font-mono text-[10px] text-[#8A7B66]">Status & Identitas Terminal</div>
-                        </div>
+            <!-- KPI Metric Cards Bar -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                
+                <!-- Card 1: Total Perangkat -->
+                <div class="bg-white border border-[#E4DCCC] rounded-2xl p-4 shadow-[0_4px_20px_rgba(42,33,26,0.03)] flex items-center justify-between">
+                    <div>
+                        <div class="text-[10px] font-mono uppercase tracking-wider text-[#8A7B66] font-bold">Total Armada</div>
+                        <div class="font-serif text-2xl font-bold text-[#1F1812] mt-0.5">{{ $devices->count() }}</div>
+                        <div class="text-[10px] font-mono text-[#8A7B66] mt-0.5">Perangkat Terdaftar</div>
                     </div>
-
-                    @if ($isDeviceAuthorized)
-                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
-                            Terdaftar Resmi
-                        </span>
-                    @else
-                        <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-stone-100 text-stone-700 border border-stone-200">
-                            Tanpa Token
-                        </span>
-                    @endif
-                </div>
-
-                <!-- Info List -->
-                <div class="mt-4 space-y-3">
-                    @if ($currentDevice)
-                        <div class="p-3 rounded-xl bg-[#FAF7F2] border border-[#E8E1D5] flex items-center justify-between">
-                            <span class="font-mono text-[11px] text-[#8A7B66] font-semibold">Nama Perangkat:</span>
-                            <span class="font-mono font-bold text-xs text-[#1F1812] bg-white px-2.5 py-1 rounded-lg border border-[#E8E1D5] shadow-2xs truncate max-w-[200px]" title="{{ $currentDevice->device_name }}">
-                                {{ $currentDevice->device_name }}
-                            </span>
-                        </div>
-                    @endif
-
-                    <div class="p-3 rounded-xl bg-[#FAF7F2] border border-[#E8E1D5] flex items-center justify-between">
-                        <span class="font-mono text-[11px] text-[#8A7B66] font-semibold">IP Address Terdeteksi:</span>
-                        <span class="font-mono font-bold text-xs text-[#1F1812] bg-white px-2.5 py-1 rounded-lg border border-[#E8E1D5] shadow-2xs">
-                            {{ $clientIp }}
-                        </span>
-                    </div>
-
-                    <div class="p-3 rounded-xl bg-[#FAF7F2] border border-[#E8E1D5] flex items-center justify-between">
-                        <span class="font-mono text-[11px] text-[#8A7B66] font-semibold">Status Jaringan:</span>
-                        <span class="inline-flex items-center gap-1.5 font-mono text-[11px] font-semibold text-emerald-700">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>
-                            Akses Diizinkan
-                        </span>
-                    </div>
-
-                    <div class="p-3 rounded-xl bg-[#FAF7F2] border border-[#E8E1D5] flex items-center justify-between">
-                        <span class="font-mono text-[11px] text-[#8A7B66] font-semibold">Token Kriptografis:</span>
-                        <span class="font-mono text-[11px] font-semibold {{ $isDeviceAuthorized ? 'text-emerald-700' : 'text-stone-600' }}">
-                            {{ $isDeviceAuthorized ? ($currentDevice ? 'Database Terverifikasi' : 'Aktif (HMAC-SHA256)') : 'Tidak Tersimpan' }}
-                        </span>
+                    <div class="w-12 h-12 rounded-2xl bg-[#FAF7F2] border border-[#E8E1D5] flex items-center justify-center text-xl shadow-2xs">
+                        🖥️
                     </div>
                 </div>
 
-                <!-- Tombol Revoke / Cabut Otorisasi Perangkat Ini -->
-                @if ($isDeviceAuthorized)
-                    <div class="mt-5 pt-4 border-t border-[#E8E1D5]">
-                        <form method="POST" action="{{ route('kasir.device-revoke') }}"
-                              onsubmit="return confirm('Apakah Anda yakin ingin mencabut otorisasi perangkat ini? Perangkat ini tidak akan lagi memiliki token terminal kasir resmi.');">
-                            @csrf
-                            <button type="submit"
-                                    class="w-full py-2.5 px-4 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl font-mono text-xs uppercase tracking-wider font-bold transition-all shadow-2xs flex items-center justify-center gap-2 cursor-pointer">
-                                <span>🔒</span>
-                                <span>Cabut Otorisasi Perangkat Ini</span>
-                            </button>
-                        </form>
-                        <p class="mt-2 text-[10px] text-stone-500 text-center font-mono">
-                            Gunakan ini jika tablet kasir ini akan dipindahtangankan atau diservis.
-                        </p>
+                <!-- Card 2: Perangkat Aktif -->
+                <div class="bg-white border border-[#E4DCCC] rounded-2xl p-4 shadow-[0_4px_20px_rgba(42,33,26,0.03)] flex items-center justify-between">
+                    <div>
+                        <div class="text-[10px] font-mono uppercase tracking-wider text-emerald-700 font-bold">Izin Aktif</div>
+                        <div class="font-serif text-2xl font-bold text-emerald-700 mt-0.5">{{ $devices->where('is_revoked', false)->count() }}</div>
+                        <div class="text-[10px] font-mono text-emerald-600 mt-0.5">Siap Transaksi POS</div>
                     </div>
-                @endif
+                    <div class="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center text-xl shadow-2xs">
+                        🟢
+                    </div>
+                </div>
+
+                <!-- Card 3: Akses Dicabut -->
+                <div class="bg-white border border-[#E4DCCC] rounded-2xl p-4 shadow-[0_4px_20px_rgba(42,33,26,0.03)] flex items-center justify-between">
+                    <div>
+                        <div class="text-[10px] font-mono uppercase tracking-wider text-rose-700 font-bold">Akses Dicabut</div>
+                        <div class="font-serif text-2xl font-bold text-rose-700 mt-0.5">{{ $devices->where('is_revoked', true)->count() }}</div>
+                        <div class="text-[10px] font-mono text-rose-600 mt-0.5">Diblokir dari Jarak Jauh</div>
+                    </div>
+                    <div class="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 flex items-center justify-center text-xl shadow-2xs">
+                        🔒
+                    </div>
+                </div>
+
+                <!-- Card 4: Perangkat Anda Saat Ini -->
+                <div class="bg-gradient-to-br from-[#1F1812] to-[#2E2319] text-white rounded-2xl p-4 shadow-sm flex items-center justify-between">
+                    <div class="min-w-0 flex-1 pr-2">
+                        <div class="text-[10px] font-mono uppercase tracking-wider text-amber-300 font-bold">Perangkat Ini</div>
+                        <div class="font-bold text-sm text-white truncate mt-0.5">
+                            {{ $currentDevice ? $currentDevice->device_name : ($isDeviceAuthorized ? 'Token Legacy Aktif' : 'Tanpa Token') }}
+                        </div>
+                        <div class="text-[10px] font-mono text-stone-300 mt-0.5 truncate">
+                            IP: {{ $clientIp }}
+                        </div>
+                    </div>
+                    <div class="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-xl shadow-2xs shrink-0">
+                        📱
+                    </div>
+                </div>
+
             </div>
 
-            <!-- Card Panduan Subnet & Konfigurasi -->
-            <div class="bg-[#FAF7F2] border border-[#E4DCCC] rounded-2xl p-5 shadow-2xs">
-                <h3 class="font-bold text-xs font-mono uppercase tracking-wider text-[#1F1812] flex items-center gap-2 mb-2">
-                    <span>⚙️</span>
-                    <span>Whitelist Subnet / IP Kafe Aktif</span>
-                </h3>
-                <p class="text-xs text-[#6B5A4B] font-serif leading-relaxed mb-3">
-                    Perangkat yang terhubung ke IP/subnet berikut dapat langsung mengakses web kasir tanpa diblokir:
-                </p>
+            <!-- Fleet Table Container -->
+            <div class="bg-white border border-[#E4DCCC] rounded-3xl shadow-[0_6px_25px_rgba(42,33,26,0.04)] overflow-hidden">
+                
+                <!-- Table Header & Filter Bar -->
+                <div class="p-5 sm:p-6 border-b border-[#E8E1D5] flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#FAF7F2]/40">
+                    <div>
+                        <h2 class="font-serif text-lg sm:text-xl font-bold text-[#1F1812]">
+                            Daftar Perangkat Kasir Terdaftar
+                        </h2>
+                        <p class="text-xs text-[#6B5A4B] font-serif italic mt-0.5">
+                            Kelola otorisasi tablet dan cabut akses (*revoke*) perangkat lain secara remote tanpa mengganggu perangkat yang sedang digunakan.
+                        </p>
+                    </div>
 
-                <div class="flex flex-wrap gap-1.5">
-                    @forelse ($allowedIps as $ipRule)
-                        <span class="inline-flex items-center px-2 py-0.5 rounded-md font-mono text-[11px] font-semibold bg-white border border-[#E4DCCC] text-[#1F1812]">
-                            {{ $ipRule }}
-                        </span>
-                    @empty
-                        <span class="text-xs text-stone-400 font-mono">Semua IP dibatasi</span>
-                    @endforelse
+                    <!-- Search and Status Filters -->
+                    <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+                        <!-- Search Box -->
+                        <div class="relative">
+                            <input type="text" x-model="searchQuery" placeholder="Cari nama atau IP..."
+                                   class="pl-8 pr-3 py-1.5 bg-white border border-[#E4DCCC] rounded-xl text-xs font-mono text-[#1F1812] placeholder-stone-400 focus:outline-none focus:border-[#B5762A] focus:ring-1 focus:ring-[#B5762A] w-44 sm:w-56 shadow-2xs">
+                            <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400 text-xs">🔍</span>
+                        </div>
+
+                        <!-- Status Filter Chips -->
+                        <div class="inline-flex p-0.5 rounded-xl bg-[#FAF7F2] border border-[#E4DCCC] text-xs font-mono">
+                            <button type="button" @click="statusFilter = 'all'"
+                                    :class="statusFilter === 'all' ? 'bg-[#1F1812] text-white shadow-2xs' : 'text-[#6B5A4B] hover:text-[#1F1812]'"
+                                    class="px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer">
+                                Semua
+                            </button>
+                            <button type="button" @click="statusFilter = 'active'"
+                                    :class="statusFilter === 'active' ? 'bg-emerald-700 text-white shadow-2xs' : 'text-[#6B5A4B] hover:text-[#1F1812]'"
+                                    class="px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer">
+                                Aktif
+                            </button>
+                            <button type="button" @click="statusFilter = 'revoked'"
+                                    :class="statusFilter === 'revoked' ? 'bg-rose-700 text-white shadow-2xs' : 'text-[#6B5A4B] hover:text-[#1F1812]'"
+                                    class="px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer">
+                                Dicabut
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="mt-3.5 pt-3 border-t border-[#E8E1D5] text-[11px] text-[#8A7B66] font-mono leading-relaxed">
-                    Untuk menambah IP publik statis atau subnet Wi-Fi kafe, perbarui variabel <code class="text-[#B5762A] bg-white px-1 py-0.5 rounded border border-[#E4DCCC]">KASIR_ALLOWED_IPS</code> di file <code class="text-[#1F1812]">.env</code>.
-                </div>
+                @if ($devices->isEmpty())
+                    <!-- Empty State -->
+                    <div class="py-16 px-6 text-center">
+                        <div class="w-16 h-16 rounded-3xl bg-[#FAF7F2] border border-[#E4DCCC] flex items-center justify-center text-3xl mx-auto mb-3 shadow-2xs">
+                            📱
+                        </div>
+                        <h3 class="font-serif text-lg font-bold text-[#1F1812]">Belum Ada Perangkat Terdaftar</h3>
+                        <p class="text-xs sm:text-sm text-[#6B5A4B] font-serif italic max-w-md mx-auto mt-1 leading-relaxed">
+                            Buka tab <b>"Scan QR Tablet Baru"</b> di atas dan arahkan kamera tablet kasir untuk mendaftarkan perangkat ke sistem.
+                        </p>
+                        <button type="button" @click="activeTab = 'register'"
+                                class="mt-4 px-4 py-2 bg-[#1F1812] hover:bg-[#B5762A] text-white text-xs font-mono font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs cursor-pointer">
+                            ⚡ Buka QR Code Registrasi
+                        </button>
+                    </div>
+                @else
+                    <!-- Device Items List -->
+                    <div class="divide-y divide-[#E8E1D5]">
+                        @foreach ($devices as $device)
+                            @php
+                                $isCurrent = $currentDevice && $currentDevice->id === $device->id;
+                                $deviceIcon = match($device->device_type) {
+                                    'mobile' => '📲',
+                                    'desktop' => '💻',
+                                    default => '📱',
+                                };
+                                $platformColor = match(strtolower($device->platform ?? '')) {
+                                    'ios', 'ipados' => 'text-slate-800 bg-slate-100 border-slate-200',
+                                    'android' => 'text-emerald-800 bg-emerald-50 border-emerald-200',
+                                    'windows' => 'text-sky-800 bg-sky-50 border-sky-200',
+                                    'macos' => 'text-purple-800 bg-purple-50 border-purple-200',
+                                    default => 'text-stone-800 bg-stone-100 border-stone-200',
+                                };
+                            @endphp
+
+                            <div x-show="(statusFilter === 'all' || (statusFilter === 'active' && !{{ $device->is_revoked ? 'true' : 'false' }}) || (statusFilter === 'revoked' && {{ $device->is_revoked ? 'true' : 'false' }})) &&
+                                        ('{{ strtolower($device->device_name) }}'.includes(searchQuery.toLowerCase()) || '{{ $device->ip_address }}'.includes(searchQuery.toLowerCase()) || '{{ strtolower($device->platform) }}'.includes(searchQuery.toLowerCase()))"
+                                 class="p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors hover:bg-[#FAF7F2]/60 {{ $isCurrent ? 'bg-amber-50/30' : '' }}">
+                                
+                                <!-- Left: Device Details & Rename Form -->
+                                <div class="flex items-start sm:items-center gap-3.5 flex-1 min-w-0">
+                                    <div class="w-11 h-11 rounded-2xl bg-[#FAF7F2] border border-[#E4DCCC] flex items-center justify-center text-xl shrink-0 shadow-2xs mt-0.5 sm:mt-0">
+                                        {{ $deviceIcon }}
+                                    </div>
+
+                                    <div class="min-w-0 flex-1">
+                                        
+                                        <!-- View Mode: Name & Badges -->
+                                        <div x-show="editingDeviceId !== {{ $device->id }}" class="flex items-center gap-2 flex-wrap">
+                                            <h4 class="font-bold text-sm text-[#1F1812] truncate max-w-[280px]" title="{{ $device->device_name }}">
+                                                {{ $device->device_name }}
+                                            </h4>
+
+                                            <!-- Edit Name Inline Button -->
+                                            <button type="button" @click="startRename({{ $device->id }}, '{{ addslashes($device->device_name) }}')"
+                                                    class="p-1 text-stone-400 hover:text-[#B5762A] hover:bg-stone-100 rounded text-xs transition-colors cursor-pointer"
+                                                    title="Ubah nama perangkat">
+                                                ✏️
+                                            </button>
+
+                                            <!-- Current Device Badge -->
+                                            @if ($isCurrent)
+                                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-[#1F1812] text-amber-300 shadow-2xs">
+                                                    ★ Perangkat Ini
+                                                </span>
+                                            @endif
+
+                                            <!-- Active / Revoked Badge -->
+                                            @if (! $device->is_revoked)
+                                                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
+                                                    <span>Aktif</span>
+                                                </span>
+                                            @else
+                                                <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200">
+                                                    <span>🔒</span>
+                                                    <span>Akses Dicabut</span>
+                                                </span>
+                                            @endif
+                                        </div>
+
+                                        <!-- Edit Mode: Inline Form -->
+                                        <div x-show="editingDeviceId === {{ $device->id }}" x-cloak class="flex items-center gap-2 mt-1">
+                                            <form method="POST" action="{{ route('kasir.devices.rename', $device) }}" class="flex items-center gap-2 flex-wrap">
+                                                @csrf
+                                                @method('PATCH')
+                                                <input type="text" name="device_name" id="rename-input-{{ $device->id }}"
+                                                       x-model="editingDeviceName" required maxlength="100"
+                                                       class="bg-white border border-[#B5762A] rounded-xl px-3 py-1 text-xs font-mono text-[#1F1812] focus:outline-none focus:ring-1 focus:ring-[#B5762A] shadow-2xs">
+                                                <button type="submit" class="px-3 py-1 bg-[#1F1812] hover:bg-[#B5762A] text-white text-[11px] font-mono font-bold rounded-xl transition-all cursor-pointer">
+                                                    Simpan
+                                                </button>
+                                                <button type="button" @click="cancelRename()" class="px-2.5 py-1 text-stone-500 hover:text-stone-800 text-[11px] font-mono cursor-pointer">
+                                                    Batal
+                                                </button>
+                                            </form>
+                                        </div>
+
+                                        <!-- Metadata Baris Kedua: OS, Browser, IP, Waktu Aktif -->
+                                        <div class="flex items-center gap-2 sm:gap-3 text-[11px] text-[#8A7B66] font-mono mt-1.5 flex-wrap">
+                                            <span class="inline-flex items-center px-2 py-0.2 rounded border text-[10px] font-semibold {{ $platformColor }}">
+                                                {{ $device->platform ?? 'Platform' }} • {{ $device->browser ?? 'Browser' }}
+                                            </span>
+                                            <span>•</span>
+                                            <span>IP: <code class="text-[#1F1812] font-bold">{{ $device->ip_address ?? '-' }}</code></span>
+                                            <span>•</span>
+                                            <span title="Aktivitas terakhir">
+                                                🕒 {{ $device->last_active_at ? $device->last_active_at->diffForHumans() : 'Belum aktif' }}
+                                            </span>
+                                            <span class="hidden lg:inline">• Terdaftar: {{ $device->created_at->format('d M Y') }}</span>
+                                        </div>
+
+                                    </div>
+                                </div>
+
+                                <!-- Right: Remote Action Buttons -->
+                                <div class="flex items-center gap-2 self-end sm:self-center shrink-0">
+                                    @if (! $device->is_revoked)
+                                        <!-- Revoke Button -->
+                                        <form method="POST" action="{{ route('kasir.devices.revoke', $device) }}"
+                                              onsubmit="return confirm('Apakah Anda yakin ingin mencabut izin akses untuk \'{{ addslashes($device->device_name) }}\'? Perangkat tersebut akan langsung diblokir seketika.');">
+                                            @csrf
+                                            <button type="submit"
+                                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-mono font-bold uppercase tracking-wider transition-all shadow-2xs cursor-pointer active:scale-95">
+                                                <span>🔒</span>
+                                                <span>Cabut Izin</span>
+                                            </button>
+                                        </form>
+                                    @else
+                                        <!-- Restore Button -->
+                                        <form method="POST" action="{{ route('kasir.devices.restore', $device) }}"
+                                              onsubmit="return confirm('Aktifkan kembali akses untuk \'{{ addslashes($device->device_name) }}\'?');">
+                                            @csrf
+                                            <button type="submit"
+                                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-mono font-bold uppercase tracking-wider transition-all shadow-2xs cursor-pointer active:scale-95">
+                                                <span>✓</span>
+                                                <span>Aktifkan Kembali</span>
+                                            </button>
+                                        </form>
+                                    @endif
+
+                                    <!-- Delete History Button -->
+                                    <form method="POST" action="{{ route('kasir.devices.destroy', $device) }}"
+                                          onsubmit="return confirm('Hapus perangkat \'{{ addslashes($device->device_name) }}\' dari riwayat pendaftaran?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit"
+                                                class="p-2 rounded-xl text-stone-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all cursor-pointer"
+                                                title="Hapus dari daftar riwayat">
+                                            🗑️
+                                        </button>
+                                    </form>
+                                </div>
+
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
+
             </div>
 
         </div>
 
-        <!-- ===================================================================
-             KOLOM KANAN: REGISTRASI PERANGKAT BARU / SCAN QR (7 Kolom di Desktop)
-             =================================================================== -->
-        <div class="lg:col-span-7">
+        <!-- ===============================================================
+             TAB 2: REGISTRASI TABLET BARU (SCAN QR STATION)
+             =============================================================== -->
+        <div x-show="activeTab === 'register'" x-cloak class="max-w-4xl mx-auto space-y-6">
 
-            <div class="bg-white border border-[#E4DCCC] rounded-2xl p-6 sm:p-8 shadow-[0_4px_20px_rgba(42,33,26,0.04)] relative">
+            <div class="bg-white border border-[#E4DCCC] rounded-3xl p-6 sm:p-9 shadow-[0_6px_25px_rgba(42,33,26,0.04)] relative overflow-hidden">
+                <div class="absolute -right-12 -bottom-12 w-48 h-48 rounded-full border border-[#D9973E]/10 pointer-events-none"></div>
 
                 <div class="flex items-center gap-3 pb-5 border-b border-[#E8E1D5]">
-                    <div class="w-10 h-10 rounded-xl bg-[#1F1812] text-amber-400 flex items-center justify-center text-lg shadow-xs">
+                    <div class="w-12 h-12 rounded-2xl bg-[#1F1812] text-amber-400 flex items-center justify-center text-xl shadow-xs">
                         ⚡
                     </div>
                     <div>
-                        <h2 class="font-serif text-lg sm:text-xl font-bold text-[#1F1812]">
+                        <h2 class="font-serif text-xl sm:text-2xl font-bold text-[#1F1812]">
                             Daftarkan Tablet Kasir Baru
                         </h2>
-                        <p class="text-xs text-[#8A7B66] font-mono">Otorisasi Instan via Scan Kamera Tablet</p>
+                        <p class="text-xs text-[#8A7B66] font-mono">Otorisasi Instan via Scan Kamera Tablet / Ponsel</p>
                     </div>
                 </div>
 
-                <!-- QR Code Box -->
-                <div class="mt-6 flex flex-col sm:flex-row items-center gap-6 p-5 rounded-2xl bg-[#FAF7F2] border border-[#E8E1D5]">
-                    <!-- QR Code Image with Premium Frame -->
-                    <div class="bg-white p-3 rounded-2xl border border-[#E4DCCC] shadow-md shrink-0 flex items-center justify-center">
-                        <img src="{{ $qrCodeUri }}" alt="QR Code Otorisasi Perangkat Kasir" class="w-44 h-44 object-contain rounded-lg">
+                <!-- Main QR Box & Instructions -->
+                <div class="mt-6 grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+                    
+                    <!-- QR Code Frame -->
+                    <div class="md:col-span-5 flex flex-col items-center">
+                        <div class="bg-[#FAF7F2] p-4 rounded-3xl border border-[#E4DCCC] shadow-md flex flex-col items-center">
+                            <div class="bg-white p-3 rounded-2xl border border-[#E8E1D5] shadow-xs">
+                                <img src="{{ $qrCodeUri }}" alt="QR Code Otorisasi Kasir" class="w-52 h-52 object-contain rounded-lg">
+                            </div>
+                            <div class="mt-3 flex items-center gap-2">
+                                <button type="button" @click="printQr()"
+                                        class="px-3 py-1.5 bg-white hover:bg-stone-100 text-[#1F1812] border border-[#E4DCCC] text-[11px] font-mono font-bold rounded-xl transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer">
+                                    <span>🖨️</span>
+                                    <span>Cetak Lembar QR</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- Instructions -->
-                    <div class="space-y-3 text-center sm:text-left">
-                        <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#1F1812] text-white text-[10px] font-mono uppercase tracking-wider font-bold">
-                            <span>📷</span>
-                            <span>Scan Kamera Tablet</span>
-                        </div>
-                        <h3 class="font-serif text-base font-bold text-[#1F1812] leading-snug">
-                            Arahkan kamera tablet kasir ke QR code di samping
+                    <!-- Step-by-Step Guide -->
+                    <div class="md:col-span-7 space-y-4">
+                        <h3 class="font-serif text-lg font-bold text-[#1F1812]">
+                            Langkah Cepat Mendaftarkan Tablet:
                         </h3>
-                        <p class="text-xs text-[#6B5A4B] font-serif leading-relaxed">
-                            Tablet akan otomatis membuka browser dan terdaftar di database sebagai terminal kasir resmi. Token berlaku selama <b>1 tahun</b>.
-                        </p>
-                        <div class="text-[11px] font-mono text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 inline-block">
-                            ✓ Otomatis simpan identitas perangkat di database
+
+                        <div class="space-y-3">
+                            <div class="flex items-start gap-3 p-3 rounded-2xl bg-[#FAF7F2] border border-[#E8E1D5]">
+                                <span class="w-7 h-7 rounded-xl bg-[#1F1812] text-white flex items-center justify-center font-mono text-xs font-bold shrink-0">1</span>
+                                <div>
+                                    <div class="font-bold text-xs text-[#1F1812]">Buka Kamera Tablet Kasir</div>
+                                    <div class="text-[11px] text-[#6B5A4B] font-serif">Gunakan kamera bawaan iPad atau tablet Android Anda.</div>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start gap-3 p-3 rounded-2xl bg-[#FAF7F2] border border-[#E8E1D5]">
+                                <span class="w-7 h-7 rounded-xl bg-[#1F1812] text-white flex items-center justify-center font-mono text-xs font-bold shrink-0">2</span>
+                                <div>
+                                    <div class="font-bold text-xs text-[#1F1812]">Arahkan ke Kode QR</div>
+                                    <div class="text-[11px] text-[#6B5A4B] font-serif">Klik notifikasi tautan yang muncul pada layar kamera.</div>
+                                </div>
+                            </div>
+
+                            <div class="flex items-start gap-3 p-3 rounded-2xl bg-[#FAF7F2] border border-[#E8E1D5]">
+                                <span class="w-7 h-7 rounded-xl bg-[#B5762A] text-white flex items-center justify-center font-mono text-xs font-bold shrink-0">3</span>
+                                <div>
+                                    <div class="font-bold text-xs text-[#1F1812]">Otorisasi Otomatis Selesai</div>
+                                    <div class="text-[11px] text-[#6B5A4B] font-serif">Tablet otomatis terdaftar di database dan siap dipakai bertransaksi (berlaku 1 tahun).</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
+
                 </div>
 
                 <!-- Manual Copy Link -->
-                <div class="mt-6 space-y-4">
-                    <div>
-                        <div class="flex items-center justify-between mb-1.5">
-                            <label class="font-mono text-[10px] uppercase tracking-wider text-[#8A7B66] font-bold">
-                                Tautan Otorisasi Instan:
-                            </label>
-                            <span x-show="copied" x-cloak class="text-xs font-mono text-emerald-600 font-bold">
-                                ✓ Tautan berhasil disalin!
-                            </span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <input type="text" readonly value="{{ $authorizeUrl }}"
-                                   class="flex-1 bg-[#FAF7F2] border border-[#E4DCCC] rounded-xl px-3.5 py-2.5 text-xs font-mono text-[#1F1812] select-all focus:outline-none">
-                            <button type="button" @click="copyLink('{{ $authorizeUrl }}')"
-                                    class="px-4 py-2.5 bg-[#B5762A] hover:bg-[#1F1812] text-white font-mono text-xs uppercase tracking-wider font-bold rounded-xl transition-all shadow-2xs active:scale-95 cursor-pointer shrink-0">
-                                <span x-text="copied ? 'Tersalin!' : 'Salin'">Salin</span>
-                            </button>
-                        </div>
-                        <p class="mt-1 text-[11px] text-[#8A7B66] font-mono">
-                            Kirim tautan ini via WhatsApp/pesan ke tablet kasir jika tidak ingin memindai QR Code.
-                        </p>
+                <div class="mt-8 pt-6 border-t border-[#E8E1D5] space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="font-mono text-[10px] uppercase tracking-wider text-[#8A7B66] font-bold">
+                            Tautan Alternatif (Kirim via WhatsApp / Pesan):
+                        </label>
+                        <span x-show="copied" x-cloak class="text-xs font-mono text-emerald-600 font-bold">
+                            ✓ Tautan berhasil disalin!
+                        </span>
                     </div>
-
-                    <!-- Secret Key Section (Collapsible / Toggle) -->
-                    <div class="pt-4 border-t border-[#E8E1D5]">
-                        <div class="flex items-center justify-between mb-1.5">
-                            <label class="font-mono text-[10px] uppercase tracking-wider text-[#8A7B66] font-bold">
-                                Kunci Rahasia Perangkat (KASIR_DEVICE_SECRET):
-                            </label>
-                            <button type="button" @click="showSecret = !showSecret"
-                                    class="text-xs font-mono text-[#B5762A] hover:underline font-semibold cursor-pointer">
-                                <span x-text="showSecret ? 'Sembunyikan' : 'Tampilkan Kunci'">Tampilkan Kunci</span>
-                            </button>
-                        </div>
-                        <div class="p-3 rounded-xl bg-[#FAF7F2] border border-[#E4DCCC] font-mono text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                            <span class="text-[#1F1812] font-bold tracking-wider truncate max-w-[200px] sm:max-w-[240px]" x-text="showSecret ? '{{ $secret }}' : '••••••••••••••••••••••••••••'">
-                                ••••••••••••••••••••••••••••
-                            </span>
-                            <div class="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
-                                <button type="button" @click="copyLink('{{ $secret }}')"
-                                        class="px-2.5 py-1.5 bg-white hover:bg-stone-100 text-[#1F1812] border border-[#E4DCCC] rounded-lg text-[11px] font-mono font-bold transition-all cursor-pointer shadow-2xs">
-                                    Salin
-                                </button>
-                                <button type="button" @click="showRegenerateModal = true"
-                                        class="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-lg text-[11px] font-mono font-bold transition-all cursor-pointer shadow-2xs flex items-center gap-1">
-                                    <span>🔄</span>
-                                    <span>Regenerate Kunci</span>
-                                </button>
-                            </div>
-                        </div>
-                        <p class="mt-1.5 text-[11px] text-amber-900 font-sans leading-relaxed">
-                            ⚠️ <b>Perhatian Keamanan:</b> Jaga kerahasiaan kunci ini. Hanya bagikan kepada staf yang Anda percaya untuk mendaftarkan terminal kasir resmi.
-                        </p>
+                    <div class="flex items-center gap-2">
+                        <input type="text" readonly value="{{ $authorizeUrl }}"
+                               class="flex-1 bg-[#FAF7F2] border border-[#E4DCCC] rounded-xl px-3.5 py-2.5 text-xs font-mono text-[#1F1812] select-all focus:outline-none shadow-2xs">
+                        <button type="button" @click="copyLink('{{ $authorizeUrl }}')"
+                                class="px-4 py-2.5 bg-[#B5762A] hover:bg-[#1F1812] text-white font-mono text-xs uppercase tracking-wider font-bold rounded-xl transition-all shadow-2xs active:scale-95 cursor-pointer shrink-0">
+                            <span x-text="copied ? 'Tersalin!' : 'Salin Tautan'">Salin Tautan</span>
+                        </button>
                     </div>
-
-                    <!-- Modal Konfirmasi Regenerate Kunci Rahasia -->
-                    <div x-show="showRegenerateModal" x-cloak
-                         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs transition-opacity"
-                         @keydown.escape.window="showRegenerateModal = false">
-                        
-                        <div class="bg-white border border-[#E4DCCC] rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative overflow-hidden"
-                             @click.away="showRegenerateModal = false">
-                            
-                            <div class="flex items-center gap-3 pb-4 border-b border-[#E8E1D5]">
-                                <div class="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center text-lg font-bold shrink-0">
-                                    🔄
-                                </div>
-                                <div>
-                                    <h3 class="font-serif text-lg font-bold text-[#1F1812]">Regenerate Kunci Rahasia</h3>
-                                    <p class="text-xs text-[#8A7B66] font-mono">Keamanan Terminal Kasir</p>
-                                </div>
-                            </div>
-
-                            <p class="mt-4 text-xs text-[#6B5A4B] font-serif leading-relaxed">
-                                Kunci rahasia baru akan digenerate secara acak. <b>QR Code dan tautan otorisasi lama otomatis tidak berlaku lagi</b> untuk mendaftarkan perangkat baru.
-                            </p>
-
-                            <form method="POST" action="{{ route('kasir.device-secret.regenerate') }}" class="mt-4 space-y-4">
-                                @csrf
-
-                                <!-- Checkbox Opsi Cabut Semua Perangkat -->
-                                <div class="p-3.5 rounded-xl bg-rose-50 border border-rose-200">
-                                    <label class="flex items-start gap-2.5 cursor-pointer">
-                                        <input type="checkbox" name="revoke_all_devices" value="1"
-                                               class="mt-0.5 rounded border-rose-300 text-rose-600 focus:ring-rose-500 cursor-pointer">
-                                        <div class="text-xs">
-                                            <span class="font-bold text-rose-900 block">Cabut juga izin SEMUA perangkat yang terdaftar saat ini</span>
-                                            <span class="text-rose-700 text-[11px] block mt-0.5 font-serif">
-                                                Centang ini jika kunci rahasia bocor dan Anda ingin memaksa seluruh tablet kasir scan QR baru.
-                                            </span>
-                                        </div>
-                                    </label>
-                                </div>
-
-                                <div class="flex items-center justify-end gap-2.5 pt-2">
-                                    <button type="button" @click="showRegenerateModal = false"
-                                            class="px-4 py-2 text-xs font-mono font-bold text-stone-600 hover:text-stone-900 rounded-xl cursor-pointer">
-                                        Batal
-                                    </button>
-                                    <button type="submit"
-                                            class="px-4 py-2 bg-[#1F1812] hover:bg-[#B5762A] text-white text-xs font-mono font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs cursor-pointer active:scale-95">
-                                        Ya, Generate Kunci Baru
-                                    </button>
-                                </div>
-                            </form>
-
-                        </div>
-                    </div>
+                </div>
 
             </div>
+
+        </div>
+
+        <!-- ===============================================================
+             TAB 3: JARINGAN & KONFIGURASI KEAMANAN (SETTINGS)
+             =============================================================== -->
+        <div x-show="activeTab === 'settings'" x-cloak class="max-w-4xl mx-auto space-y-6">
+
+            <!-- Card Kunci Rahasia Keamanan & Generator -->
+            <div class="bg-white border border-[#E4DCCC] rounded-3xl p-6 sm:p-8 shadow-[0_6px_25px_rgba(42,33,26,0.04)]">
+                <div class="flex items-center gap-3 pb-4 border-b border-[#E8E1D5]">
+                    <div class="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 flex items-center justify-center text-lg shadow-2xs">
+                        🔑
+                    </div>
+                    <div>
+                        <h3 class="font-serif text-lg font-bold text-[#1F1812]">Kunci Rahasia Perangkat (KASIR_DEVICE_SECRET)</h3>
+                        <p class="text-xs text-[#8A7B66] font-mono">Kunci induk otorisasi perangkat kasir</p>
+                    </div>
+                </div>
+
+                <div class="mt-4 p-4 rounded-2xl bg-[#FAF7F2] border border-[#E4DCCC] space-y-3">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div class="min-w-0 flex-1">
+                            <span class="font-mono text-[10px] uppercase tracking-wider text-[#8A7B66] font-bold block mb-1">
+                                Nilai Kunci Rahasia Saat Ini:
+                            </span>
+                            <span class="font-mono text-xs font-bold text-[#1F1812] tracking-wider truncate block"
+                                  x-text="showSecret ? '{{ $secret }}' : '••••••••••••••••••••••••••••••••••••'">
+                                ••••••••••••••••••••••••••••••••••••
+                            </span>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <button type="button" @click="showSecret = !showSecret"
+                                    class="px-3 py-1.5 bg-white hover:bg-stone-100 text-[#1F1812] border border-[#E4DCCC] text-xs font-mono font-bold rounded-xl transition-all shadow-2xs cursor-pointer">
+                                <span x-text="showSecret ? 'Sembunyikan' : 'Tampilkan'">Tampilkan</span>
+                            </button>
+                            <button type="button" @click="copyLink('{{ $secret }}')"
+                                    class="px-3 py-1.5 bg-white hover:bg-stone-100 text-[#1F1812] border border-[#E4DCCC] text-xs font-mono font-bold rounded-xl transition-all shadow-2xs cursor-pointer">
+                                Salin
+                            </button>
+                            <button type="button" @click="showRegenerateModal = true"
+                                    class="px-3.5 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-950 border border-amber-300 text-xs font-mono font-bold rounded-xl transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer">
+                                <span>🔄</span>
+                                <span>Regenerate Kunci</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <p class="mt-3 text-xs text-[#6B5A4B] font-serif leading-relaxed">
+                    ⚠️ <b>Peringatan Keamanan:</b> Jaga kerahasiaan kunci ini. Jika dicurigai bocor, gunakan tombol <b>Regenerate Kunci</b> untuk membuat kunci baru dan otomatis membatalkan QR Code lama.
+                </p>
+            </div>
+
+            <!-- Card Whitelist IP & Subnet Kafe -->
+            <div class="bg-white border border-[#E4DCCC] rounded-3xl p-6 sm:p-8 shadow-[0_6px_25px_rgba(42,33,26,0.04)]">
+                <div class="flex items-center gap-3 pb-4 border-b border-[#E8E1D5]">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-center text-lg shadow-2xs">
+                        🌐
+                    </div>
+                    <div>
+                        <h3 class="font-serif text-lg font-bold text-[#1F1812]">Whitelist Jaringan & Subnet Wi-Fi Kafe</h3>
+                        <p class="text-xs text-[#8A7B66] font-mono">Alamat IP yang diizinkan mengakses kasir tanpa token</p>
+                    </div>
+                </div>
+
+                <div class="mt-4 space-y-3">
+                    <p class="text-xs text-[#6B5A4B] font-serif leading-relaxed">
+                        Perangkat yang terhubung langsung ke IP publik kafe atau subnet Wi-Fi internal berikut dapat membuka web kasir secara langsung:
+                    </p>
+
+                    <div class="flex flex-wrap gap-2 pt-1">
+                        @forelse ($allowedIps as $ipRule)
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl font-mono text-xs font-bold bg-[#FAF7F2] border border-[#E4DCCC] text-[#1F1812] shadow-2xs">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                <span>{{ $ipRule }}</span>
+                            </span>
+                        @empty
+                            <span class="text-xs text-stone-400 font-mono">Semua IP dibatasi</span>
+                        @endforelse
+                    </div>
+
+                    <div class="mt-4 p-3.5 rounded-2xl bg-[#FAF7F2] border border-[#E8E1D5] text-[11px] text-[#8A7B66] font-mono leading-relaxed">
+                        💡 Untuk menambah IP statis kafe atau subnet baru, sesuaikan variabel <code class="text-[#B5762A] bg-white px-1.5 py-0.5 rounded border border-[#E4DCCC] font-bold">KASIR_ALLOWED_IPS</code> di file <code class="text-[#1F1812] font-bold">.env</code> server.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card Tindakan Darurat Perangkat Ini -->
+            @if ($isDeviceAuthorized)
+                <div class="bg-rose-50/50 border border-rose-200 rounded-3xl p-6 sm:p-8 shadow-2xs">
+                    <div class="flex items-center justify-between gap-4">
+                        <div>
+                            <h4 class="font-bold text-sm text-rose-950">Cabut Otorisasi Perangkat Ini</h4>
+                            <p class="text-xs text-rose-800 font-serif mt-0.5">
+                                Hapus token terminal resmi dari browser ini jika laptop/tablet ini akan diservis atau dipindahtangankan.
+                            </p>
+                        </div>
+                        <form method="POST" action="{{ route('kasir.device-revoke') }}"
+                              onsubmit="return confirm('Apakah Anda yakin ingin mencabut otorisasi perangkat ini?');">
+                            @csrf
+                            <button type="submit"
+                                    class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-mono text-xs font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs cursor-pointer active:scale-95 shrink-0">
+                                🔒 Cabut Token Ini
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            @endif
 
         </div>
 
     </div>
 
     <!-- ===================================================================
-         BAGIAN UTAMA: DAFTAR SEMUA PERANGKAT KASIR TERDAFTAR (MULTI-DEVICE)
+         MODAL KONFIRMASI REGENERATE KUNCI RAHASIA
          =================================================================== -->
-    <div class="bg-white border border-[#E4DCCC] rounded-2xl p-6 sm:p-8 shadow-[0_4px_20px_rgba(42,33,26,0.04)]">
+    <div x-show="showRegenerateModal" x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs transition-opacity"
+         @keydown.escape.window="showRegenerateModal = false">
         
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-[#E8E1D5]">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-[#FAF7F2] border border-[#E8E1D5] flex items-center justify-center text-lg shadow-2xs">
-                    🖥️
+        <div class="bg-white border border-[#E4DCCC] rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl relative overflow-hidden animate-fadeIn"
+             @click.away="showRegenerateModal = false">
+            
+            <div class="flex items-center gap-3 pb-4 border-b border-[#E8E1D5]">
+                <div class="w-11 h-11 rounded-2xl bg-amber-100 text-amber-900 flex items-center justify-center text-xl font-bold shrink-0 shadow-2xs">
+                    🔄
                 </div>
                 <div>
-                    <h2 class="font-serif text-lg sm:text-xl font-bold text-[#1F1812]">
-                        Daftar Perangkat Kasir Terdaftar
-                    </h2>
-                    <p class="text-xs text-[#8A7B66] font-mono">
-                        Pantau perangkat aktif dan cabut izin (*revoke*) perangkat lain dari jarak jauh
-                    </p>
+                    <h3 class="font-serif text-lg font-bold text-[#1F1812]">Regenerate Kunci Rahasia</h3>
+                    <p class="text-xs text-[#8A7B66] font-mono">Keamanan Terminal POS</p>
                 </div>
             </div>
 
-            <div class="flex items-center gap-2">
-                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold uppercase tracking-wider bg-[#FAF7F2] border border-[#E4DCCC] text-[#1F1812]">
-                    <span>Total:</span>
-                    <span class="text-[#B5762A]">{{ $devices->count() }} Perangkat</span>
-                </span>
-            </div>
+            <p class="mt-4 text-xs text-[#6B5A4B] font-serif leading-relaxed">
+                Kunci rahasia baru akan digenerate secara acak. <b>QR Code dan tautan otorisasi lama otomatis tidak berlaku lagi</b> untuk mendaftarkan perangkat baru.
+            </p>
+
+            <form method="POST" action="{{ route('kasir.device-secret.regenerate') }}" class="mt-4 space-y-4">
+                @csrf
+
+                <!-- Checkbox Opsi Cabut Semua Perangkat -->
+                <div class="p-3.5 rounded-2xl bg-rose-50 border border-rose-200">
+                    <label class="flex items-start gap-2.5 cursor-pointer">
+                        <input type="checkbox" name="revoke_all_devices" value="1"
+                               class="mt-0.5 rounded border-rose-300 text-rose-600 focus:ring-rose-500 cursor-pointer">
+                        <div class="text-xs">
+                            <span class="font-bold text-rose-900 block">Cabut juga izin SEMUA perangkat yang terdaftar saat ini</span>
+                            <span class="text-rose-700 text-[11px] block mt-0.5 font-serif">
+                                Centang ini jika kunci rahasia bocor dan Anda ingin memaksa seluruh tablet kasir scan QR baru.
+                            </span>
+                        </div>
+                    </label>
+                </div>
+
+                <div class="flex items-center justify-end gap-2.5 pt-2">
+                    <button type="button" @click="showRegenerateModal = false"
+                            class="px-4 py-2 text-xs font-mono font-bold text-stone-600 hover:text-stone-900 rounded-xl cursor-pointer">
+                        Batal
+                    </button>
+                    <button type="submit"
+                            class="px-4 py-2.5 bg-[#1F1812] hover:bg-[#B5762A] text-white text-xs font-mono font-bold uppercase tracking-wider rounded-xl transition-all shadow-xs cursor-pointer active:scale-95">
+                        Ya, Generate Kunci Baru
+                    </button>
+                </div>
+            </form>
+
         </div>
-
-        @if ($devices->isEmpty())
-            <div class="py-12 text-center">
-                <div class="w-16 h-16 rounded-2xl bg-[#FAF7F2] border border-[#E4DCCC] flex items-center justify-center text-2xl mx-auto mb-3 shadow-2xs">
-                    📱
-                </div>
-                <h3 class="font-serif text-base font-bold text-[#1F1812]">Belum Ada Perangkat yang Didaftarkan</h3>
-                <p class="text-xs text-[#6B5A4B] font-serif italic max-w-md mx-auto mt-1 leading-relaxed">
-                    Arahkan kamera tablet atau ponsel kasir ke kode QR di atas untuk mendaftarkan perangkat ke database secara otomatis.
-                </p>
-            </div>
-        @else
-            <div class="mt-6 divide-y divide-[#E8E1D5]">
-                @foreach ($devices as $device)
-                    @php
-                        $isCurrent = $currentDevice && $currentDevice->id === $device->id;
-                        $deviceIcon = match($device->device_type) {
-                            'mobile' => '📲',
-                            'desktop' => '💻',
-                            default => '📱',
-                        };
-                    @endphp
-                    <div class="py-4 first:pt-0 last:pb-0 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors hover:bg-[#FAF7F2]/50 rounded-xl px-2 sm:px-3">
-                        
-                        <!-- Info Utama Perangkat -->
-                        <div class="flex items-start sm:items-center gap-3.5 flex-1 min-w-0">
-                            <div class="w-10 h-10 rounded-xl bg-[#FAF7F2] border border-[#E4DCCC] flex items-center justify-center text-lg shrink-0 shadow-2xs mt-0.5 sm:mt-0">
-                                {{ $deviceIcon }}
-                            </div>
-
-                            <div class="min-w-0 flex-1">
-                                <!-- Mode Tampilan / Mode Edit Nama Inline -->
-                                <div x-show="editingDeviceId !== {{ $device->id }}" class="flex items-center gap-2 flex-wrap">
-                                    <h4 class="font-bold text-sm text-[#1F1812] truncate max-w-[280px]" title="{{ $device->device_name }}">
-                                        {{ $device->device_name }}
-                                    </h4>
-
-                                    <!-- Tombol Edit Nama Inline -->
-                                    <button type="button" @click="startRename({{ $device->id }}, '{{ addslashes($device->device_name) }}')"
-                                            class="text-stone-400 hover:text-[#B5762A] text-xs transition-colors cursor-pointer"
-                                            title="Ubah nama perangkat">
-                                        ✏️
-                                    </button>
-
-                                    <!-- Badges -->
-                                    @if ($isCurrent)
-                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-[#1F1812] text-amber-300 shadow-2xs">
-                                            ★ Perangkat Ini
-                                        </span>
-                                    @endif
-
-                                    @if (! $device->is_revoked)
-                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
-                                            Aktif
-                                        </span>
-                                    @else
-                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-rose-50 text-rose-700 border border-rose-200">
-                                            🔴 Akses Dicabut
-                                        </span>
-                                    @endif
-                                </div>
-
-                                <!-- Form Edit Nama Inline (Alpine.js) -->
-                                <div x-show="editingDeviceId === {{ $device->id }}" x-cloak class="flex items-center gap-2 mt-1">
-                                    <form method="POST" action="{{ route('kasir.devices.rename', $device) }}" class="flex items-center gap-2">
-                                        @csrf
-                                        @method('PATCH')
-                                        <input type="text" name="device_name" id="rename-input-{{ $device->id }}"
-                                               x-model="editingDeviceName" required maxlength="100"
-                                               class="bg-white border border-[#B5762A] rounded-lg px-2.5 py-1 text-xs font-mono text-[#1F1812] focus:outline-none focus:ring-1 focus:ring-[#B5762A]">
-                                        <button type="submit" class="px-2.5 py-1 bg-[#1F1812] hover:bg-[#B5762A] text-white text-[11px] font-mono font-bold rounded-lg transition-all cursor-pointer">
-                                            Simpan
-                                        </button>
-                                        <button type="button" @click="cancelRename()" class="px-2 py-1 text-stone-500 hover:text-stone-800 text-[11px] font-mono cursor-pointer">
-                                            Batal
-                                        </button>
-                                    </form>
-                                </div>
-
-                                <!-- Metadata Baris Kedua -->
-                                <div class="flex items-center gap-2 sm:gap-3 text-[11px] text-[#8A7B66] font-mono mt-1 flex-wrap">
-                                    <span>{{ $device->platform ?? 'Platform' }} • {{ $device->browser ?? 'Browser' }}</span>
-                                    <span>•</span>
-                                    <span>IP: <code class="text-[#1F1812] font-semibold">{{ $device->ip_address ?? '-' }}</code></span>
-                                    <span>•</span>
-                                    <span title="Terakhir aktif">
-                                        🕒 {{ $device->last_active_at ? $device->last_active_at->diffForHumans() : 'Baru saja' }}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Tombol Aksi Remote -->
-                        <div class="flex items-center gap-2 self-end sm:self-center shrink-0">
-                            @if (! $device->is_revoked)
-                                <!-- Tombol Cabut Izin Remote -->
-                                <form method="POST" action="{{ route('kasir.devices.revoke', $device) }}"
-                                      onsubmit="return confirm('Apakah Anda yakin ingin mencabut izin untuk \'{{ addslashes($device->device_name) }}\'? Perangkat tersebut akan langsung diblokir dari web kasir.');">
-                                    @csrf
-                                    <button type="submit"
-                                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-mono font-bold uppercase tracking-wider transition-all shadow-2xs cursor-pointer active:scale-95">
-                                        <span>🔒</span>
-                                        <span>Cabut Izin</span>
-                                    </button>
-                                </form>
-                            @else
-                                <!-- Tombol Pulihkan / Aktifkan Kembali -->
-                                <form method="POST" action="{{ route('kasir.devices.restore', $device) }}"
-                                      onsubmit="return confirm('Aktifkan kembali akses untuk \'{{ addslashes($device->device_name) }}\'?');">
-                                    @csrf
-                                    <button type="submit"
-                                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-mono font-bold uppercase tracking-wider transition-all shadow-2xs cursor-pointer active:scale-95">
-                                        <span>✓</span>
-                                        <span>Aktifkan Kembali</span>
-                                    </button>
-                                </form>
-                            @endif
-
-                            <!-- Tombol Hapus Riwayat -->
-                            <form method="POST" action="{{ route('kasir.devices.destroy', $device) }}"
-                                  onsubmit="return confirm('Hapus perangkat \'{{ addslashes($device->device_name) }}\' dari daftar riwayat?');">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit"
-                                        class="p-2 rounded-xl text-stone-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all cursor-pointer"
-                                        title="Hapus riwayat perangkat">
-                                    🗑️
-                                </button>
-                            </form>
-                        </div>
-
-                    </div>
-                @endforeach
-            </div>
-        @endif
-
     </div>
 
 </div>
