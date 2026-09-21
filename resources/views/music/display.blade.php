@@ -1426,16 +1426,16 @@
                 <template x-if="readyOrders.length > 0">
                     <div class="mb-3 sm:mb-4 bg-gradient-to-r from-[#1E2E17] to-[#142010] border-2 border-[#5F7F42] rounded-xl p-3 sm:p-3.5 shadow-md shrink-0">
                         <div class="flex items-center justify-between mb-2 sm:mb-2.5">
-                            <div class="flex items-center gap-2">
-                                <span class="w-2.5 h-2.5 rounded-full bg-[#85BF5C] animate-ping"></span>
-                                <span class="font-mono text-xs font-bold text-[#85BF5C] uppercase tracking-wider">🔔 Pesanan Siap Di Meja</span>
+                            <div class="flex items-center gap-2.5">
+                                <span class="w-3 h-3 rounded-full bg-[#85BF5C] animate-ping"></span>
+                                <span class="font-mono text-xs sm:text-sm font-extrabold text-[#85BF5C] uppercase tracking-wider">🔔 Pesanan Siap Di Meja</span>
                             </div>
-                            <span class="font-mono text-[10px] font-bold text-[#FAF7F2] bg-[#5F7F42]/40 px-2.5 py-0.5 rounded-full" x-text="readyOrders.length + ' Pesanan'"></span>
+                            <span class="font-mono text-xs font-bold text-[#FAF7F2] bg-[#5F7F42]/50 px-2.5 sm:px-3 py-0.5 rounded-full" x-text="readyOrders.length + ' Pesanan'"></span>
                         </div>
-                        <div class="flex flex-wrap gap-2 max-h-20 sm:max-h-24 overflow-y-auto no-scrollbar">
+                        <div class="flex flex-wrap gap-2 max-h-24 sm:max-h-28 overflow-y-auto no-scrollbar">
                             <template x-for="ro in readyOrders" :key="ro.id">
-                                <div class="px-3 py-1.5 bg-[#25391C] border border-[#5F7F42]/80 rounded-lg text-xs font-mono text-white flex items-center gap-2 shadow-sm">
-                                    <span class="font-bold text-[#D9973E] text-sm" x-text="ro.code"></span>
+                                <div class="px-3.5 py-1.5 bg-[#25391C] border border-[#5F7F42]/80 rounded-lg text-xs sm:text-sm font-mono text-white flex items-center gap-2 shadow-sm">
+                                    <span class="font-extrabold text-[#D9973E] text-sm sm:text-base" x-text="ro.code"></span>
                                     <span class="text-white/90 font-medium" x-text="ro.customer_name ? ('(' + ro.customer_name + ')') : ''"></span>
                                 </div>
                             </template>
@@ -1444,44 +1444,55 @@
                 </template>
 
                 <!-- QUEUE SECTION HEADER -->
-                <div class="flex items-center justify-between border-b border-[#32261C] pb-2.5 sm:pb-3 mb-2.5 sm:mb-3 shrink-0">
-                    <div class="flex items-center gap-2 min-w-0">
-                        <span class="w-2.5 h-2.5 rounded-full bg-[#D9973E] animate-pulse shrink-0"></span>
-                        <h3 class="font-mono text-xs sm:text-sm uppercase tracking-[0.15em] font-bold text-[#FAF7F2] truncate">Antrean Lagu Berikutnya</h3>
+                <div class="flex items-center justify-between border-b border-[#32261C] pb-3 sm:pb-3.5 mb-3 sm:mb-3.5 shrink-0">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <span class="w-3 h-3 rounded-full bg-[#D9973E] animate-pulse shrink-0 shadow-[0_0_10px_rgba(217,151,62,0.8)]"></span>
+                        <h3 class="font-mono text-sm sm:text-base xl:text-lg uppercase tracking-[0.12em] font-extrabold text-[#FAF7F2] truncate">Antrean Lagu Berikutnya</h3>
                     </div>
 
-                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#D9973E]/15 border border-[#D9973E]/30 text-[#D9973E] shrink-0 ml-2"
+                    <span class="px-3 py-1 rounded-full text-xs sm:text-sm font-mono font-extrabold bg-[#D9973E]/20 border border-[#D9973E]/40 text-[#D9973E] shrink-0 ml-2 shadow-xs"
                           x-text="queue.length + ' Lagu'"></span>
                 </div>
 
                 <!-- QUEUE LIST (EXPANDABLE SCROLLABLE AREA) -->
-                <div class="space-y-1.5 sm:space-y-2 overflow-y-auto pr-0 flex-1 min-h-0 no-scrollbar">
+                <div class="space-y-2 sm:space-y-2.5 overflow-y-auto pr-1 flex-1 min-h-0 no-scrollbar">
                     <template x-if="queue.length === 0">
-                        <div class="h-full flex flex-col items-center justify-center text-center py-8 text-[#A89A85] font-mono text-xs">
-                            <span class="text-3xl mb-2 opacity-60">☕</span>
-                            <span class="font-semibold text-[#FAF7F2]">Antrean request lagu sedang kosong.</span>
-                            <span class="text-[11px] mt-1 text-[#8A7B66]">Scan QR di bawah untuk me-request lagu pertamamu!</span>
+                        <div class="h-full flex flex-col items-center justify-center text-center py-10 text-[#A89A85] font-mono text-sm">
+                            <span class="text-4xl sm:text-5xl mb-3 opacity-70">☕</span>
+                            <span class="font-bold text-[#FAF7F2] text-base sm:text-lg">Antrean request lagu sedang kosong.</span>
+                            <span class="text-xs sm:text-sm mt-1.5 text-[#A89A85]">Scan QR di bawah untuk me-request lagu pertamamu!</span>
                         </div>
                     </template>
 
                     <template x-for="(item, index) in queue" :key="item.id + '_' + (item.type || 'req')">
-                        <div class="flex items-center justify-between py-1.5 sm:py-2 px-2.5 sm:px-3 bg-[#261D16]/90 border border-[#3A2D22] rounded-xl hover:border-[#D9973E]/50 transition group">
-                            <div class="flex items-center gap-2.5 min-w-0 flex-1">
-                                <span class="font-mono font-bold text-[#D9973E] text-xs w-4 text-center shrink-0" x-text="'#' + (index + 1)"></span>
+                        <div class="flex items-center justify-between py-2 sm:py-2.5 lg:py-3 px-3 sm:px-3.5 lg:px-4 bg-[#261D16]/95 border border-[#3A2D22] rounded-xl sm:rounded-2xl hover:border-[#D9973E]/60 transition shadow-md group gap-2.5 sm:gap-3">
+                            <div class="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+                                <span class="font-mono font-black text-[#D9973E] text-base sm:text-lg lg:text-xl w-6 sm:w-7 text-center shrink-0" x-text="'#' + (index + 1)"></span>
+                                
+                                <!-- Track Thumbnail -->
+                                <div class="relative w-12 sm:w-14 lg:w-16 h-8 sm:h-9 lg:h-10 rounded-lg overflow-hidden border border-[#3A2D22] shrink-0 bg-black/50 shadow-inner">
+                                    <template x-if="item.thumbnail_url">
+                                        <img :src="item.thumbnail_url" class="w-full h-full object-cover" loading="lazy" alt="Thumbnail" />
+                                    </template>
+                                    <template x-if="!item.thumbnail_url">
+                                        <div class="w-full h-full flex items-center justify-center text-xs text-[#8A7B66]">🎵</div>
+                                    </template>
+                                </div>
+
                                 <div class="min-w-0 flex-1">
-                                    <div class="text-xs font-semibold text-[#FAF7F2] truncate leading-tight group-hover:text-[#D9973E] transition-colors" x-text="item.song_title || item.title"></div>
-                                    <div class="text-[10px] text-[#A89A85] truncate leading-tight mt-0.5 flex items-center gap-1.5 font-mono">
-                                        <span x-text="item.artist || 'Artis YouTube'"></span>
+                                    <div class="text-sm sm:text-base lg:text-lg font-bold text-[#FAF7F2] truncate leading-tight group-hover:text-[#D9973E] transition-colors tracking-tight" x-text="item.song_title || item.title"></div>
+                                    <div class="text-xs sm:text-sm text-[#A89A85] truncate leading-tight mt-0.5 sm:mt-1 flex items-center gap-1.5 font-mono">
+                                        <span class="truncate font-medium text-[#C4B6A3]" x-text="item.artist || 'Artis YouTube'"></span>
                                         <template x-if="item.customer_name">
-                                            <span class="flex items-center gap-1">
+                                            <span class="flex items-center gap-1.5 truncate">
                                                 <span class="text-[#8A7B66]">&bull;</span>
-                                                <span class="text-[#D9973E] font-semibold truncate" x-text="'Req: ' + item.customer_name"></span>
+                                                <span class="text-[#D9973E] font-bold truncate" x-text="'Req: ' + item.customer_name"></span>
                                             </span>
                                         </template>
                                         <template x-if="!item.customer_name && (item.type === 'default' || !item.is_request)">
-                                            <span class="flex items-center gap-1">
+                                            <span class="flex items-center gap-1.5 shrink-0">
                                                 <span class="text-[#8A7B66]">&bull;</span>
-                                                <span class="text-[#85BF5C]">Playlist Kafe</span>
+                                                <span class="text-[#85BF5C] font-semibold">Playlist Kafe</span>
                                             </span>
                                         </template>
                                     </div>
@@ -1489,19 +1500,19 @@
                             </div>
                             <!-- BADGE: REQUEST vs BAWAAN -->
                             <template x-if="item.type === 'request' || item.is_request">
-                                <span class="font-mono text-[9px] uppercase tracking-wider text-[#D9973E] bg-[#D9973E]/15 px-2 py-0.5 rounded-full border border-[#D9973E]/40 font-bold shrink-0 ml-2">Request</span>
+                                <span class="font-mono text-xs sm:text-sm uppercase tracking-wider text-[#D9973E] bg-[#D9973E]/20 px-2.5 sm:px-3 py-1 rounded-lg border border-[#D9973E]/45 font-bold shrink-0 ml-2 shadow-xs">Request</span>
                             </template>
                             <template x-if="item.type === 'default' || !item.is_request">
-                                <span class="font-mono text-[9px] uppercase tracking-wider text-[#85BF5C] bg-[#5F7F42]/20 px-2 py-0.5 rounded-full border border-[#5F7F42]/40 font-bold shrink-0 ml-2">Bawaan</span>
+                                <span class="font-mono text-xs sm:text-sm uppercase tracking-wider text-[#85BF5C] bg-[#5F7F42]/25 px-2.5 sm:px-3 py-1 rounded-lg border border-[#5F7F42]/45 font-bold shrink-0 ml-2 shadow-xs">Bawaan</span>
                             </template>
                         </div>
                     </template>
                 </div>
 
                 <!-- SUBTLE CARD FOOTNOTE -->
-                <div class="mt-2.5 sm:mt-3.5 pt-2 sm:pt-2.5 border-t border-[#32261C] flex items-center justify-between text-[11px] font-mono text-[#8A7B66] shrink-0">
+                <div class="mt-2.5 sm:mt-3 pt-2 sm:pt-2.5 border-t border-[#32261C] flex items-center justify-between text-xs sm:text-sm font-mono text-[#A89A85] shrink-0">
                     <span>* Putar bergilir otomatis</span>
-                    <span class="text-[#D9973E] font-semibold">Auto-skip jika diblokir</span>
+                    <span class="text-[#D9973E] font-bold">Auto-skip jika diblokir</span>
                 </div>
             </div>
         </main>

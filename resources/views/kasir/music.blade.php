@@ -406,10 +406,10 @@
                 </div>
 
                 <!-- TAB CONTENT WRAPPER -->
-                <div class="flex-1 overflow-y-auto p-4 sm:p-5 bg-white">
+                <div class="flex-1 overflow-hidden p-4 sm:p-5 bg-white flex flex-col min-h-0">
 
                     <!-- TAB 1: ANTREAN REQUEST PELANGGAN -->
-                    <div x-show="activeTab === 'queue'" class="h-full flex flex-col">
+                    <div x-show="activeTab === 'queue'" class="h-full flex flex-col min-h-0">
                         <div class="flex items-center justify-between mb-3.5 pb-2 border-b border-[#E4DCCC] shrink-0">
                             <div class="flex items-center gap-2">
                                 <span class="font-mono text-xs uppercase tracking-wider font-bold text-[#1F1812]">Daftar Antrean Aktif</span>
@@ -455,7 +455,7 @@
 
                         <!-- LIST KARTU ANTREAN (IMPROVED STYLING DENGAN NOMOR DAN HOVER) -->
                         <template x-if="queue.length > 0">
-                            <div class="space-y-2.5 overflow-y-auto pr-1">
+                            <div class="space-y-2.5 overflow-y-auto pr-1 flex-1 min-h-0">
                                 <template x-for="(item, index) in queue" :key="item.id">
                                     <div class="track-row-marquee p-3 bg-white hover:bg-[#FAF7F2] border border-[#E4DCCC] hover:border-[#D9973E]/70 rounded-xl flex items-center justify-between gap-3 text-xs transition-all shadow-2xs group/track">
                                         
@@ -532,8 +532,8 @@
                     </div>
 
                     <!-- TAB 2: PLAYLIST BAWAAN KAFE -->
-                    <div x-show="activeTab === 'default_tracks'" class="space-y-4">
-                        <div class="flex items-center justify-between pb-2 border-b border-[#E4DCCC]">
+                    <div x-show="activeTab === 'default_tracks'" class="h-full flex flex-col min-h-0">
+                        <div class="flex items-center justify-between pb-2 border-b border-[#E4DCCC] shrink-0 mb-3">
                             <div>
                                 <span class="font-mono text-xs uppercase tracking-wider font-bold text-[#1F1812]">Playlist Bawaan Kasir / Kafe</span>
                                 <p class="text-[11px] text-[#7A6A58] mt-0.5">Diputar otomatis berurutan saat tidak ada request tamu.</p>
@@ -543,7 +543,7 @@
                         </div>
 
                         <!-- FORM TAMBAH LAGU BAWAAN (AUTO METADATA DARI LINK) -->
-                        <div class="p-4 bg-[#FAF7F2] border border-[#E4DCCC] rounded-2xl shadow-2xs text-[#1F1812]">
+                        <div class="p-3.5 bg-[#FAF7F2] border border-[#E4DCCC] rounded-2xl shadow-2xs text-[#1F1812] shrink-0 mb-3">
                             <div class="flex items-center justify-between mb-3 border-b border-[#E4DCCC] pb-2.5">
                                 <div>
                                     <div class="font-mono text-xs uppercase tracking-wider text-[#1F1812] font-bold">
@@ -665,8 +665,8 @@
                         </div>
 
                         <!-- LIST DAFTAR LAGU BAWAAN (REAKTIF REALTIME TANPA RELOAD) -->
-                        <div class="space-y-2">
-                            <div class="flex items-center justify-between text-[11px] font-mono text-[#7A6A58] pb-1 border-b border-[#E4DCCC]">
+                        <div class="flex-1 flex flex-col min-h-0">
+                            <div class="flex items-center justify-between text-[11px] font-mono text-[#7A6A58] pb-1.5 border-b border-[#E4DCCC] shrink-0 mb-2">
                                 <span>Tarik ⋮⋮ untuk ubah urutan &bull; Klik ▶ Putar langsung</span>
                                 <span x-text="defaultTracks.length + ' Lagu'"></span>
                             </div>
@@ -677,7 +677,7 @@
                                 </div>
                             </template>
 
-                            <div class="max-h-[380px] xl:max-h-[430px] overflow-y-auto pr-1.5 space-y-2">
+                            <div class="flex-1 overflow-y-auto pr-1.5 space-y-2 min-h-0">
                                 <template x-for="(track, index) in defaultTracks" :key="track.id">
                                     <div draggable="true"
                                          @dragstart="onTrackDragStart($event, index)"
@@ -768,15 +768,15 @@
                     </div>
 
                     <!-- TAB 3: RIWAYAT PEMUTARAN -->
-                    <div x-show="activeTab === 'history'" class="space-y-3">
-                        <div class="flex items-center justify-between pb-2 border-b border-[#E4DCCC]">
+                    <div x-show="activeTab === 'history'" class="h-full flex flex-col min-h-0">
+                        <div class="flex items-center justify-between pb-2 border-b border-[#E4DCCC] shrink-0 mb-3">
                             <div>
                                 <span class="font-mono text-xs uppercase tracking-wider font-bold text-[#1F1812]">Riwayat Lagu Request Terakhir</span>
                                 <p class="text-[11px] text-[#7A6A58] mt-0.5">Daftar lagu yang pernah diminta pelanggan. Klik <b>+ Playlist Bawaan</b> untuk menyimpan lagu favorit ke koleksi kafe.</p>
                             </div>
                             <span class="text-[10px] font-mono font-bold text-[#7A6A58] bg-[#FAF7F2] border border-[#E4DCCC] px-2 py-0.5 rounded-full shrink-0">{{ count($recentHistory) }} Riwayat</span>
                         </div>
-                        <div class="space-y-2">
+                        <div class="flex-1 overflow-y-auto pr-1 space-y-2 min-h-0">
                             @forelse ($recentHistory as $hist)
                                 <div class="track-row-marquee p-3 bg-white hover:bg-[#FAF7F2] border border-[#E4DCCC] hover:border-[#D9973E]/60 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs rounded-xl shadow-2xs text-[#1F1812]">
                                     <div class="min-w-0 flex-1">
