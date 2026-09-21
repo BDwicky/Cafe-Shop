@@ -24,4 +24,9 @@ return [
     'wifi_password' => 'kopikita2026',
 
     'receipt_footer' => 'Terima kasih telah berkunjung — KopiKita',
+
+    // Pembatasan Jaringan & Perangkat Kasir
+    'kasir_ip_restriction_enabled' => env('KASIR_IP_RESTRICTION_ENABLED', false),
+    'kasir_allowed_ips' => array_filter(array_map('trim', explode(',', env('KASIR_ALLOWED_IPS', '127.0.0.1,::1,192.168.*,10.*')))),
+    'kasir_device_secret' => env('KASIR_DEVICE_SECRET', 'kopikita-pos-secret-device-2026'),
 ];

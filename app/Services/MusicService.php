@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\MusicBannedTrack;
 use App\Models\MusicDefaultTrack;
 use App\Models\MusicRequest;
 use App\Models\Order;
@@ -436,6 +437,13 @@ class MusicService
 
         // Validasi rules hanya berlaku untuk pelanggan biasa (Owner bypass semua rules, mirip admin menambah lagu bawaan)
         if (! $isOwner) {
+            // Validasi ban list (blacklist) lagu
+            $banned = $this->isSongBanned($youtubeId, $data['song_title'] ?? '', $data['artist'] ?? null);
+            if ($banned) {
+                $reasonMsg = $banned->reason ? " Alasan: {$banned->reason}." : '';
+                throw new InvalidArgumentException("Lagu ini berada dalam daftar lagu yang dilarang (Blacklist) di kafe ini.{$reasonMsg} Silakan pilih lagu lainnya.");
+            }
+
             // Validasi tautan siaran langsung (live stream)
             if (! empty($details['is_live'])) {
                 throw new InvalidArgumentException('Tautan siaran langsung (live stream) tidak dapat di-request demi kenyamanan giliran antrean pengunjung kafe.');
@@ -818,6 +826,106 @@ class MusicService
             'status' => 'rejected',
             'notes' => $reason ?? 'Ditolak oleh kasir kafe.',
             'played_at' => now(),
+        ]);
+    }
+
+    /**
+     * Cek apakah lagu masuk dalam daftar lagu yang dilarang (Blacklist).
+     */
+    public function isSongBanned(?string $youtubeId, ?string $title = null, ?string $artist = null): ?MusicBannedTrack
+    {
+        // 1. Cek langsung berdasarkan YouTube Video ID (exact match)
+        if (! empty($youtubeId)) {
+            $banned = MusicBannedTrack::active()->where('youtube_id', $youtubeId)->first();
+            if ($banned) {
+                return $banned;
+            }
+        }
+
+        // 2. Cek berdasarkan pencocokan teks judul atau kata kunci (case-insensitive)
+        if (! empty($title)) {
+            $activeBanned = MusicBannedTrack::active()->whereNotNull('title')->where('title', '!=', '')->get();
+            $titleLower = mb_strtolower(trim($title));
+            $artistLower = ! empty($artist) ? mb_strtolower(trim($artist)) : '';
+
+            foreach ($activeBanned as $bannedItem) {
+                $bannedKeyword = mb_strtolower(trim($bannedItem->title));
+                if ($bannedKeyword !== '' && (str_contains($titleLower, $bannedKeyword) || (! empty($artistLower) && str_contains($artistLower, $bannedKeyword)))) {
+                    return $bannedItem;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Masukkan lagu ke daftar banned tracks (Blacklist).
+     *
+     * @param  array{youtube_id?: string|null, title?: string|null, artist?: string|null, reason?: string|null, banned_by?: string|null}  $data
+     */
+    public function banTrack(array $data): MusicBannedTrack
+    {
+        $rawYt = ! empty($data['youtube_id']) ? trim($data['youtube_id']) : null;
+        $youtubeId = $rawYt ? ($this->extractYouTubeId($rawYt) ?: $rawYt) : null;
+        $title = ! empty($data['title']) ? trim($data['title']) : null;
+        $artist = ! empty($data['artist']) ? trim($data['artist']) : null;
+        $reason = ! empty($data['reason']) ? trim($data['reason']) : 'Dilarang oleh kasir';
+        $bannedBy = ! empty($data['banned_by']) ? trim($data['banned_by']) : 'kasir';
+
+        // Jika metadata judul/artist kosong tapi ada youtube_id, coba fetch judul otomatis
+        if (empty($title) && ! empty($youtubeId)) {
+            try {
+                $details = $this->fetchYouTubeDetails($youtubeId);
+                $title = $details['title'] ?? "Video YouTube ({$youtubeId})";
+                if (empty($artist) && ! empty($details['artist'])) {
+                    $artist = $details['artist'];
+                }
+            } catch (Throwable) {
+                $title = "Video YouTube ({$youtubeId})";
+            }
+        }
+
+        if (! empty($youtubeId)) {
+            $existing = MusicBannedTrack::where('youtube_id', $youtubeId)->first();
+            if ($existing) {
+                $existing->update([
+                    'title' => $title ?: $existing->title,
+                    'artist' => $artist ?: $existing->artist,
+                    'reason' => $reason,
+                    'banned_by' => $bannedBy,
+                    'is_active' => true,
+                ]);
+
+                return $existing;
+            }
+        }
+
+        return MusicBannedTrack::create([
+            'youtube_id' => $youtubeId,
+            'title' => $title ?: ($youtubeId ? "Video YouTube ({$youtubeId})" : 'Lagu Dilarang'),
+            'artist' => $artist,
+            'reason' => $reason,
+            'banned_by' => $bannedBy,
+            'is_active' => true,
+        ]);
+    }
+
+    /**
+     * Tolak request pelanggan dan sekaligus masukkan ke daftar ban list secara otomatis.
+     */
+    public function banAndRejectRequest(MusicRequest $musicRequest, ?string $reason = null): MusicBannedTrack
+    {
+        $banReason = $reason ?: 'Dilarang oleh kasir dari antrean request';
+
+        $this->rejectRequest($musicRequest, $banReason);
+
+        return $this->banTrack([
+            'youtube_id' => $musicRequest->youtube_id,
+            'title' => $musicRequest->song_title,
+            'artist' => $musicRequest->artist,
+            'reason' => $banReason,
+            'banned_by' => 'kasir',
         ]);
     }
 }

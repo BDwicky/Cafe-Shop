@@ -176,8 +176,17 @@ class MusicRequestController extends Controller
             }
         }
 
-        // Cek apakah video adalah live stream atau mengandung NSFW / konten dewasa (Hanya berlaku untuk pelanggan biasa)
+        // Cek apakah video adalah live stream atau mengandung NSFW / konten dewasa atau masuk dalam ban list (Hanya berlaku untuk pelanggan biasa)
         if (! $isOwner) {
+            $banned = $this->musicService->isSongBanned($youtubeId, $title, $artist);
+            if ($banned) {
+                $reasonMsg = $banned->reason ? " Alasan: {$banned->reason}." : '';
+
+                return response()->json([
+                    'message' => "Lagu ini berada dalam daftar lagu yang dilarang (Blacklist) di kafe ini.{$reasonMsg} Silakan pilih lagu lainnya.",
+                ], 422);
+            }
+
             if (! empty($details['is_live'])) {
                 return response()->json([
                     'message' => 'Tautan siaran langsung (live stream) tidak dapat di-request demi kenyamanan giliran antrean pengunjung kafe.',

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\MusicBannedTrack;
 use App\Models\MusicDefaultTrack;
 use App\Models\MusicRequest;
 use App\Models\Order;
@@ -35,8 +36,9 @@ class KasirMusicController extends Controller
             ->latest('updated_at')
             ->limit(30)
             ->get(['id', 'song_title', 'artist', 'youtube_id', 'duration_seconds', 'customer_name', 'status', 'notes', 'updated_at']);
+        $bannedTracks = MusicBannedTrack::latest('id')->get();
 
-        return view('kasir.music', compact('state', 'defaultTracks', 'recentHistory'));
+        return view('kasir.music', compact('state', 'defaultTracks', 'recentHistory', 'bannedTracks'));
     }
 
     /**
@@ -103,6 +105,168 @@ class KasirMusicController extends Controller
         }
 
         return back()->with('success', 'Lagu request berhasil ditolak.');
+    }
+
+    /**
+     * Ambil daftar ban list dalam format JSON.
+     */
+    public function bannedTracksJson(): JsonResponse
+    {
+        $tracks = MusicBannedTrack::latest('id')->get();
+
+        return response()->json([
+            'success' => true,
+            'banned_tracks' => $tracks,
+        ]);
+    }
+
+    /**
+     * Input lagu atau kata kunci ke ban list secara manual oleh kasir.
+     */
+    public function storeBannedTrack(Request $request): JsonResponse|RedirectResponse
+    {
+        $validated = $request->validate([
+            'youtube_id' => ['nullable', 'string', 'max:255'],
+            'title' => ['nullable', 'string', 'max:255'],
+            'artist' => ['nullable', 'string', 'max:255'],
+            'reason' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        if (empty($validated['youtube_id']) && empty($validated['title'])) {
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Harap isi URL/ID YouTube atau Judul Lagu/Kata Kunci yang ingin dilarang.',
+                ], 422);
+            }
+
+            return back()->withErrors(['message' => 'Harap isi URL/ID YouTube atau Judul Lagu yang ingin dilarang.']);
+        }
+
+        $banned = $this->musicService->banTrack([
+            'youtube_id' => $validated['youtube_id'] ?? null,
+            'title' => $validated['title'] ?? null,
+            'artist' => $validated['artist'] ?? null,
+            'reason' => $validated['reason'] ?? 'Dilarang secara manual oleh kasir',
+            'banned_by' => 'kasir',
+        ]);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Lagu berhasil ditambahkan ke Ban List (Blacklist).',
+                'banned_track' => $banned,
+            ]);
+        }
+
+        return back()->with('success', 'Lagu berhasil ditambahkan ke Ban List.');
+    }
+
+    /**
+     * Toggle status aktif/nonaktif sebuah lagu di ban list.
+     */
+    public function toggleBannedTrack(MusicBannedTrack $bannedTrack): JsonResponse|RedirectResponse
+    {
+        $bannedTrack->update([
+            'is_active' => ! $bannedTrack->is_active,
+        ]);
+
+        if (request()->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $bannedTrack->is_active ? 'Ban lagu diaktifkan kembali.' : 'Ban lagu dinonaktifkan sementara.',
+                'banned_track' => $bannedTrack,
+            ]);
+        }
+
+        return back()->with('success', 'Status ban lagu berhasil diubah.');
+    }
+
+    /**
+     * Hapus lagu dari ban list.
+     */
+    public function destroyBannedTrack(MusicBannedTrack $bannedTrack): JsonResponse|RedirectResponse
+    {
+        $bannedTrack->delete();
+
+        if (request()->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Lagu berhasil dihapus dari Ban List.',
+            ]);
+        }
+
+        return back()->with('success', 'Lagu berhasil dihapus dari Ban List.');
+    }
+
+    /**
+     * Auto-ban lagu dari antrean request pelanggan (1-klik ban & tolak).
+     */
+    public function banRequest(Request $request, MusicRequest $musicRequest): JsonResponse|RedirectResponse
+    {
+        $reason = $request->input('reason', 'Dilarang oleh kasir (Blacklist)');
+        $banned = $this->musicService->banAndRejectRequest($musicRequest, $reason);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => "Lagu '{$musicRequest->song_title}' berhasil ditolak dan dimasukkan ke Ban List.",
+                'banned_track' => $banned,
+            ]);
+        }
+
+        return back()->with('success', "Lagu '{$musicRequest->song_title}' berhasil di-ban.");
+    }
+
+    /**
+     * Auto-ban lagu yang saat ini sedang berputar di Sound Station (1-klik ban & skip).
+     */
+    public function quickBanCurrentTrack(Request $request): JsonResponse
+    {
+        $youtubeId = $request->input('youtube_id');
+        $title = $request->input('title');
+        $artist = $request->input('artist');
+        $requestId = $request->integer('request_id') ?: null;
+        $reason = $request->input('reason', 'Dilarang oleh kasir saat diputar');
+
+        if (! $youtubeId && ! $title) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data lagu yang sedang diputar tidak valid.',
+            ], 422);
+        }
+
+        // 1. Masukkan ke ban list
+        $banned = $this->musicService->banTrack([
+            'youtube_id' => $youtubeId,
+            'title' => $title,
+            'artist' => $artist,
+            'reason' => $reason,
+            'banned_by' => 'kasir',
+        ]);
+
+        // 2. Jika merupakan request pelanggan, tolak/skip request-nya
+        if ($requestId) {
+            $musicRequest = MusicRequest::find($requestId);
+            if ($musicRequest) {
+                $this->musicService->rejectRequest($musicRequest, $reason);
+            }
+        }
+
+        // 3. Putar track berikutnya
+        $next = $this->musicService->transitionToNextTrack(
+            $requestId,
+            null,
+            true,
+            "Lagu di-ban oleh kasir: {$title}"
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => "Lagu '{$title}' berhasil di-ban dan dilewati.",
+            'banned_track' => $banned,
+            'next_track' => $next,
+        ]);
     }
 
     /**

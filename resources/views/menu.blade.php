@@ -7,39 +7,69 @@
              x-data="{
                  activeMenu: null,
                  isOpen: false,
+
                  openDetail(menu) {
                      this.activeMenu = menu;
                      this.isOpen = true;
                      document.body.style.overflow = 'hidden';
                  },
+
                  closeDetail() {
                      this.isOpen = false;
                      document.body.style.overflow = '';
+                 },
+
+                 getCaffeineLevel() {
+                     if (!this.activeMenu || !this.activeMenu.nutrition?.caffeine) return { text: 'Bebas Kafein (0 mg)', level: 0, color: 'text-[#5F7F42] bg-[#5F7F42]/10 border-[#5F7F42]/20' };
+                     const c = parseInt(this.activeMenu.nutrition.caffeine) || 0;
+                     if (c === 0) return { text: 'Bebas Kafein (0 mg)', level: 0, color: 'text-[#5F7F42] bg-[#5F7F42]/10 border-[#5F7F42]/20' };
+                     if (c <= 40) return { text: `Kafein Ringan (${c} mg)`, level: 1, color: 'text-sky-700 bg-sky-50 border-sky-200' };
+                     if (c <= 90) return { text: `Kafein Sedang (${c} mg)`, level: 2, color: 'text-amber-800 bg-amber-50 border-amber-200' };
+                     return { text: `Kafein Tinggi (${c} mg)`, level: 3, color: 'text-rose-800 bg-rose-50 border-rose-200' };
                  }
              }">
 
-        <!-- Header -->
-        <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-[#E4DCCC] pb-8">
+        <!-- Header (Mobile-First Cafe Atmosphere) -->
+        <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-[#E4DCCC] pb-6 sm:pb-8">
             <div>
-                <div class="font-mono text-[11px] uppercase tracking-[0.3em] text-[#8A7B66]">Menu {{ config('cafe.name') }}</div>
-                <h1 class="mt-2 text-4xl tracking-tight font-medium">Semua yang kami seduh & sajikan.</h1>
-                <p class="mt-2 text-sm text-[#8A7B66]">Klik pada kartu menu mana saja untuk melihat rincian lengkap bahan baku, nilai gizi, dan alergen.</p>
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#B5762A]/10 border border-[#B5762A]/25 text-[#B5762A] font-mono text-[10px] sm:text-xs font-bold uppercase tracking-wider mb-2.5">
+                    <span>☕</span>
+                    <span>Buku Menu Meja • {{ config('cafe.name') }}</span>
+                </div>
+                <h1 class="font-serif text-3xl sm:text-4xl tracking-tight font-bold text-[#1F1812]">Semua yang kami seduh & sajikan.</h1>
+                <p class="mt-2 text-xs sm:text-sm text-[#7A6A58] max-w-2xl leading-relaxed">
+                    Sentuh menu mana saja untuk melihat rincian komposisi bahan baku segar, takaran gizi, alergen, dan profil karakter rasa racikan barista.
+                </p>
             </div>
-            <div class="inline-flex items-center gap-2 font-mono text-xs text-[#B5762A] bg-[#B5762A]/10 border border-[#B5762A]/30 px-3 py-1.5 self-start sm:self-auto">
+            <div class="inline-flex items-center gap-2 font-mono text-xs text-[#B5762A] bg-[#B5762A]/10 border border-[#B5762A]/30 px-3 py-1.5 rounded-xl self-start sm:self-auto shrink-0 shadow-2xs">
                 <span>💡</span>
-                <span>Klik kartu untuk info komposisi</span>
+                <span>Klik kartu untuk info gizi & bahan</span>
+            </div>
+        </div>
+
+        <!-- STICKY MOBILE CATEGORY JUMP BAR (Mudah Dijangkau Jari Pelanggan di Meja Kafe) -->
+        <div class="sticky top-16 z-30 bg-[#F7F3EC]/95 backdrop-blur-md py-2.5 -mx-4 px-4 sm:mx-0 sm:px-0 border-b border-[#E4DCCC]">
+            <div class="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth py-0.5">
+                @foreach ($categories as $catIdx => $category)
+                    <a href="#category-{{ $category->id }}"
+                       class="px-3 py-1.5 rounded-xl font-mono text-xs font-medium text-[#5C4D3C] bg-white hover:bg-[#1F1812] hover:text-white border border-[#E4DCCC] hover:border-[#1F1812] transition shrink-0 shadow-2xs flex items-center gap-1.5 active:scale-95">
+                        <span class="text-[#B5762A] font-bold">{{ str_pad($catIdx + 1, 2, '0', STR_PAD_LEFT) }}</span>
+                        <span>{{ $category->name }}</span>
+                        <span class="text-[10px] text-[#8A7B66]">({{ $category->menus->count() }})</span>
+                    </a>
+                @endforeach
             </div>
         </div>
 
         @forelse ($categories as $index => $category)
-            <div class="mt-14">
-                <div class="flex items-baseline gap-4 border-b border-[#E4DCCC]/60 pb-3">
-                    <span class="font-mono text-sm text-[#B5762A] font-semibold">{{ str_pad($index + 1, 2, '0', STR_PAD_LEFT) }} //</span>
-                    <h2 class="text-2xl tracking-tight font-medium uppercase text-[#1F1812]">{{ $category->name }}</h2>
+            <div id="category-{{ $category->id }}" class="mt-10 sm:mt-14 scroll-mt-28 sm:scroll-mt-32">
+                <div class="flex items-baseline gap-3 sm:gap-4 border-b border-[#E4DCCC]/60 pb-3">
+                    <span class="font-mono text-xs sm:text-sm text-[#B5762A] font-semibold">{{ str_pad($index + 1, 2, '0', STR_PAD_LEFT) }} //</span>
+                    <h2 class="font-serif text-xl sm:text-2xl tracking-tight font-bold text-[#1F1812]">{{ $category->name }}</h2>
                     <span class="font-mono text-xs text-[#8A7B66]">({{ $category->menus->count() }} pilihan)</span>
                 </div>
 
-                <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                <div class="mt-5 sm:mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
                     @foreach ($category->menus as $menu)
                         @php
                             $menuPayload = [
@@ -58,49 +88,81 @@
                         @endphp
 
                         <div @click="openDetail({{ json_encode($menuPayload) }})"
-                             class="bg-white border border-[#E4DCCC] shadow-[0_1px_3px_rgba(42,33,26,0.06)] h-full flex flex-col justify-between cursor-pointer group hover:border-[#B5762A] hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
-                            <div>
-                                <div class="relative overflow-hidden">
-                                    @if ($menu->image)
-                                        <img src="{{ asset('storage/' . $menu->image) }}"
-                                             alt="{{ $menu->name }}"
-                                             class="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300">
-                                    @else
-                                        <div class="w-full h-48 bg-[#1F1812] flex items-center justify-center group-hover:bg-[#2A211A] transition-colors">
-                                            <span class="font-mono text-3xl text-[#A89A85]">{{ strtoupper(substr($menu->name, 0, 2)) }}</span>
-                                        </div>
-                                    @endif
+                             class="bg-[#FAF7F2] hover:bg-white border border-[#E8E1D5] hover:border-[#B5762A]/60 rounded-2xl h-full flex flex-col justify-between cursor-pointer group hover:shadow-md hover:-translate-y-0.5 active:scale-[0.99] transition-all duration-200 overflow-hidden">
+                            <div class="flex-1 flex flex-col">
+                                <!-- Smart Frame Image Container -->
+                                <div class="p-2 sm:p-2.5 pb-0">
+                                    <div class="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-[#2A211A] border border-[#E8E1D5] shadow-2xs group-hover:border-[#B5762A]/40 transition-colors">
+                                        @if ($menu->image)
+                                            <img src="{{ asset('storage/' . $menu->image) }}"
+                                                 alt="{{ $menu->name }}"
+                                                 loading="lazy"
+                                                 class="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 ease-out">
+                                        @else
+                                            <div class="w-full h-full bg-gradient-to-br from-[#2A211A] via-[#1F1812] to-[#140E0A] flex flex-col items-center justify-center p-4 relative overflow-hidden">
+                                                <!-- Ambient cafe watermark ring -->
+                                                <div class="absolute -right-5 -bottom-5 w-24 h-24 rounded-full border border-[#D9973E]/10 pointer-events-none"></div>
+                                                <div class="absolute -left-5 -top-5 w-24 h-24 rounded-full border border-[#D9973E]/10 pointer-events-none"></div>
 
-                                    <!-- Quick Hover Hint -->
-                                    <div class="absolute inset-0 bg-[#1F1812]/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
-                                        <span class="bg-[#F7F3EC] text-[#1F1812] font-mono text-[11px] uppercase tracking-wider px-3.5 py-1.5 shadow-md border border-[#B5762A]/40 font-medium">
-                                            Lihat Bahan & Gizi ↗
-                                        </span>
+                                                <span class="font-serif text-3xl sm:text-4xl font-bold text-[#D9973E] tracking-wider drop-shadow-xs">
+                                                    {{ strtoupper(substr($menu->name, 0, 2)) }}
+                                                </span>
+                                                <span class="text-[8px] sm:text-[9px] font-mono uppercase tracking-[0.25em] text-[#A89A85] mt-1">
+                                                    {{ config('cafe.name') }}
+                                                </span>
+                                            </div>
+                                        @endif
+
+                                        <!-- Inner Vignette Framing Ring -->
+                                        <div class="pointer-events-none absolute inset-0 ring-1 ring-inset ring-black/10 rounded-xl"></div>
+
+                                        <!-- Smart Floating Category Tag -->
+                                        <div class="absolute top-2.5 left-2.5 flex items-center gap-1.5">
+                                            <span class="font-mono text-[9px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full bg-[#1F1812]/85 text-[#FAF7F2] backdrop-blur-xs border border-white/10 shadow-2xs">
+                                                {{ $category->name }}
+                                            </span>
+                                        </div>
+
+                                        <!-- Interactive Smart Hover Overlay -->
+                                        <div class="absolute inset-0 bg-[#1F1812]/35 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-[2px]">
+                                            <span class="bg-[#FAF7F2] text-[#1F1812] font-mono text-[11px] uppercase tracking-wider px-3.5 py-1.5 shadow-md border border-[#B5762A]/40 font-semibold rounded-lg">
+                                                Lihat Bahan & Gizi ↗
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div class="p-5">
+                                <div class="p-4 sm:p-5 flex-1 flex flex-col">
                                     <div class="flex items-center justify-between gap-2">
-                                        <div class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#8A7B66]">{{ $category->name }}</div>
-                                        <span class="inline-flex items-center gap-1 font-mono text-[9px] uppercase tracking-widest text-[#5F7F42] bg-[#5F7F42]/10 px-2 py-0.5 border border-[#5F7F42]/20">
-                                            Tersedia
+                                        <span class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#8A7B66] font-bold">{{ $category->name }}</span>
+                                        <span class="inline-flex items-center gap-1 font-mono text-[9px] uppercase tracking-widest text-[#5F7F42] font-semibold">
+                                            ● Tersedia
                                         </span>
                                     </div>
-                                    <h3 class="mt-1 text-lg tracking-tight font-medium text-[#1F1812] group-hover:text-[#B5762A] transition-colors">
+
+                                    <h3 class="mt-2 font-serif text-lg sm:text-xl font-bold tracking-tight text-[#1F1812] group-hover:text-[#B5762A] transition-colors leading-snug">
                                         {{ $menu->name }}
                                     </h3>
-                                    <p class="mt-2 text-sm text-[#8A7B66] leading-relaxed break-words">
+
+                                    @if ($menu->detailed_flavor_notes)
+                                        <p class="mt-1 font-serif italic text-xs text-[#8A7B66] line-clamp-1">
+                                            ✦ {{ str_replace(',', ' · ', $menu->detailed_flavor_notes) }}
+                                        </p>
+                                    @endif
+
+                                    <p class="mt-2 text-xs sm:text-sm text-[#6B5A4B] font-serif italic leading-relaxed break-words line-clamp-2">
                                         {{ $menu->description ?? '' }}
                                     </p>
                                 </div>
                             </div>
 
-                            <div class="px-5 pb-5 pt-2 border-t border-[#E4DCCC]/40 flex items-center justify-between">
-                                <span class="font-mono text-xl font-medium text-[#B5762A]">
+                            <div class="px-4 sm:px-5 pb-4 sm:pb-5 pt-3 border-t border-[#E8E1D5]/70 flex items-center justify-between gap-2 bg-[#FAF7F2]/40">
+                                <span class="font-serif text-lg sm:text-xl font-bold text-[#B5762A]">
                                     Rp {{ number_format($menu->price, 0, ',', '.') }}
                                 </span>
-                                <span class="font-mono text-[11px] text-[#8A7B66] group-hover:text-[#B5762A] group-hover:underline inline-flex items-center gap-1 font-medium transition-colors">
-                                    Bahan & Gizi ›
+                                <span class="font-mono text-xs font-semibold text-[#B5762A] group-hover:text-[#1F1812] flex items-center gap-1 transition-colors">
+                                    <span>Bahan & Gizi</span>
+                                    <span class="text-xs">↗</span>
                                 </span>
                             </div>
                         </div>
@@ -111,200 +173,150 @@
             <p class="mt-10 text-[#8A7B66]">Menu akan segera tersedia.</p>
         @endforelse
 
-        <!-- MODAL POPUP: DETAIL BAHAN & KANDUNGAN -->
+        <!-- MODAL POPUP: DETAIL BAHAN & GIZI (MINIMALIS ARTISAN CAFE SHEET - TANPA KOTAK BERTUMPUK) -->
         <div x-show="isOpen"
              x-cloak
              @keydown.escape.window="closeDetail()"
-             class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-[#1F1812]/80 backdrop-blur-sm"
+             class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-[#0F0A07]/75 backdrop-blur-xs"
              style="display: none;">
 
             <!-- Backdrop Click Area -->
             <div class="fixed inset-0" @click="closeDetail()"></div>
 
-            <!-- Modal Window -->
+            <!-- Modal Window (Seamless Paper/Card - No Nested Cards!) -->
             <div x-show="isOpen"
-                 x-transition:enter="transition ease-out duration-200"
-                 x-transition:enter-start="opacity-0 scale-95 translate-y-2"
-                 x-transition:enter-end="opacity-100 scale-100 translate-y-0"
-                 x-transition:leave="transition ease-in duration-150"
-                 x-transition:leave-start="opacity-100 scale-100 translate-y-0"
-            <!-- Modal Window (Melebar / Wide Modal) -->
-            <div x-show="isOpen"
-                 x-transition:enter="transition ease-out duration-200"
-                 x-transition:enter-start="opacity-0 scale-95 translate-y-2"
-                 x-transition:enter-end="opacity-100 scale-100 translate-y-0"
-                 x-transition:leave="transition ease-in duration-150"
-                 x-transition:leave-start="opacity-100 scale-100 translate-y-0"
-                 x-transition:leave-end="opacity-0 scale-95 translate-y-2"
-                 class="relative bg-[#F7F3EC] border border-[#E4DCCC] shadow-2xl max-w-4xl lg:max-w-5xl w-full max-h-[92vh] flex flex-col overflow-hidden text-[#1F1812] z-10">
+                 x-transition:enter="transition ease-out duration-300"
+                 x-transition:enter-start="opacity-0 translate-y-full sm:translate-y-4 sm:scale-95"
+                 x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                 x-transition:leave="transition ease-in duration-200"
+                 x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                 x-transition:leave-end="opacity-0 translate-y-full sm:translate-y-4 sm:scale-95"
+                 class="relative bg-[#FAF7F2] border-t sm:border border-[#D5CCC0] shadow-2xl rounded-t-[28px] sm:rounded-3xl max-w-full sm:max-w-md md:max-w-lg w-full max-h-[88dvh] sm:max-h-[82vh] flex flex-col overflow-hidden text-[#1F1812] z-10"
+                 style="background-color: #FAF7F2 !important;">
 
-                <!-- Modal Top Header -->
-                <div class="bg-[#1F1812] text-[#F7F3EC] px-6 py-4 flex items-center justify-between border-b border-[#3A3026]">
-                    <div class="flex items-center gap-3">
-                        <span class="font-mono text-[10px] uppercase tracking-[0.25em] text-[#D9973E] bg-[#D9973E]/15 border border-[#D9973E]/30 px-2.5 py-0.5"
+                <!-- Mobile Drag Handle -->
+                <div class="w-10 h-1 bg-[#D5CCC0] rounded-full mx-auto mt-3 mb-1 sm:hidden shrink-0"></div>
+
+                <!-- Minimal Top Bar -->
+                <div class="px-5 sm:px-6 pt-3.5 pb-2.5 flex items-center justify-between border-b border-[#E8E1D5] shrink-0">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <span class="font-mono text-[10px] uppercase tracking-[0.25em] font-bold text-[#8A7B66]"
                               x-text="activeMenu?.category"></span>
-                        <span class="font-mono text-[11px] text-[#A89A85] hidden sm:inline">// Rincian Komposisi, Bahan & Informasi Nilai Gizi</span>
+                        <span class="text-[#D5CCC0]">&bull;</span>
+                        <span class="font-serif italic text-xs text-[#7A6A58] truncate">
+                            Informasi Kandungan & Karakteristik
+                        </span>
                     </div>
                     <button @click="closeDetail()"
                             type="button"
-                            class="text-[#A89A85] hover:text-white p-1.5 transition-colors text-lg font-mono focus:outline-none rounded hover:bg-white/10 leading-none"
-                            title="Tutup (Esc)">
+                            class="w-7 h-7 rounded-full bg-stone-200/70 hover:bg-stone-300 text-[#5C4D3C] hover:text-[#1F1812] flex items-center justify-center transition-colors text-xs font-mono font-bold cursor-pointer active:scale-90"
+                            title="Tutup">
                         ✕
                     </button>
                 </div>
 
-                <!-- Modal Scrollable Content -->
-                <div class="overflow-y-auto p-6 sm:p-8 space-y-7">
+                <!-- Seamless Scrollable Content (Model Kafe Artisan - Rapi & Tertata Bersih) -->
+                <div class="px-5 sm:px-6 py-4 overflow-y-auto space-y-4 flex-1">
 
-                    <!-- Hero Info Section -->
-                    <div class="flex flex-col md:flex-row gap-6 items-start bg-white border border-[#E4DCCC] p-5 sm:p-6 shadow-[0_1px_3px_rgba(42,33,26,0.04)]">
-                        <!-- Image or Initials -->
-                        <div class="w-full md:w-56 h-48 sm:h-52 flex-shrink-0 bg-[#1F1812] border border-[#E4DCCC] overflow-hidden relative shadow-inner">
-                            <template x-if="activeMenu?.image_url">
-                                <img :src="activeMenu.image_url" :alt="activeMenu.name" class="w-full h-full object-cover">
-                            </template>
-                            <template x-if="!activeMenu?.image_url">
-                                <div class="w-full h-full flex items-center justify-center">
-                                    <span class="font-mono text-4xl text-[#A89A85]" x-text="activeMenu?.initials"></span>
-                                </div>
-                            </template>
+                    <!-- Header Hero: Visual & Typographic Title -->
+                    <div class="flex items-start gap-4">
+                        <!-- Smart Frame Thumbnail -->
+                        <div class="w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-2xl p-1 bg-white border border-[#E8E1D5] shadow-xs">
+                            <div class="w-full h-full rounded-xl overflow-hidden relative bg-gradient-to-br from-[#2A211A] via-[#1F1812] to-[#140E0A]">
+                                <template x-if="activeMenu?.image_url">
+                                    <img :src="activeMenu.image_url" :alt="activeMenu.name" class="w-full h-full object-cover object-center">
+                                </template>
+                                <template x-if="!activeMenu?.image_url">
+                                    <div class="w-full h-full flex flex-col items-center justify-center text-[#D9973E]">
+                                        <span class="font-serif text-2xl sm:text-3xl font-bold" x-text="activeMenu?.initials"></span>
+                                    </div>
+                                </template>
+                                <div class="pointer-events-none absolute inset-0 ring-1 ring-inset ring-black/10 rounded-xl"></div>
+                            </div>
                         </div>
 
-                        <!-- Title, Price, Description -->
-                        <div class="flex-1 flex flex-col justify-between h-full min-w-0">
-                            <div>
-                                <div class="flex flex-wrap items-baseline justify-between gap-3">
-                                    <h2 class="text-2xl sm:text-3xl font-medium tracking-tight text-[#1F1812]"
-                                        x-text="activeMenu?.name"></h2>
-                                    <span class="font-mono text-2xl sm:text-3xl font-bold text-[#B5762A] whitespace-nowrap"
-                                          x-text="activeMenu?.price_fmt"></span>
-                                </div>
-
-                                <!-- Flavor Notes Pill -->
-                                <div class="mt-2.5 inline-flex items-center gap-2 bg-[#EFE9DF] border border-[#DDD5C5] px-3 py-1.5 text-xs">
-                                    <span class="text-[#B5762A] text-sm">☕</span>
-                                    <span class="font-mono text-[10px] uppercase text-[#8A7B66] font-semibold tracking-wider">Profil Rasa:</span>
-                                    <span class="text-xs text-[#2A211A] font-medium" x-text="activeMenu?.flavor_notes"></span>
-                                </div>
-
-                                <p class="mt-3.5 text-sm sm:text-[15px] text-[#5C5042] leading-relaxed"
-                                   x-text="activeMenu?.description"></p>
+                        <!-- Title, Price & Flavor Tagline -->
+                        <div class="flex-1 min-w-0">
+                            <div class="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
+                                <h2 class="font-serif text-xl sm:text-2xl font-bold tracking-tight text-[#1F1812] leading-tight"
+                                    x-text="activeMenu?.name"></h2>
+                                <div class="font-serif text-lg sm:text-xl font-bold text-[#B5762A] whitespace-nowrap shrink-0"
+                                     x-text="activeMenu?.price_fmt"></div>
                             </div>
 
-                            <div class="mt-4 pt-3 border-t border-[#E4DCCC]/60 flex items-center justify-between text-xs text-[#8A7B66]">
-                                <span class="font-mono uppercase tracking-wider text-[10px]">Penyajian Spesial {{ config('cafe.name') }}</span>
-                                <span class="inline-flex items-center gap-1.5 text-[#5F7F42] font-mono text-[11px] font-medium">
-                                    <span class="w-2 h-2 rounded-full bg-[#5F7F42]"></span>
-                                    Tersedia
-                                </span>
-                            </div>
+                            <p class="mt-1 text-xs sm:text-sm text-[#5C4D3C] font-serif italic leading-relaxed line-clamp-2"
+                               x-text="activeMenu?.description || 'Racikan istimewa barista dengan bahan baku segar pilihan.'"></p>
                         </div>
                     </div>
 
-                    <!-- 2-COLUMN WIDE GRID: BAHAN (LEFT) vs KANDUNGAN GIZI & ALERGEN (RIGHT) -->
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                    <!-- 3-Column Micro Spec Strip (Rapi, Seimbang, Tanpa Kotak Tebal) -->
+                    <div class="grid grid-cols-3 divide-x divide-[#E8E1D5] border-y border-[#E8E1D5] py-2.5 text-center">
+                        <div class="px-2">
+                            <span class="block font-mono text-[9px] uppercase tracking-wider text-[#8A7B66] font-bold">Kafein</span>
+                            <span class="font-mono text-xs sm:text-sm font-bold text-[#1F1812]" x-text="activeMenu?.nutrition?.caffeine || '0 mg'"></span>
+                        </div>
+                        <div class="px-2">
+                            <span class="block font-mono text-[9px] uppercase tracking-wider text-[#8A7B66] font-bold">Kalori</span>
+                            <span class="font-mono text-xs sm:text-sm font-bold text-[#1F1812]" x-text="activeMenu?.nutrition?.calories || '-'"></span>
+                        </div>
+                        <div class="px-2">
+                            <span class="block font-mono text-[9px] uppercase tracking-wider text-[#8A7B66] font-bold">Gula</span>
+                            <span class="font-mono text-xs sm:text-sm font-bold text-[#1F1812]"
+                                  x-text="activeMenu?.nutrition?.sugar ? (activeMenu.nutrition.sugar.includes('(') ? activeMenu.nutrition.sugar.substring(0, activeMenu.nutrition.sugar.indexOf('(')).trim() : activeMenu.nutrition.sugar) : '0 g'"></span>
+                        </div>
+                    </div>
 
-                        <!-- KOLOM KIRI: BAHAN & KOMPOSISI -->
-                        <div class="space-y-5">
-                            <div class="border-b border-[#E4DCCC] pb-2 flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-[#B5762A] font-semibold">
-                                <svg class="w-4 h-4 text-[#B5762A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
-                                </svg>
-                                <span>Komposisi & Bahan Baku Utama</span>
-                            </div>
+                    <!-- Komposisi & Bahan Baku Utama (Typographic Cafe List - 2 Kolom Rapi) -->
+                    <div>
+                        <div class="font-mono text-[10px] uppercase tracking-[0.25em] text-[#8A7B66] font-bold mb-2">
+                            Komposisi & Bahan Baku Utama
+                        </div>
+                        <ul class="grid grid-cols-1 sm:grid-cols-2 gap-y-1.5 gap-x-4 text-xs sm:text-sm font-serif text-[#1F1812]">
+                            <template x-for="item in (activeMenu?.ingredients || [])" :key="item">
+                                <li class="flex items-center gap-2">
+                                    <span class="text-[#B5762A] text-[10px] shrink-0">✦</span>
+                                    <span x-text="item" class="leading-tight"></span>
+                                </li>
+                            </template>
+                        </ul>
+                    </div>
 
-                            <div class="bg-white border border-[#E4DCCC] p-4 sm:p-5 shadow-[0_1px_2px_rgba(42,33,26,0.03)] space-y-3">
-                                <template x-for="(ing, idx) in (activeMenu?.ingredients || [])" :key="idx">
-                                    <div class="flex items-start gap-3 text-sm pb-2.5 border-b border-[#E4DCCC]/40 last:border-0 last:pb-0">
-                                        <span class="text-[#5F7F42] mt-0.5 font-bold text-sm">✓</span>
-                                        <span class="text-[#2A211A] leading-relaxed font-normal" x-text="ing"></span>
-                                    </div>
-                                </template>
-                            </div>
+                    <!-- Divider Garis Kafe Halus -->
+                    <div class="border-t border-[#E8E1D5]"></div>
 
-                            <!-- Tips Barista & Personalisasi -->
-                            <div class="bg-[#1F1812] text-[#F7F3EC] p-4 sm:p-5 flex items-start gap-3.5 border-l-4 border-[#B5762A] shadow-md">
-                                <span class="text-2xl">💡</span>
-                                <div class="text-xs leading-relaxed">
-                                    <div class="font-mono text-[10px] uppercase tracking-wider text-[#D9973E] font-semibold">Tips Barista & Personalisasi</div>
-                                    <p class="mt-1 text-[#D2C8BA] text-[13px] leading-relaxed" x-text="activeMenu?.barista_notes"></p>
-                                </div>
+                    <!-- Karakter Rasa & Alergen (Penataan 2 Kolom Rapi) -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs sm:text-sm font-serif">
+                        <div>
+                            <div class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#8A7B66] font-bold mb-1">
+                                Catatan Rasa
                             </div>
+                            <p class="italic text-[#2A211A] leading-relaxed"
+                               x-text="activeMenu?.flavor_notes || 'Seimbang, segar, aroma khas racikan kafe.'"></p>
                         </div>
 
-                        <!-- KOLOM KANAN: KANDUNGAN GIZI & ALERGEN -->
-                        <div class="space-y-5">
-                            <div class="border-b border-[#E4DCCC] pb-2 flex items-center gap-2 font-mono text-xs uppercase tracking-[0.2em] text-[#B5762A] font-semibold">
-                                <svg class="w-4 h-4 text-[#B5762A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                                </svg>
-                                <span>Informasi Kandungan & Karakteristik</span>
+                        <div>
+                            <div class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#8A7B66] font-bold mb-1">
+                                Info Alergen & Kustomisasi
                             </div>
-
-                            <!-- Grid Metrik Kandungan (2x2) -->
-                            <div class="grid grid-cols-2 gap-3.5">
-                                <!-- Kalori -->
-                                <div class="bg-white border border-[#E4DCCC] p-4 text-center shadow-[0_1px_2px_rgba(42,33,26,0.03)] hover:border-[#B5762A]/40 transition-colors">
-                                    <div class="font-mono text-[10px] uppercase tracking-wider text-[#8A7B66]">Kalori</div>
-                                    <div class="mt-1.5 font-mono text-xl sm:text-2xl font-bold text-[#1F1812]"
-                                         x-text="activeMenu?.nutrition?.calories || '-'"></div>
-                                    <div class="mt-0.5 text-[10px] text-[#8A7B66]">Energi per porsi</div>
-                                </div>
-
-                                <!-- Kafein -->
-                                <div class="bg-white border border-[#E4DCCC] p-4 text-center shadow-[0_1px_2px_rgba(42,33,26,0.03)] hover:border-[#B5762A]/40 transition-colors">
-                                    <div class="font-mono text-[10px] uppercase tracking-wider text-[#8A7B66]">Kafein</div>
-                                    <div class="mt-1.5 font-mono text-xl sm:text-2xl font-bold text-[#1F1812]"
-                                         x-text="activeMenu?.nutrition?.caffeine || '-'"></div>
-                                    <div class="mt-0.5 text-[10px] text-[#8A7B66]">Estimasi kandungan</div>
-                                </div>
-
-                                <!-- Gula / Pemanis -->
-                                <div class="bg-white border border-[#E4DCCC] p-4 text-center shadow-[0_1px_2px_rgba(42,33,26,0.03)] hover:border-[#B5762A]/40 transition-colors">
-                                    <div class="font-mono text-[10px] uppercase tracking-wider text-[#8A7B66]">Kadar Gula</div>
-                                    <div class="mt-1.5 font-mono text-xl sm:text-2xl font-bold text-[#1F1812]"
-                                         x-text="activeMenu?.nutrition?.sugar || '-'"></div>
-                                    <div class="mt-0.5 text-[10px] text-[#8A7B66]">Pemanis alami/resep</div>
-                                </div>
-
-                                <!-- Penyajian / Suhu -->
-                                <div class="bg-white border border-[#E4DCCC] p-4 text-center shadow-[0_1px_2px_rgba(42,33,26,0.03)] hover:border-[#B5762A]/40 transition-colors">
-                                    <div class="font-mono text-[10px] uppercase tracking-wider text-[#8A7B66]">Sajian</div>
-                                    <div class="mt-1.5 font-mono text-sm sm:text-base font-semibold text-[#1F1812] leading-tight flex items-center justify-center min-h-[2rem]"
-                                         x-text="activeMenu?.nutrition?.serving || 'Hot / Iced'"></div>
-                                    <div class="mt-0.5 text-[10px] text-[#8A7B66]">Format temperatur</div>
-                                </div>
-                            </div>
-
-                            <!-- Banner Alergen -->
-                            <div class="bg-[#EFE9DF] border border-[#DDD5C5] p-4 sm:p-5 flex items-start gap-3.5 shadow-sm">
-                                <span class="text-[#B5762A] text-xl mt-0.5">⚠️</span>
-                                <div>
-                                    <div class="font-mono text-[10px] uppercase tracking-wider text-[#8A7B66] font-semibold">Informasi Alergen & Diet</div>
-                                    <div class="mt-1 text-sm font-medium text-[#2A211A] leading-relaxed"
-                                         x-text="activeMenu?.nutrition?.allergens || 'Bebas Alergen'"></div>
-                                    <p class="mt-1 text-[11px] text-[#8A7B66]">Silakan informasikan kepada barista/kasir kami jika Anda memiliki alergi khusus sebelum pesanan dibuat.</p>
-                                </div>
-                            </div>
+                            <p class="leading-relaxed text-[#5C4D3C]">
+                                <b class="text-[#1F1812] font-semibold" x-text="activeMenu?.nutrition?.allergens || 'Bebas alergen utama.'"></b>
+                                <span class="text-xs text-[#8A7B66] block mt-0.5"
+                                      x-text="(activeMenu?.nutrition?.serving ? 'Sajian: ' + activeMenu.nutrition.serving + ' • ' : '') + 'Bisa request susu nabati / less sweet ke kasir'"></span>
+                            </p>
                         </div>
-
                     </div>
 
                 </div>
 
-                <!-- Modal Bottom Actions -->
-                <div class="bg-white border-t border-[#E4DCCC] px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div class="font-mono text-xs text-[#8A7B66] flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full bg-[#B5762A]"></span>
-                        <span>Pesanan diproses langsung di Meja Kasir atau panggil barista</span>
-                    </div>
-                    <div class="flex items-center justify-end gap-3">
-                        <button @click="closeDetail()"
-                                type="button"
-                                class="px-6 py-2.5 bg-[#1F1812] hover:bg-[#B5762A] text-white font-mono text-xs uppercase tracking-wider transition-colors shadow-sm font-medium">
-                            Tutup [Esc]
-                        </button>
-                    </div>
+                <!-- Minimal Bottom Bar -->
+                <div class="px-5 sm:px-6 py-3 border-t border-[#E8E1D5] flex items-center justify-between gap-3 shrink-0 bg-[#FAF7F2] pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+                     style="background-color: #FAF7F2 !important;">
+                    <span class="font-serif italic text-xs text-[#8A7B66]">Pesan langsung di kasir / meja</span>
+                    <button @click="closeDetail()"
+                            type="button"
+                            class="px-5 py-1.5 border border-[#3A3026] text-[#1F1812] hover:bg-[#1F1812] hover:text-[#FAF7F2] rounded-xl font-mono text-xs uppercase tracking-wider font-semibold transition-all shadow-2xs active:scale-95 cursor-pointer">
+                        Tutup
+                    </button>
                 </div>
 
             </div>
