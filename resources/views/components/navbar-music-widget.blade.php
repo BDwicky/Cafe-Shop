@@ -1140,12 +1140,23 @@ function navbarMusicWidget() {
                 }
             }, 2000);
 
+            // Polling antrean request lagu pelanggan (Master host tetap jalan meski tab tidak fokus agar request langsung terespon)
             setInterval(() => {
-                if (!document.hidden && !window._isNavigatingKasirPage) {
+                if ((this.isMasterHost || !document.hidden) && !window._isNavigatingKasirPage) {
                     this.refreshQueue();
                 }
-            }, 12000);
+            }, 3000);
             this.refreshQueue();
+
+            // Refresh seketika saat kasir kembali memfokuskan tab browser
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden && !window._isNavigatingKasirPage) {
+                    this.refreshQueue();
+                    if (this.isMasterHost) {
+                        this.checkReadyOrders();
+                    }
+                }
+            });
 
             // Inisialisasi Jadwal Sholat & Mode Hormat Adzan (Surabaya & Sidoarjo)
             this.fetchPrayerSchedule();
@@ -2281,7 +2292,11 @@ function navbarMusicWidget() {
         },
 
         async refreshQueue() {
-            if (document.hidden || window._isNavigatingKasirPage) return;
+            // Master host WAJIB tetap memantau antrean lagu tamu meskipun tab sedang tidak fokus / di latar belakang.
+            // Hanya tab remote non-master yang di-pause saat hidden demi hemat resource.
+            if (!this.isMasterHost && document.hidden) return;
+            if (window._isNavigatingKasirPage) return;
+
             try {
                 const res = await fetch('{{ route('music.status') }}', {
                     headers: {
@@ -2301,9 +2316,16 @@ function navbarMusicWidget() {
 
                 this.broadcastSync();
 
-                // Deteksi interupsi jika musik kasir sedang berputar dan ada request pelanggan masuk
-                if (this.isMasterHost && this.isPlaying && this.currentTrack && this.currentTrack.type === 'default_track' && this.queueCount > 0 && !this.isFadingAudio && !this.isTransitioningTrack) {
-                    this.interruptAndPlayRequest();
+                // Deteksi jika ada request pelanggan masuk:
+                if (this.isMasterHost && this.queueCount > 0 && !this.isFadingAudio && !this.isTransitioningTrack) {
+                    // 1. Jika musik playlist bawaan sedang berputar, interupsi dan alihkan ke request tamu
+                    if (this.isPlaying && this.currentTrack && this.currentTrack.type === 'default_track') {
+                        this.interruptAndPlayRequest();
+                    }
+                    // 2. Jika sound station sedang idle/tidak memutar dan ada request masuk, langsung putar
+                    else if (!this.isPlaying && !this.isAdzanMode && !this._manualPlaybackOverride) {
+                        this.playNextTrack();
+                    }
                 }
             } catch (e) {}
         },
