@@ -61,8 +61,9 @@ class ReportTest extends TestCase
 
     public function test_report_receipt_view_renders_thermal_format(): void
     {
-        $user = User::factory()->create();
-        $order = Order::factory()->create(['total' => 75000, 'status' => 'paid', 'created_at' => now()]);
+        $owner = User::factory()->create(['name' => 'Owner Dwicky', 'role' => 'owner']);
+        $cashier = User::factory()->create(['name' => 'Barista Andre', 'role' => 'kasir']);
+        $order = Order::factory()->create(['user_id' => $cashier->id, 'total' => 75000, 'status' => 'paid', 'created_at' => now()]);
         OrderItem::create([
             'order_id' => $order->id,
             'menu_id' => null,
@@ -72,17 +73,72 @@ class ReportTest extends TestCase
             'line_total' => 64000,
         ]);
 
-        $this->actingAs($user)
+        $this->actingAs($owner)
             ->get('/kasir/laporan/receipt')
             ->assertOk()
             ->assertSee('*** LAPORAN KASIR ***')
             ->assertSee('Caramel Macchiato')
-            ->assertSee('75.000');
+            ->assertSee('75.000')
+            ->assertSee('Barista Andre');
     }
 
     public function test_guest_cannot_access_report_receipt(): void
     {
         $this->get('/kasir/laporan/receipt')
             ->assertRedirect('/kasir/login');
+    }
+
+    public function test_owner_can_see_cashier_performance_breakdown(): void
+    {
+        $owner = User::factory()->create(['role' => 'owner', 'name' => 'Pak Bos Owner']);
+        $cashierA = User::factory()->create(['role' => 'kasir', 'name' => 'Budi Kasir Pagi']);
+        $cashierB = User::factory()->create(['role' => 'kasir', 'name' => 'Siti Kasir Malam']);
+
+        Order::factory()->create([
+            'user_id' => $cashierA->id,
+            'total' => 150000,
+            'status' => 'paid',
+            'created_at' => now(),
+        ]);
+        Order::factory()->create([
+            'user_id' => $cashierA->id,
+            'total' => 50000,
+            'status' => 'paid',
+            'created_at' => now(),
+        ]);
+        Order::factory()->create([
+            'user_id' => $cashierB->id,
+            'total' => 70000,
+            'status' => 'paid',
+            'created_at' => now(),
+        ]);
+        Order::factory()->create([
+            'user_id' => $cashierB->id,
+            'total' => 45000,
+            'status' => 'voided',
+            'created_at' => now(),
+        ]);
+
+        $response = $this->actingAs($owner)->get('/kasir/laporan');
+
+        $response->assertOk()
+            ->assertSee('Performa Kasir')
+            ->assertSee('Budi Kasir Pagi')
+            ->assertSee('200.000')
+            ->assertSee('Siti Kasir Malam')
+            ->assertSee('70.000')
+            ->assertSee('1 batal');
+    }
+
+    public function test_report_filter_form_has_seamless_filter_handler(): void
+    {
+        $owner = User::factory()->create(['role' => 'owner']);
+
+        $response = $this->actingAs($owner)->get('/kasir/laporan');
+
+        $response->assertOk()
+            ->assertSee('@submit.prevent="submitDateFilter()"', false)
+            ->assertSee('submitDateFilter()', false)
+            ->assertSee('swapKasirPage(url.href, true)', false);
     }
 }

@@ -122,6 +122,26 @@ class ReportController extends Controller
             'net_margin' => $netMargin,
         ];
 
-        return compact('from', 'to', 'totals', 'itemsSold', 'byMethod', 'perDay', 'best', 'finance');
+        // 4. Statistik & Performa Kasir (Cashier Performance)
+        $cashierStats = Order::query()
+            ->leftJoin('users', 'users.id', '=', 'orders.user_id')
+            ->whereBetween('orders.created_at', [$from, $to])
+            ->whereIn('orders.status', ['paid', 'voided'])
+            ->selectRaw("
+                orders.user_id,
+                COALESCE(users.name, 'Kasir Umum / POS') as cashier_name,
+                COALESCE(users.email, '-') as cashier_email,
+                COALESCE(users.role, 'kasir') as cashier_role,
+                COUNT(CASE WHEN orders.status = 'paid' THEN 1 END) as paid_count,
+                COALESCE(SUM(CASE WHEN orders.status = 'paid' THEN orders.total ELSE 0 END), 0) as total_sales,
+                COALESCE(SUM(CASE WHEN orders.status = 'paid' THEN orders.discount ELSE 0 END), 0) as total_discount,
+                COALESCE(AVG(CASE WHEN orders.status = 'paid' THEN orders.total END), 0) as avg_sale,
+                COUNT(CASE WHEN orders.status = 'voided' THEN 1 END) as void_count
+            ")
+            ->groupBy('orders.user_id', 'users.name', 'users.email', 'users.role')
+            ->orderByDesc('total_sales')
+            ->get();
+
+        return compact('from', 'to', 'totals', 'itemsSold', 'byMethod', 'perDay', 'best', 'finance', 'cashierStats');
     }
 }

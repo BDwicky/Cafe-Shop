@@ -165,7 +165,7 @@
                 </div>
 
                 <!-- Form Filter Tanggal Kustom -->
-                <form id="report-filter-form" method="GET" action="{{ route('kasir.laporan') }}" class="flex items-center flex-wrap gap-2.5">
+                <form id="report-filter-form" method="GET" action="{{ route('kasir.laporan') }}" @submit.prevent="submitDateFilter()" class="flex items-center flex-wrap gap-2.5">
                     <div class="flex items-center gap-1.5 bg-[#FAF7F2] border border-[#E4DCCC] rounded-xl px-2.5 py-1.5 focus-within:border-[#B5762A] focus-within:bg-white transition">
                         <span class="font-mono text-[10px] uppercase tracking-wider text-[#8A7B66] font-bold">DARI:</span>
                         <input type="date"
@@ -501,7 +501,140 @@
 
         </div>
 
-        <!-- 6. PERKEMBANGAN OMZET PER HARI (JIKA PERIODE > 1 HARI) -->
+        <!-- 6. PERFORMA KASIR & STAF (CASHIER PERFORMANCE BREAKDOWN) -->
+        <div class="bg-white border border-[#E4DCCC] rounded-2xl p-5 sm:p-6 shadow-xs">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-[#E4DCCC] gap-3 mb-5">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-lg">🧑‍💼</span>
+                        <h2 class="font-serif font-bold text-lg text-[#1F1812]">Performa Kasir & Staf</h2>
+                        <span class="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono text-[10px] font-bold">
+                            {{ $cashierStats->count() }} Staf Bertransaksi
+                        </span>
+                    </div>
+                    <p class="font-mono text-xs text-[#8A7B66] mt-0.5">
+                        Transparansi transaksi, omzet per staf, nilai rata-rata tiket, serta catatan void/pembatalan kasir.
+                    </p>
+                </div>
+                <div class="flex items-center gap-2 text-xs font-mono text-[#8A7B66]">
+                    <span>Total Omzet: <strong class="text-[#1F1812]">Rp {{ number_format($totals->omzet, 0, ',', '.') }}</strong></span>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-[#E4DCCC] text-[11px] font-mono uppercase tracking-wider text-[#8A7B66]">
+                            <th class="pb-3 font-bold">Kasir / Staf</th>
+                            <th class="pb-3 font-bold text-center">Peran (Role)</th>
+                            <th class="pb-3 font-bold text-center">Trx Lunas</th>
+                            <th class="pb-3 font-bold text-right">Total Omzet</th>
+                            <th class="pb-3 font-bold text-center">Kontribusi</th>
+                            <th class="pb-3 font-bold text-right">Avg Basket</th>
+                            <th class="pb-3 font-bold text-right">Total Diskon</th>
+                            <th class="pb-3 font-bold text-center">Void (Batal)</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-[#F2EDE4] text-xs font-sans">
+                        @forelse ($cashierStats as $c)
+                            @php
+                                $totalOmzetNumber = (int) $totals->omzet ?: 1;
+                                $contribPct = round(($c->total_sales / $totalOmzetNumber) * 100, 1);
+                                $isOwner = strtolower($c->cashier_role) === 'owner';
+                            @endphp
+                            <tr class="hover:bg-[#FAF7F2]/80 transition">
+                                <!-- Kasir / Staf Name & Info -->
+                                <td class="py-3.5 pr-4">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-9 h-9 rounded-xl flex items-center justify-center font-mono font-bold text-sm shadow-2xs {{ $isOwner ? 'bg-[#1F1812] text-[#D9973E] border border-[#3A3026]' : 'bg-[#FAF7F2] text-[#1F1812] border border-[#E4DCCC]' }}">
+                                            {{ strtoupper(substr($c->cashier_name, 0, 2)) }}
+                                        </div>
+                                        <div>
+                                            <div class="font-bold text-[#1F1812] flex items-center gap-1.5">
+                                                <span>{{ $c->cashier_name }}</span>
+                                                @if ($isOwner)
+                                                    <span class="px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 border border-amber-300 font-mono text-[9px] font-extrabold uppercase">
+                                                        Owner
+                                                    </span>
+                                                @endif
+                                            </div>
+                                            <div class="text-[11px] font-mono text-[#8A7B66]">
+                                                {{ $c->cashier_email }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+
+                                <!-- Role -->
+                                <td class="py-3.5 px-3 text-center">
+                                    <span class="px-2.5 py-0.5 rounded-full font-mono text-[10px] font-bold uppercase border {{ $isOwner ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-sky-50 text-sky-800 border-sky-200' }}">
+                                        {{ $c->cashier_role }}
+                                    </span>
+                                </td>
+
+                                <!-- Trx Selesai -->
+                                <td class="py-3.5 px-3 text-center font-mono font-bold text-[#1F1812]">
+                                    <span class="inline-block px-2 py-0.5 rounded-lg bg-[#FAF7F2] border border-[#E4DCCC]">
+                                        {{ number_format($c->paid_count, 0, ',', '.') }} trx
+                                    </span>
+                                </td>
+
+                                <!-- Total Omzet -->
+                                <td class="py-3.5 px-3 text-right font-mono font-bold text-[#1F1812]">
+                                    Rp {{ number_format($c->total_sales, 0, ',', '.') }}
+                                </td>
+
+                                <!-- Kontribusi Omzet & Bar -->
+                                <td class="py-3.5 px-3 text-center">
+                                    <div class="flex items-center justify-center gap-2">
+                                        <div class="w-16 h-2 bg-[#E4DCCC]/60 rounded-full overflow-hidden hidden sm:block">
+                                            <div class="h-full bg-[#5F7F42] rounded-full transition-all duration-500"
+                                                 style="width: {{ min(100, $contribPct) }}%"></div>
+                                        </div>
+                                        <span class="font-mono text-xs font-bold text-[#5F7F42]">
+                                            {{ $contribPct }}%
+                                        </span>
+                                    </div>
+                                </td>
+
+                                <!-- Avg Basket -->
+                                <td class="py-3.5 px-3 text-right font-mono text-[#8A7B66]">
+                                    Rp {{ number_format(round($c->avg_sale), 0, ',', '.') }}
+                                </td>
+
+                                <!-- Diskon Diberikan -->
+                                <td class="py-3.5 px-3 text-right font-mono {{ $c->total_discount > 0 ? 'text-[#C4553D] font-bold' : 'text-[#8A7B66]' }}">
+                                    @if ($c->total_discount > 0)
+                                        -Rp {{ number_format($c->total_discount, 0, ',', '.') }}
+                                    @else
+                                        Rp 0
+                                    @endif
+                                </td>
+
+                                <!-- Void Count -->
+                                <td class="py-3.5 pl-3 text-center">
+                                    @if ($c->void_count > 0)
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-mono text-[10px] font-bold bg-red-50 text-red-700 border border-red-200">
+                                            ⚠️ {{ $c->void_count }} batal
+                                        </span>
+                                    @else
+                                        <span class="font-mono text-xs text-[#8A7B66]">-</span>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="8" class="py-8 text-center text-[#8A7B66] font-mono text-xs">
+                                    Tidak ada transaksi kasir pada periode yang dipilih.
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 7. PERKEMBANGAN OMZET PER HARI (JIKA PERIODE > 1 HARI) -->
         @if ($perDay->count() > 1)
             <div class="bg-white border border-[#E4DCCC] rounded-2xl p-5 sm:p-6 shadow-xs">
                 <div class="flex items-center justify-between pb-3 border-b border-[#E4DCCC] mb-4">
@@ -678,6 +811,29 @@
                 </div>
             @endif
 
+            @if (isset($cashierStats) && $cashierStats->isNotEmpty())
+                <div class="dashed">
+                    <div class="section-title">Performa Kasir & Staf</div>
+                    <table>
+                        @foreach ($cashierStats as $cs)
+                            @php
+                                $cTotalOmzet = (int) $totals->omzet ?: 1;
+                                $cPct = round(($cs->total_sales / $cTotalOmzet) * 100, 1);
+                            @endphp
+                            <tr>
+                                <td style="padding-bottom: 1mm;">
+                                    <b>{{ $cs->cashier_name }}</b> ({{ strtoupper($cs->cashier_role) }})<br>
+                                    &nbsp;&nbsp;&nbsp;<span style="font-size: 7.5pt; color: #444;">{{ $cs->paid_count }} trx @if($cs->void_count > 0) • {{ $cs->void_count }} void @endif • ({{ $cPct }}%)</span>
+                                </td>
+                                <td class="r" style="vertical-align: top;">
+                                    Rp {{ number_format($cs->total_sales, 0, ',', '.') }}
+                                </td>
+                            </tr>
+                        @endforeach
+                    </table>
+                </div>
+            @endif
+
             <div class="dashed">
                 <div class="signatures">
                     <div class="sig-box">
@@ -754,8 +910,7 @@
             setDateRange(preset) {
                 const fromInput = document.getElementById('report-from-date');
                 const toInput = document.getElementById('report-to-date');
-                const form = document.getElementById('report-filter-form');
-                if (!fromInput || !toInput || !form) return;
+                if (!fromInput || !toInput) return;
 
                 const today = new Date();
                 const formatDate = (d) => {
@@ -786,7 +941,26 @@
                     toInput.value = formatDate(today);
                 }
 
-                form.submit();
+                this.submitDateFilter();
+            },
+
+            submitDateFilter() {
+                const fromInput = document.getElementById('report-from-date');
+                const toInput = document.getElementById('report-to-date');
+                const fromVal = fromInput ? fromInput.value : '';
+                const toVal = toInput ? toInput.value : '';
+
+                const url = new URL('{{ route('kasir.laporan') }}', window.location.origin);
+                if (fromVal) url.searchParams.set('from', fromVal);
+                if (toVal) url.searchParams.set('to', toVal);
+
+                if (typeof swapKasirPage === 'function') {
+                    swapKasirPage(url.href, true);
+                } else {
+                    const form = document.getElementById('report-filter-form');
+                    if (form) form.submit();
+                    else window.location.href = url.href;
+                }
             }
         };
     }

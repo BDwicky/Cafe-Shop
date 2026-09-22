@@ -312,6 +312,30 @@
             </div>
         @endif
 
+        <!-- Performa Kasir & Staf -->
+        @if (isset($cashierStats) && $cashierStats->isNotEmpty())
+            <div class="dashed">
+                <div class="section-title">Performa Kasir & Staf</div>
+                <table>
+                    @foreach ($cashierStats as $cs)
+                        @php
+                            $cTotalOmzet = (int) $totals->omzet ?: 1;
+                            $cPct = round(($cs->total_sales / $cTotalOmzet) * 100, 1);
+                        @endphp
+                        <tr>
+                            <td style="padding-bottom: 1mm;">
+                                <b>{{ $cs->cashier_name }}</b> ({{ strtoupper($cs->cashier_role) }})<br>
+                                &nbsp;&nbsp;&nbsp;<span style="font-size: 7.5pt; color: #444;">{{ $cs->paid_count }} trx @if($cs->void_count > 0) • {{ $cs->void_count }} void @endif • ({{ $cPct }}%)</span>
+                            </td>
+                            <td class="r" style="vertical-align: top;">
+                                Rp {{ number_format($cs->total_sales, 0, ',', '.') }}
+                            </td>
+                        </tr>
+                    @endforeach
+                </table>
+            </div>
+        @endif
+
         <!-- Tanda Tangan Rekonsiliasi Kasir -->
         <div class="dashed">
             <div class="signatures">
