@@ -354,10 +354,6 @@ class KasirLoginController extends Controller
 
     public function deviceSetup(Request $request)
     {
-        if ($request->expectsJson() || $request->ajax()) {
-            return $this->fleetData($request);
-        }
-
         $clientIp = $request->ip();
         $allowedIps = config('cafe.kasir_allowed_ips', ['127.0.0.1', '::1']);
         $secret = self::getDeviceSecret();

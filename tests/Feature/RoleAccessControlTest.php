@@ -68,6 +68,19 @@ class RoleAccessControlTest extends TestCase
         $this->actingAs($owner)->get('/kasir/device-setup')->assertOk();
     }
 
+    public function test_owner_device_setup_page_supports_pjax_seamless_transition(): void
+    {
+        $owner = User::factory()->owner()->create();
+
+        $response = $this->actingAs($owner)
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->get('/kasir/device-setup');
+
+        $response->assertOk()
+            ->assertSee('<main', false)
+            ->assertSee('Otorisasi Perangkat & Jaringan', false);
+    }
+
     public function test_sidebar_displays_kasir_view_correctly(): void
     {
         $kasir = User::factory()->kasir()->create(['name' => 'Siti Kasir']);
