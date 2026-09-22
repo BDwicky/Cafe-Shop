@@ -242,6 +242,7 @@ class MusicService
      *     is_nsfw: bool,
      *     is_valid_duration: bool,
      *     is_valid: bool,
+     *     is_static_visual: bool,
      *     duration_error: string|null,
      *     error_message: string|null
      * }
@@ -338,6 +339,8 @@ class MusicService
                 $isNsfw = true;
             }
 
+            $isStaticVisual = $this->isStaticVisualTrack($title, $artist, $youtubeId, $html ?? null);
+
             return [
                 'youtube_id' => $youtubeId,
                 'title' => $title,
@@ -346,6 +349,7 @@ class MusicService
                 'duration_seconds' => $durationSeconds,
                 'is_live' => $isLive,
                 'is_nsfw' => $isNsfw,
+                'is_static_visual' => $isStaticVisual,
             ];
         });
 
@@ -373,11 +377,65 @@ class MusicService
             'duration_formatted' => $durationCheck['duration_formatted'],
             'is_live' => $isLive,
             'is_nsfw' => $isNsfw,
+            'is_static_visual' => (bool) ($raw['is_static_visual'] ?? true),
             'is_valid_duration' => $durationCheck['valid'],
             'is_valid' => $isValid,
             'duration_error' => $durationCheck['message'],
             'error_message' => $errorMessage,
         ];
+    }
+
+    /**
+     * Deteksi apakah sebuah track video YouTube bersifat visual statis (hanya cover/gambar yang tidak berganti)
+     * atau video klip bergerak dinamis (Official MV, live performance, video klip aktif).
+     */
+    public function isStaticVisualTrack(?string $title, ?string $artist = null, ?string $youtubeId = null, ?string $rawHtml = null): bool
+    {
+        $t = mb_strtolower($title ?? '');
+        $a = mb_strtolower($artist ?? '');
+
+        // 1. YouTube Topic Channels (100% Art Track dari YouTube Music dengan gambar cover album 1:1 statis)
+        if (str_ends_with($a, '- topic') || str_contains($a, '- topic') || str_ends_with($a, ' topic')) {
+            return true;
+        }
+
+        // 2. Pemeriksaan HTML mentah jika tersedia (Provided to YouTube by atau Storyboard square)
+        if (! empty($rawHtml)) {
+            if (str_contains($rawHtml, 'Provided to YouTube by') || preg_match('/"(?:isMusic|artTrack)":\s*true/i', $rawHtml)) {
+                return true;
+            }
+            if (preg_match('/"(?:spec|storyboard)":\s*"[^"]*(?:45#45#|90#90#|180#180#)/i', $rawHtml)) {
+                return true;
+            }
+        }
+
+        // 3. Kata kunci video klip bergerak aktif (Official MV, Live Concert, dsb)
+        $isDynamic = (
+            preg_match('/\b(official\s+.*?\s*video|music\s+video|video\s+clip|video\s+klip|official\s+mv)\b/i', $t) ||
+            preg_match('/\[\s*(mv|m\/v)\s*\]|\(\s*(mv|m\/v)\s*\)|\b(mv|m\/v)\b/i', $t) ||
+            preg_match('/\b(live\s+at|live\s+performance|live\s+concert|live\s+session|live\s+acoustic|special\s+clip|dance\s+practice|choreography)\b/i', $t) ||
+            str_contains($a, 'vevo') || str_contains($t, 'vevo')
+        );
+
+        if ($isDynamic) {
+            return false;
+        }
+
+        // 4. Kata kunci audio statis / cover art
+        $isStatic = (
+            preg_match('/\b(official\s+audio|audio\s+only|track\s+audio)\b/i', $t) ||
+            preg_match('/\[\s*audio\s*\]|\(\s*audio\s*\)|-\s*audio\b/i', $t) ||
+            preg_match('/\b(cover\s+art|album\s+art|album\s+stream|full\s+album|static\s+video|static\s+visualizer)\b/i', $t) ||
+            preg_match('/\b(visualizer|visualiser|lyric\s+video|lyrics\s+video)\b/i', $t) ||
+            preg_match('/\b(lofi\s+beats|study\s+beats|relaxing\s+piano|cafe\s+ambience|chillhop|sleep\s+music)\b/i', $t)
+        );
+
+        if ($isStatic) {
+            return true;
+        }
+
+        // Default: visual statis agar piringan vinyl 3D memukau di TV
+        return true;
     }
 
     /**
@@ -545,6 +603,13 @@ class MusicService
                 if (empty($nowPlaying['thumbnail_url']) && ! empty($nowPlaying['youtube_id'])) {
                     $nowPlaying['thumbnail_url'] = "https://img.youtube.com/vi/{$nowPlaying['youtube_id']}/hqdefault.jpg";
                 }
+                if (! isset($nowPlaying['is_static_visual'])) {
+                    $nowPlaying['is_static_visual'] = $this->isStaticVisualTrack(
+                        $nowPlaying['song_title'] ?? $nowPlaying['title'] ?? '',
+                        $nowPlaying['artist'] ?? null,
+                        $nowPlaying['youtube_id'] ?? null
+                    );
+                }
             } else {
                 $defaultTrack = MusicDefaultTrack::active()->orderBy('sort_order')->first();
                 if ($defaultTrack) {
@@ -559,6 +624,7 @@ class MusicService
                         'duration_seconds' => $defaultTrack->duration_seconds,
                         'customer_name' => null,
                         'request_id' => null,
+                        'is_static_visual' => $this->isStaticVisualTrack($defaultTrack->title, $defaultTrack->artist, $defaultTrack->youtube_id),
                     ];
                     Cache::put('soundstation_current_track', $nowPlaying, now()->addHours(8));
                 }
@@ -615,6 +681,7 @@ class MusicService
                 'duration_formatted' => $this->formatDuration($req->duration_seconds),
                 'request_id' => $req->id,
                 'is_request' => true,
+                'is_static_visual' => $this->isStaticVisualTrack($req->song_title, $req->artist, $req->youtube_id),
             ]);
         }
 
@@ -634,6 +701,7 @@ class MusicService
                 'duration_formatted' => $this->formatDuration($track->duration_seconds),
                 'request_id' => null,
                 'is_request' => false,
+                'is_static_visual' => $this->isStaticVisualTrack($track->title, $track->artist, $track->youtube_id),
             ]);
         }
 
@@ -726,6 +794,7 @@ class MusicService
                     'request_id' => $nextCustomerRequest->id,
                     'has_queue' => true,
                     'resume_position' => null,
+                    'is_static_visual' => $this->isStaticVisualTrack($nextCustomerRequest->song_title, $nextCustomerRequest->artist, $nextCustomerRequest->youtube_id),
                 ];
             }
 
@@ -748,6 +817,7 @@ class MusicService
                     'request_id' => null,
                     'has_queue' => false,
                     'resume_position' => null,
+                    'is_static_visual' => true,
                 ];
             }
 
@@ -788,6 +858,7 @@ class MusicService
                 'request_id' => null,
                 'has_queue' => false,
                 'resume_position' => $resumedPos,
+                'is_static_visual' => $this->isStaticVisualTrack($nextDefault->title, $nextDefault->artist, $nextDefault->youtube_id),
             ];
         });
 

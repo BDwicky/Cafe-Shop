@@ -7,6 +7,7 @@ use App\Models\MusicDefaultTrack;
 use App\Models\MusicRequest;
 use App\Models\Order;
 use App\Models\User;
+use App\Services\MusicService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -1552,5 +1553,39 @@ class MusicRequestTest extends TestCase
         $searchQueryNsfw->assertOk()
             ->assertJsonPath('results.0.is_nsfw', true)
             ->assertJsonPath('results.0.is_valid', false);
+    }
+
+    public function test_music_service_detects_static_visual_and_dynamic_video_correctly(): void
+    {
+        $service = app(MusicService::class);
+
+        // Kasus 1: Channel Topic YouTube (100% Art Track statis)
+        $this->assertTrue($service->isStaticVisualTrack('The Scientist', 'Coldplay - Topic'));
+
+        // Kasus 2: Official Audio / Cover Art (Statis)
+        $this->assertTrue($service->isStaticVisualTrack('Bruno Mars - Die With A Smile (Official Audio)', 'Bruno Mars'));
+        $this->assertTrue($service->isStaticVisualTrack('Joji - Glimpse of Us (Visualizer)', '88rising'));
+        $this->assertTrue($service->isStaticVisualTrack('1 A.M Study Session [1 Jam Lo-Fi Chill Cafe Beats]', 'Lofi Girl'));
+
+        // Kasus 3: Official Music Video / MV (Video Dinamis)
+        $this->assertFalse($service->isStaticVisualTrack('Bruno Mars - Die With A Smile (Official Music Video)', 'Bruno Mars'));
+        $this->assertFalse($service->isStaticVisualTrack('NewJeans - Super Shy (Official MV)', 'HYBE LABELS'));
+        $this->assertFalse($service->isStaticVisualTrack('Adele - Easy On Me (Live at NRJ)', 'AdeleVEVO'));
+        $this->assertFalse($service->isStaticVisualTrack('Coldplay - The Scientist (Official 4K Video)', 'Coldplay'));
+    }
+
+    public function test_music_status_payload_includes_is_static_visual_field(): void
+    {
+        MusicDefaultTrack::factory()->create([
+            'title' => 'Cafe Lo-Fi Beats (Official Audio)',
+            'artist' => 'Chillhop Music',
+            'is_active' => true,
+            'sort_order' => 1,
+        ]);
+
+        $response = $this->getJson(route('music.status'));
+
+        $response->assertOk()
+            ->assertJsonPath('now_playing.is_static_visual', true);
     }
 }

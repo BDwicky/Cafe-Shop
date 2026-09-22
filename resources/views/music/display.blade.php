@@ -141,9 +141,28 @@
             const initialPlayback = @json($playback ?? null);
             const initialIsMasterAlive = {{ !empty($isMasterAlive) ? 'true' : 'false' }};
             const initialIsPlaying = initialIsMasterAlive && initialPlayback && !!initialPlayback.is_playing;
+            const initialTrack = @json($playerState['now_playing'] ?? null);
+
+            const initialPreference = localStorage.getItem('tv_display_preference') || 'auto';
+            const detectStaticHelper = (track) => {
+                if (!track) return true;
+                if (typeof track.is_static_visual === 'boolean') return track.is_static_visual;
+                const t = (track.song_title || track.title || '').toLowerCase();
+                const a = (track.artist || '').toLowerCase();
+                if (a.includes('- topic') || a.endsWith('topic')) return true;
+                const isDynamic = /\b(official\s+.*?\s*video|music\s+video|video\s+clip|video\s+klip|official\s+mv)\b/i.test(t) ||
+                    /\[\s*(mv|m\/v)\s*\]|\(\s*(mv|m\/v)\s*\)|\b(mv|m\/v)\b/i.test(t) ||
+                    /\b(live\s+at|live\s+performance|live\s+concert|live\s+session|live\s+acoustic|special\s+clip|dance\s+practice)\b/i.test(t) ||
+                    a.includes('vevo') || t.includes('vevo');
+                return !isDynamic;
+            };
+
+            const initialMode = (initialPreference === 'auto')
+                ? (detectStaticHelper(initialTrack) ? 'visualizer' : 'video')
+                : (initialPreference === 'video' ? 'video' : 'visualizer');
 
             return {
-                nowPlaying: @json($playerState['now_playing']),
+                nowPlaying: initialTrack,
                 queue: @json($playerState['queue']),
                 queueCount: {{ (int) ($playerState['queue_count'] ?? 0) }},
                 readyOrders: @json($readyOrders ?? []),
@@ -151,7 +170,10 @@
                 activeFlyingCards: [],
                 currentTime: '',
 
-                displayMode: localStorage.getItem('tv_display_mode') || 'visualizer', // 'visualizer' atau 'video'
+                displayPreference: initialPreference, // 'auto' (otomatis cerdas), 'visualizer' (piringan vinyl), 'video' (youtube player)
+                displayMode: initialMode, // 'visualizer' atau 'video'
+                autoSwitchNotice: null,
+                autoSwitchTimer: null,
                 isFullscreen: false,
 
                 playbackCurrentTime: Number(initialPlayback?.current_time || 0),
@@ -210,6 +232,7 @@
                         if (Array.isArray(this.queue)) {
                             this.queue = this.queue.filter(item => item.id !== this.nowPlaying.id && item.id !== this.nowPlaying.request_id);
                         }
+                        this.evaluateAutoDisplayMode(newTrack);
                     }
                     if (shouldPlay !== null) {
                         this.isPlaying = !!shouldPlay;
@@ -277,6 +300,9 @@
                                     }
                                     if (Array.isArray(this.queue)) {
                                         this.queue = this.queue.filter(item => item.id !== this.nowPlaying.id && item.id !== this.nowPlaying.request_id);
+                                    }
+                                    if (trackChanged) {
+                                        this.evaluateAutoDisplayMode(this.nowPlaying);
                                     }
                                 }
                                 const oldPlaying = this.isPlaying;
@@ -348,6 +374,9 @@
                     // Polling status lagu & pesanan siap setiap 2500ms (hemat bandwidth & bebas buffer)
                     this.fetchStatus();
                     setInterval(() => this.fetchStatus(), 2500);
+
+                    // Evaluasi mode display awal berbasis lagu aktif
+                    this.evaluateAutoDisplayMode();
 
                     // Muat YouTube Iframe API HANYA jika mode awal adalah video
                     if (this.displayMode === 'video') {
@@ -521,6 +550,16 @@
                                     // Matikan paksa closed caption saat video memutar
                                     if (event.data === YT.PlayerState.PLAYING) {
                                         this.disableCaptions();
+
+                                        // Evaluasi data aktual video dari YouTube Iframe Player jika mode auto aktif
+                                        if (this.displayPreference === 'auto' && typeof this.tvPlayer.getVideoData === 'function') {
+                                            try {
+                                                const ytData = this.tvPlayer.getVideoData();
+                                                if (ytData && (ytData.title || ytData.author)) {
+                                                    this.evaluateAutoDisplayMode(this.nowPlaying, ytData);
+                                                }
+                                            } catch (e) {}
+                                        }
 
                                         // Kalibrasi awal saat video baru mulai memutar HANYA jika drift sangat jauh (> 4.5 detik)
                                         // Drift kecil (< 4.5s) disinkronkan secara mulus via penyesuaian playbackRate tanpa memicu buffering berulang
@@ -715,6 +754,7 @@
                             this.triggerTrackTransition(data.now_playing, isPlaybackPlaying);
                         } else {
                             this.nowPlaying = data.now_playing;
+                            this.evaluateAutoDisplayMode(data.now_playing);
                         }
                         const rawQueue = data.queue || [];
                         this.queue = rawQueue.filter(item => !this.nowPlaying || (item.id !== this.nowPlaying.id && item.id !== this.nowPlaying.request_id));
@@ -969,18 +1009,126 @@
                     draw();
                 },
 
+                isStaticVisualTrack(track, ytVideoData = null) {
+                    if (!track && !ytVideoData) return true;
+                    if (track && typeof track.is_static_visual === 'boolean') {
+                        return track.is_static_visual;
+                    }
+
+                    let title = (track?.song_title || track?.title || '').toLowerCase();
+                    let artist = (track?.artist || '').toLowerCase();
+
+                    // Perkaya dengan data aktual dari YouTube Iframe Player jika tersedia
+                    if (ytVideoData) {
+                        if (ytVideoData.title) title = ytVideoData.title.toLowerCase();
+                        if (ytVideoData.author) artist = ytVideoData.author.toLowerCase();
+                    }
+
+                    // 1. YouTube Topic Channels (100% Art Track dari YouTube Music dengan gambar album cover 1:1 statis)
+                    if (artist.includes('- topic') || artist.endsWith('topic')) {
+                        return true;
+                    }
+
+                    // 2. Deteksi Video Klip Bergerak / Dinamis (MV, Konser Live, Performance)
+                    const isDynamic = (
+                        /\b(official\s+.*?\s*video|music\s+video|video\s+clip|video\s+klip|official\s+mv)\b/i.test(title) ||
+                        /\[\s*(mv|m\/v)\s*\]|\(\s*(mv|m\/v)\s*\)|\b(mv|m\/v)\b/i.test(title) ||
+                        /\b(live\s+at|live\s+performance|live\s+concert|live\s+session|live\s+acoustic|special\s+clip|dance\s+practice|choreography)\b/i.test(title) ||
+                        artist.includes('vevo') || title.includes('vevo')
+                    );
+
+                    if (isDynamic) {
+                        return false;
+                    }
+
+                    // 3. Deteksi Visual Statis (Official Audio, Album Art, Visualizer, dsb)
+                    const isStatic = (
+                        /\b(official\s+audio|audio\s+only|track\s+audio)\b/i.test(title) ||
+                        /\[\s*audio\s*\]|\(\s*audio\s*\)|-\s*audio\b/i.test(title) ||
+                        /\b(cover\s+art|album\s+art|album\s+stream|full\s+album|static\s+video|static\s+visualizer)\b/i.test(title) ||
+                        /\b(visualizer|visualiser|lyric\s+video|lyrics\s+video)\b/i.test(title) ||
+                        /\b(lofi\s+beats|study\s+beats|relaxing\s+piano|cafe\s+ambience|chillhop|sleep\s+music)\b/i.test(title)
+                    );
+
+                    if (isStatic) {
+                        return true;
+                    }
+
+                    // Default: visual statis agar piringan vinyl berputar estetik di TV kafe
+                    return true;
+                },
+
+                evaluateAutoDisplayMode(track = null, ytData = null) {
+                    if (this.displayPreference !== 'auto') {
+                        return;
+                    }
+
+                    const targetTrack = track || this.nowPlaying;
+                    if (!targetTrack && !ytData) return;
+
+                    const isStatic = this.isStaticVisualTrack(targetTrack, ytData);
+                    const targetMode = isStatic ? 'visualizer' : 'video';
+
+                    if (this.displayMode !== targetMode) {
+                        this.displayMode = targetMode;
+                        try {
+                            localStorage.setItem('tv_display_mode', this.displayMode);
+                        } catch (e) {}
+
+                        this.showAutoSwitchNotice(
+                            targetMode === 'visualizer'
+                                ? '🎨 Auto: Beralih ke Vinyl (Visual Statis)'
+                                : '🎬 Auto: Beralih ke Video (Video Klip)'
+                        );
+
+                        if (this.displayMode === 'video') {
+                            this.$nextTick(() => {
+                                this.loadYouTubeApi();
+                                this.syncTvPlayerState();
+                            });
+                        } else {
+                            if (this.tvPlayer && typeof this.tvPlayer.pauseVideo === 'function') {
+                                try { this.tvPlayer.pauseVideo(); } catch (e) {}
+                            }
+                        }
+                    }
+                },
+
+                showAutoSwitchNotice(text) {
+                    this.autoSwitchNotice = text;
+                    if (this.autoSwitchTimer) clearTimeout(this.autoSwitchTimer);
+                    this.autoSwitchTimer = setTimeout(() => {
+                        this.autoSwitchNotice = null;
+                        this.autoSwitchTimer = null;
+                    }, 3500);
+                },
+
                 toggleDisplayMode() {
-                    this.displayMode = this.displayMode === 'visualizer' ? 'video' : 'visualizer';
+                    if (this.displayPreference === 'auto') {
+                        this.displayPreference = 'visualizer';
+                        this.displayMode = 'visualizer';
+                        this.showAutoSwitchNotice('🔒 Kunci Mode Vinyl (Selalu Aktif)');
+                    } else if (this.displayPreference === 'visualizer') {
+                        this.displayPreference = 'video';
+                        this.displayMode = 'video';
+                        this.showAutoSwitchNotice('🔒 Kunci Mode Video (Selalu Aktif)');
+                    } else {
+                        this.displayPreference = 'auto';
+                        this.showAutoSwitchNotice('⚡ Mode Otomatis Aktif (Vinyl / Video Cerdas)');
+                        this.evaluateAutoDisplayMode();
+                    }
+
                     try {
+                        localStorage.setItem('tv_display_preference', this.displayPreference);
                         localStorage.setItem('tv_display_mode', this.displayMode);
                     } catch (e) {}
+
                     if (this.displayMode === 'video') {
                         this.$nextTick(() => {
                             this.loadYouTubeApi();
                             this.syncTvPlayerState();
                         });
                     } else {
-                        // Mode Vinyl / Visualizer aktif: segera hentikan video YouTube agar tidak bentrok atau mengganggu pemutar kasir
                         if (this.tvPlayer && typeof this.tvPlayer.pauseVideo === 'function') {
                             try { this.tvPlayer.pauseVideo(); } catch (e) {}
                         }
@@ -1122,6 +1270,20 @@
     <!-- CONTENT WRAPPER -->
     <div class="w-full h-full min-h-screen max-h-screen flex flex-col justify-between p-3 sm:p-5 lg:p-6 xl:p-8 relative z-10 box-border overflow-hidden">
 
+        <!-- Floating Auto Switch Notice Toast on TV -->
+        <div x-show="autoSwitchNotice"
+             x-cloak
+             x-transition:enter="transition ease-out duration-300"
+             x-transition:enter-start="opacity-0 -translate-y-4 scale-95"
+             x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+             x-transition:leave="transition ease-in duration-250"
+             x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+             x-transition:leave-end="opacity-0 -translate-y-4 scale-95"
+             class="fixed top-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-[#1F1812]/95 border border-[#D9973E]/60 rounded-2xl shadow-2xl backdrop-blur-md flex items-center gap-2.5 pointer-events-none">
+            <span class="w-2.5 h-2.5 rounded-full bg-[#D9973E] animate-ping"></span>
+            <span class="font-mono text-xs sm:text-sm font-bold text-[#FAF7F2]" x-text="autoSwitchNotice"></span>
+        </div>
+
         <!-- 1. TOP BAR -->
         <header class="w-full flex items-center justify-between border-b border-[#32261C] pb-3.5 shrink-0">
             <!-- Brand & Status -->
@@ -1148,17 +1310,26 @@
 
             <!-- Mode Switcher, Sound Toggle, Fullscreen & Real-time Clock -->
             <div class="flex items-center gap-2.5 sm:gap-3">
-                <!-- Toggle Mode: Visualizer vs Video -->
+                <!-- Toggle Mode: Auto vs Visualizer vs Video -->
                 <button type="button" @click="toggleDisplayMode()"
                         class="px-3 py-1.5 bg-[#261D16] hover:bg-[#32261C] border border-[#3A2D22] hover:border-[#D9973E] text-[#D9973E] font-mono text-xs uppercase tracking-wider transition rounded-xl flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer"
-                        :title="displayMode === 'visualizer' ? 'Beralih ke Tampilan Video YouTube' : 'Beralih ke Tampilan Vinyl Visualizer'">
-                    <span x-show="displayMode === 'visualizer'" class="flex items-center gap-1.5">
-                        <span>🎬</span>
-                        <span class="hidden sm:inline font-bold">Video</span>
+                        :title="displayPreference === 'auto' ? 'Mode Otomatis Aktif: Berganti ke Vinyl jika visual statis/gambar, atau Video jika video klip (Klik untuk ganti mode)' : (displayPreference === 'visualizer' ? 'Mode Vinyl Terkunci: Piringan vinyl selalu aktif (Klik untuk beralih)' : 'Mode Video Terkunci: Video player selalu aktif (Klik untuk beralih)')">
+                    <span x-show="displayPreference === 'auto'" class="flex items-center gap-1.5">
+                        <span class="text-[#D9973E]">⚡</span>
+                        <span class="font-bold">Auto</span>
+                        <span class="text-[10px] px-1.5 py-0.5 rounded-md font-mono"
+                              :class="displayMode === 'visualizer' ? 'bg-[#5F7F42]/30 text-[#85BF5C]' : 'bg-[#D9973E]/30 text-[#E5A955]'"
+                              x-text="displayMode === 'visualizer' ? 'Vinyl' : 'Video'"></span>
                     </span>
-                    <span x-show="displayMode === 'video'" class="flex items-center gap-1.5">
+                    <span x-show="displayPreference === 'visualizer'" class="flex items-center gap-1.5">
                         <span>🎨</span>
                         <span class="hidden sm:inline font-bold">Vinyl</span>
+                        <span class="text-[10px] text-[#A89A85]">(Tetap)</span>
+                    </span>
+                    <span x-show="displayPreference === 'video'" class="flex items-center gap-1.5">
+                        <span>🎬</span>
+                        <span class="hidden sm:inline font-bold">Video</span>
+                        <span class="text-[10px] text-[#A89A85]">(Tetap)</span>
                     </span>
                 </button>
 

@@ -431,6 +431,7 @@ class KasirMusicController extends Controller
             'duration_seconds' => $details['duration_seconds'],
             'duration_formatted' => $details['duration_formatted'],
             'thumbnail_url' => $details['thumbnail_url'],
+            'is_static_visual' => (bool) ($details['is_static_visual'] ?? true),
             'is_valid_duration' => $details['is_valid_duration'],
             'duration_error' => $details['duration_error'],
         ]);
