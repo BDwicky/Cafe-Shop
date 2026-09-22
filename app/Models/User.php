@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password'])]
+#[Fillable(['name', 'email', 'password', 'role'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -28,5 +28,27 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function isOwner(): bool
+    {
+        return $this->role === 'owner';
+    }
+
+    public function isKasir(): bool
+    {
+        return $this->role === 'kasir';
+    }
+
+    /**
+     * Check if user has any of the given roles.
+     *
+     * @param  string|array<int, string>  ...$roles
+     */
+    public function hasRole(string|array ...$roles): bool
+    {
+        $flattened = collect($roles)->flatten()->all();
+
+        return in_array($this->role, $flattened, true);
     }
 }

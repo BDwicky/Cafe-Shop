@@ -147,7 +147,8 @@
                         <span>Riwayat Pesanan</span>
                     </a>
 
-                    <!-- 2. KATALOG & PROMOSI -->
+                    @if(auth()->user()?->isOwner())
+                    <!-- 2. KATALOG & PROMOSI (KHUSUS OWNER) -->
                     <div class="px-2 pt-3 pb-1.5 flex items-center gap-2">
                         <span class="font-mono text-[9px] uppercase tracking-[0.25em] text-[#8A7B66] font-semibold">Katalog & Promo</span>
                         <span class="flex-1 h-px bg-[#32261C]"></span>
@@ -170,8 +171,9 @@
                         </svg>
                         <span>Kupon Diskon</span>
                     </a>
+                    @endif
 
-                    <!-- 3. INVENTARIS & BAHAN BAKU -->
+                    <!-- 3. INVENTARIS & RESEP -->
                     <div class="px-2 pt-3 pb-1.5 flex items-center gap-2">
                         <span class="font-mono text-[9px] uppercase tracking-[0.25em] text-[#8A7B66] font-semibold">Inventaris & Resep</span>
                         <span class="flex-1 h-px bg-[#32261C]"></span>
@@ -186,6 +188,7 @@
                         <span>Stok Bahan Baku</span>
                     </a>
 
+                    @if(auth()->user()?->isOwner())
                     <!-- Resep Menu (BOM) -->
                     <a href="{{ route('kasir.inventory.recipes') }}"
                        class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.inventory.recipes') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
@@ -194,6 +197,7 @@
                         </svg>
                         <span>Resep BOM Menu</span>
                     </a>
+                    @endif
 
                     <!-- Mutasi Stok / Ledger -->
                     <a href="{{ route('kasir.inventory.history') }}"
@@ -210,7 +214,8 @@
                         <span class="flex-1 h-px bg-[#32261C]"></span>
                     </div>
 
-                    <!-- Laporan Penjualan -->
+                    @if(auth()->user()?->isOwner())
+                    <!-- Laporan Penjualan (Khusus Owner) -->
                     <a href="{{ route('kasir.laporan') }}"
                        class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.laporan') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
                         <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -218,6 +223,7 @@
                         </svg>
                         <span>Laporan Kasir</span>
                     </a>
+                    @endif
 
                     <!-- Pengeluaran Toko -->
                     <a href="{{ route('kasir.expenses.index') }}"
@@ -227,6 +233,17 @@
                         </svg>
                         <span>Pengeluaran Toko</span>
                     </a>
+
+                    @if(auth()->user()?->isOwner())
+                    <!-- Otorisasi Perangkat POS (Khusus Owner) -->
+                    <a href="{{ route('kasir.device-setup') }}"
+                       class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-mono tracking-wider uppercase transition-all {{ request()->routeIs('kasir.device-setup') ? 'bg-[#D9973E] text-[#1F1812] font-bold shadow-md shadow-[#D9973E]/20' : 'text-[#A89A85] hover:text-[#FAF7F2] hover:bg-[#261D16]' }}">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                        </svg>
+                        <span>Otorisasi Perangkat</span>
+                    </a>
+                    @endif
 
                     <!-- 5. SUASANA & AUDIO -->
                     <div class="px-2 pt-3 pb-1.5 flex items-center gap-2">
@@ -289,18 +306,24 @@
             <!-- PERSISTENT NAVBAR MUSIC WIDGET (PEMUTAR MUSIK ANTI-MATI) -->
             @include('components.navbar-music-widget')
 
-            <!-- Bagian Bawah: Info Kasir & Tombol Logout -->
+            <!-- Bagian Bawah: Info Kasir / Owner & Tombol Logout -->
             <div class="p-3.5 border-t border-[#32261C] bg-[#140E0A] shrink-0">
                 <div class="flex items-center gap-3 mb-2.5">
-                    <div class="w-8 h-8 rounded-xl bg-[#D9973E] text-[#1F1812] flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
-                        {{ strtoupper(substr(auth()->user()->name ?? 'K', 0, 1)) }}
+                    <div class="w-8 h-8 rounded-xl {{ auth()->user()?->isOwner() ? 'bg-gradient-to-br from-[#F59E0B] to-[#D9973E] text-[#1F1812]' : 'bg-[#D9973E] text-[#1F1812]' }} flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                        {{ strtoupper(substr(auth()->user()->name ?? 'U', 0, 1)) }}
                     </div>
                     <div class="min-w-0 flex-1">
-                        <div class="text-xs font-semibold text-[#FAF7F2] truncate">{{ auth()->user()->name ?? 'Kasir' }}</div>
-                        <div class="font-mono text-[10px] text-[#5F7F42] flex items-center gap-1.5 mt-0.5">
-                            <span class="w-1.5 h-1.5 rounded-full bg-[#5F7F42] animate-pulse"></span>
-                            Shift Aktif
-                        </div>
+                        <div class="text-xs font-semibold text-[#FAF7F2] truncate">{{ auth()->user()->name ?? 'Pengguna' }}</div>
+                        @if(auth()->user()?->isOwner())
+                            <div class="font-mono text-[9px] uppercase tracking-wider text-[#F59E0B] font-bold flex items-center gap-1.5 mt-0.5">
+                                <span class="px-1.5 py-0.5 bg-[#F59E0B]/20 border border-[#F59E0B]/40 rounded text-[9px] text-[#FBBF24]">👑 Owner</span>
+                            </div>
+                        @else
+                            <div class="font-mono text-[10px] text-[#5F7F42] flex items-center gap-1.5 mt-0.5">
+                                <span class="w-1.5 h-1.5 rounded-full bg-[#5F7F42] animate-pulse"></span>
+                                <span class="px-1.5 py-0.5 bg-[#5F7F42]/20 border border-[#5F7F42]/40 rounded text-[9px] text-[#86EFAC] font-mono">☕ Kasir</span>
+                            </div>
+                        @endif
                     </div>
                 </div>
 
@@ -334,12 +357,24 @@
         <!-- MAIN AREA / KONTEN UTAMA -->
         <main class="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-[#F7F3EC]">
             @if (session('status'))
-                <div class="shrink-0 m-4 mb-0 border border-[#5F7F42]/30 bg-[#5F7F42]/10 text-[#2A211A] px-4 py-3 text-sm flex items-center justify-between">
+                <div class="shrink-0 m-4 mb-0 border border-[#5F7F42]/30 bg-[#5F7F42]/10 text-[#2A211A] px-4 py-3 text-sm flex items-center justify-between rounded-xl">
                     <div class="flex items-center gap-2">
                         <span class="w-2 h-2 rounded-full bg-[#5F7F42]"></span>
                         <span>{{ session('status') }}</span>
                     </div>
                     <button @click="$el.parentElement.remove()" class="text-[#8A7B66] hover:text-[#2A211A]">&times;</button>
+                </div>
+            @endif
+
+            @if (session('alert') || session('error'))
+                <div class="shrink-0 m-4 mb-0 border border-[#C4553D]/30 bg-[#C4553D]/10 text-[#8F2D17] px-4 py-3 text-sm flex items-center justify-between rounded-xl">
+                    <div class="flex items-center gap-2.5 font-medium">
+                        <svg class="w-4 h-4 text-[#C4553D] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                        <span>{{ session('alert') ?? session('error') }}</span>
+                    </div>
+                    <button @click="$el.parentElement.remove()" class="text-[#8F2D17] hover:text-[#2A211A] text-base leading-none">&times;</button>
                 </div>
             @endif
 

@@ -111,51 +111,60 @@ Route::middleware([RestrictKasirAccess::class])->group(function () {
         Route::get('/announcer/settings-json', [KasirMusicController::class, 'announcerSettingsJson'])->name('announcer.json');
         Route::get('/music/prayer-times', [KasirMusicController::class, 'prayerTimes'])->name('music.prayer-times');
 
-        // Kelola menu & kategori
-        Route::resource('menu', MenuController::class)->except(['show']);
-        Route::patch('/menu/{menu}/toggle', [MenuController::class, 'toggle'])->name('menu.toggle');
-        Route::post('/categories', [CategoryController::class, 'store'])->name('categories.store');
-        Route::delete('/categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
+        // === MODUL OPERASIONAL BERSAMA (KASIR & OWNER) ===
 
-        // Kelola Kupon & Promo Diskon
-        Route::resource('promos', PromoController::class)->only(['index', 'store', 'update', 'destroy']);
-        Route::patch('/promos/{promo}/toggle', [PromoController::class, 'toggle'])->name('promos.toggle');
-
-        // Manajemen Inventaris & Bahan Baku (Stok & Resep BOM)
+        // Manajemen Inventaris & Bahan Baku (Stok, Restock, Opname Kasir)
         Route::prefix('inventory')->name('inventory.')->group(function () {
             Route::get('/', [InventoryController::class, 'index'])->name('index');
-            Route::post('/', [InventoryController::class, 'store'])->name('store');
-            Route::put('/{ingredient}', [InventoryController::class, 'update'])->name('update');
-            Route::delete('/{ingredient}', [InventoryController::class, 'destroy'])->name('destroy');
             Route::post('/restock', [InventoryController::class, 'restock'])->name('restock');
             Route::post('/waste', [InventoryController::class, 'waste'])->name('waste');
             Route::post('/adjustment', [InventoryController::class, 'adjustment'])->name('adjustment');
             Route::get('/history', [InventoryController::class, 'history'])->name('history');
-            Route::get('/recipes', [InventoryController::class, 'recipes'])->name('recipes');
-            Route::put('/recipes/{menu}', [InventoryController::class, 'updateRecipe'])->name('recipes.update');
         });
 
-        // Pengeluaran Toko & Operasional Kasir
+        // Pengeluaran Toko & Operasional Kasir (Catat Beban Operasional)
         Route::prefix('expenses')->name('expenses.')->group(function () {
             Route::get('/', [ExpenseController::class, 'index'])->name('index');
             Route::post('/', [ExpenseController::class, 'store'])->name('store');
-            Route::delete('/{expense}', [ExpenseController::class, 'destroy'])->name('destroy');
         });
 
-        // Laporan
-        Route::get('/laporan', [ReportController::class, 'index'])->name('laporan');
-        Route::get('/laporan/receipt', [ReportController::class, 'receipt'])->name('laporan.receipt');
-        Route::post('/laporan/send-telegram', [ReportController::class, 'sendTelegramRecap'])->name('laporan.send-telegram');
+        // === MODUL KHUSUS OWNER (ROLE: OWNER) ===
+        Route::middleware('role:owner')->group(function () {
+            // Master Bahan Baku & Resep BOM (Formula Produk & Master Data)
+            Route::post('/inventory', [InventoryController::class, 'store'])->name('inventory.store');
+            Route::put('/inventory/{ingredient}', [InventoryController::class, 'update'])->name('inventory.update');
+            Route::delete('/inventory/{ingredient}', [InventoryController::class, 'destroy'])->name('inventory.destroy');
+            Route::get('/inventory/recipes', [InventoryController::class, 'recipes'])->name('inventory.recipes');
+            Route::put('/inventory/recipes/{menu}', [InventoryController::class, 'updateRecipe'])->name('inventory.recipes.update');
 
-        // Pengaturan Keamanan & Otorisasi Perangkat Kasir (Akses URL langsung, tidak masuk di sidebar)
-        Route::get('/device-setup', [KasirLoginController::class, 'deviceSetup'])->name('device-setup');
-        Route::get('/device-fleet/data', [KasirLoginController::class, 'fleetData'])->name('device-fleet.data');
-        Route::post('/device-enrollment/create', [KasirLoginController::class, 'createEnrollmentToken'])->name('device-enrollment.create');
-        Route::post('/device-revoke', [KasirLoginController::class, 'revokeDevice'])->name('device-revoke');
-        Route::post('/devices/{device}/revoke', [KasirLoginController::class, 'revokeRemoteDevice'])->name('devices.revoke');
-        Route::post('/devices/{device}/restore', [KasirLoginController::class, 'restoreRemoteDevice'])->name('devices.restore');
-        Route::delete('/devices/{device}', [KasirLoginController::class, 'destroyRemoteDevice'])->name('devices.destroy');
-        Route::patch('/devices/{device}/rename', [KasirLoginController::class, 'renameRemoteDevice'])->name('devices.rename');
-        Route::post('/device-secret/regenerate', [KasirLoginController::class, 'regenerateDeviceSecret'])->name('device-secret.regenerate');
+            // Hapus Catatan Pengeluaran (Hanya Owner)
+            Route::delete('/expenses/{expense}', [ExpenseController::class, 'destroy'])->name('expenses.destroy');
+
+            // Kelola menu & kategori
+            Route::resource('menu', MenuController::class)->except(['show']);
+            Route::patch('/menu/{menu}/toggle', [MenuController::class, 'toggle'])->name('menu.toggle');
+            Route::post('/categories', [CategoryController::class, 'store'])->name('categories.store');
+            Route::delete('/categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
+
+            // Kelola Kupon & Promo Diskon (Voucher Pembuatan & Pengaturan)
+            Route::resource('promos', PromoController::class)->only(['index', 'store', 'update', 'destroy']);
+            Route::patch('/promos/{promo}/toggle', [PromoController::class, 'toggle'])->name('promos.toggle');
+
+            // Laporan Keuangan & Omzet
+            Route::get('/laporan', [ReportController::class, 'index'])->name('laporan');
+            Route::get('/laporan/receipt', [ReportController::class, 'receipt'])->name('laporan.receipt');
+            Route::post('/laporan/send-telegram', [ReportController::class, 'sendTelegramRecap'])->name('laporan.send-telegram');
+
+            // Pengaturan Keamanan & Otorisasi Perangkat Kasir
+            Route::get('/device-setup', [KasirLoginController::class, 'deviceSetup'])->name('device-setup');
+            Route::get('/device-fleet/data', [KasirLoginController::class, 'fleetData'])->name('device-fleet.data');
+            Route::post('/device-enrollment/create', [KasirLoginController::class, 'createEnrollmentToken'])->name('device-enrollment.create');
+            Route::post('/device-revoke', [KasirLoginController::class, 'revokeDevice'])->name('device-revoke');
+            Route::post('/devices/{device}/revoke', [KasirLoginController::class, 'revokeRemoteDevice'])->name('devices.revoke');
+            Route::post('/devices/{device}/restore', [KasirLoginController::class, 'restoreRemoteDevice'])->name('devices.restore');
+            Route::delete('/devices/{device}', [KasirLoginController::class, 'destroyRemoteDevice'])->name('devices.destroy');
+            Route::patch('/devices/{device}/rename', [KasirLoginController::class, 'renameRemoteDevice'])->name('devices.rename');
+            Route::post('/device-secret/regenerate', [KasirLoginController::class, 'regenerateDeviceSecret'])->name('device-secret.regenerate');
+        });
     });
 });

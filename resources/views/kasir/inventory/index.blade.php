@@ -97,20 +97,24 @@
         </div>
 
         <div class="flex flex-wrap items-center gap-2.5">
+            @if(auth()->user()?->isOwner())
             <a href="{{ route('kasir.inventory.recipes') }}"
                class="px-3.5 py-2.5 bg-white hover:bg-[#FAF7F2] text-[#1F1812] border border-[#E4DCCC] hover:border-[#D9973E] font-mono text-xs font-bold rounded-xl transition shadow-2xs flex items-center gap-1.5 active:scale-98">
                 <span>📖</span>
                 <span>Resep BOM Menu</span>
             </a>
+            @endif
             <a href="{{ route('kasir.inventory.history') }}"
                class="px-3.5 py-2.5 bg-white hover:bg-[#FAF7F2] text-[#1F1812] border border-[#E4DCCC] hover:border-[#D9973E] font-mono text-xs font-bold rounded-xl transition shadow-2xs flex items-center gap-1.5 active:scale-98">
                 <span>📋</span>
                 <span>Kartu Stok</span>
             </a>
+            @if(auth()->user()?->isOwner())
             <button type="button" @click="showAddModal = true"
                     class="px-4 py-2.5 bg-[#1F1812] hover:bg-[#D9973E] text-[#F7F3EC] hover:text-[#1F1812] font-mono text-xs uppercase tracking-wider font-bold rounded-xl transition-all shadow-md flex items-center gap-1.5 active:scale-98 cursor-pointer">
                 <span>+ Bahan Baru ›</span>
             </button>
+            @endif
         </div>
     </header>
 
@@ -338,6 +342,7 @@
                                             class="px-2.5 py-1 bg-[#2A211A] hover:bg-[#D9973E] text-white hover:text-[#1F1812] text-[11px] font-bold rounded-lg transition shadow-2xs active:scale-95 cursor-pointer">
                                         Opname
                                     </button>
+                                    @if(auth()->user()?->isOwner())
                                     <button type="button"
                                             @click="openEdit({{ json_encode($item) }})"
                                             title="Edit Master Data"
@@ -353,6 +358,7 @@
                                             ✕
                                         </button>
                                     </form>
+                                    @endif
                                 </div>
                             </td>
                         </tr>
@@ -365,12 +371,14 @@
                                     <p class="text-xs text-[#8A7B66] leading-relaxed">
                                         Mulai catat bahan baku seperti biji kopi, susu, sirup, dan kemasan untuk menghitung HPP otomatis.
                                     </p>
+                                    @if(auth()->user()?->isOwner())
                                     <div class="pt-2">
                                         <button type="button" @click="showAddModal = true"
                                                 class="px-4 py-2 bg-[#1F1812] text-[#F7F3EC] font-mono text-xs uppercase font-bold hover:bg-[#D9973E] hover:text-[#1F1812] rounded-xl transition shadow-xs">
                                             + Tambah Bahan Baku Pertama
                                         </button>
                                     </div>
+                                    @endif
                                 </div>
                             </td>
                         </tr>

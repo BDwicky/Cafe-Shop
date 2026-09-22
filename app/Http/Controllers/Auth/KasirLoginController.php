@@ -42,6 +42,10 @@ class KasirLoginController extends Controller
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
 
+            if (Auth::user()?->isOwner()) {
+                return redirect()->intended(route('kasir.laporan'));
+            }
+
             return redirect()->intended('/kasir');
         }
 

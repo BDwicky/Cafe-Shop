@@ -14,7 +14,7 @@ class KasirAuthTest extends TestCase
 
     public function test_kasir_can_login(): void
     {
-        $u = User::factory()->create(['password' => bcrypt('kopikita123')]);
+        $u = User::factory()->kasir()->create(['password' => bcrypt('kopikita123')]);
 
         $r = $this->post('/kasir/login', ['email' => $u->email, 'password' => 'kopikita123']);
 
@@ -37,7 +37,7 @@ class KasirAuthTest extends TestCase
     {
         $owner = User::firstOrCreate(
             ['email' => 'owner@kopikita.test'],
-            ['name' => 'Owner KopiKita', 'password' => bcrypt('123123')]
+            ['name' => 'Owner KopiKita', 'password' => bcrypt('123123'), 'role' => 'owner']
         );
 
         $res = $this->post('/kasir/login', [
@@ -45,7 +45,7 @@ class KasirAuthTest extends TestCase
             'password' => '123123',
         ]);
 
-        $res->assertRedirect('/kasir');
+        $res->assertRedirect(route('kasir.laporan'));
         $this->assertAuthenticatedAs($owner);
     }
 

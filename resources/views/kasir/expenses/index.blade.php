@@ -217,6 +217,7 @@
                                 {{ $exp->user->name ?? 'Kasir' }}
                             </td>
                             <td class="py-4 px-5 text-center">
+                                @if(auth()->user()?->isOwner())
                                 <form method="POST" action="{{ route('kasir.expenses.destroy', $exp) }}"
                                       onsubmit="return confirm('Hapus catatan pengeluaran #{{ $exp->expense_number }}?')">
                                     @csrf
@@ -226,6 +227,9 @@
                                         ✕ Hapus
                                     </button>
                                 </form>
+                                @else
+                                <span class="text-[#A89A85] text-xs font-mono">-</span>
+                                @endif
                             </td>
                         </tr>
                     @empty

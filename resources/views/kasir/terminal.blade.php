@@ -1012,10 +1012,12 @@
                             <label class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#8A7B66] font-bold block">
                                 Daftar Promo Tersedia
                             </label>
+                            @if(auth()->user()?->isOwner())
                             <a href="{{ route('kasir.promos.index') }}" target="_blank" class="font-mono text-[10px] text-[#D9973E] hover:underline flex items-center gap-1 transition">
                                 <span>Kelola Kupon</span>
                                 <span>↗</span>
                             </a>
+                            @endif
                         </div>
                         <div class="space-y-2">
                             <template x-for="p in activePromos" :key="p.id">
