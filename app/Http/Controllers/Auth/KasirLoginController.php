@@ -126,9 +126,10 @@ class KasirLoginController extends Controller
 
         $detector = DeviceDetector::fromUserAgent($request->userAgent());
         $sequence = KasirAuthorizedDevice::count() + 1;
+        $registeredName = $detector->suggestName($sequence);
 
         KasirAuthorizedDevice::create([
-            'device_name' => $detector->suggestName($sequence),
+            'device_name' => $registeredName,
             'device_token_hash' => $tokenHash,
             'device_type' => $detector->deviceType,
             'platform' => $detector->platform,
@@ -139,6 +140,15 @@ class KasirLoginController extends Controller
             'last_active_at' => now(),
         ]);
 
+        // Tandai bahwa QR token otorisasi telah dikonsumsi / sudah terpakai
+        if ($tokenParam !== '') {
+            Cache::put('kasir_enrollment_status', [
+                'status' => 'consumed',
+                'consumed_at' => now()->toIso8601String(),
+                'device_name' => $registeredName,
+            ], now()->addDay());
+        }
+
         // 1 year cookie (525600 minutes)
         $cookie = cookie('kasir_device_token', $plainToken, 525600, null, null, false, true);
 
@@ -148,35 +158,96 @@ class KasirLoginController extends Controller
     }
 
     /**
-     * Ambil atau buat token otorisasi sekali pakai (One-Time Enrollment Token / QR OTP).
+     * Ambil token otorisasi aktif jika ada (tidak auto-generate jika tidak ada).
      *
-     * @return array{token: string, authorizeUrl: string, qrCodeUri: string, expires_at: string, ttl_minutes: int}
+     * @return array{status: string, token: string, authorizeUrl: string, authorize_url: string, qrCodeUri: string, qr_code_uri: string, expires_at: string, ttl_minutes: int}|null
      */
-    public static function getOrGenerateEnrollmentToken(bool $forceFresh = false): array
+    public static function getActiveEnrollmentToken(): ?array
     {
         $cacheKeyCurrent = 'kasir_active_enrollment_token';
+        $existing = Cache::get($cacheKeyCurrent);
 
-        if (! $forceFresh) {
-            $existing = Cache::get($cacheKeyCurrent);
-            if ($existing && ! empty($existing['token']) && ! empty($existing['expires_at'])) {
-                $expiresAt = Carbon::parse($existing['expires_at']);
-                if ($expiresAt->isFuture()) {
-                    $token = $existing['token'];
-                    $authorizeUrl = route('kasir.authorize-device', ['token' => $token]);
-                    $qrCodeUri = QrCode::dataUri($authorizeUrl, 220);
+        if ($existing && ! empty($existing['token']) && ! empty($existing['expires_at'])) {
+            $expiresAt = Carbon::parse($existing['expires_at']);
+            if ($expiresAt->isFuture()) {
+                $token = $existing['token'];
+                $authorizeUrl = route('kasir.authorize-device', ['token' => $token]);
+                $qrCodeUri = QrCode::dataUri($authorizeUrl, 220);
 
-                    return [
-                        'token' => $token,
-                        'authorizeUrl' => $authorizeUrl,
-                        'qrCodeUri' => $qrCodeUri,
-                        'expires_at' => $expiresAt->toISOString(),
-                        'ttl_minutes' => max(1, (int) now()->diffInMinutes($expiresAt, false)),
-                    ];
-                }
+                return [
+                    'status' => 'active',
+                    'token' => $token,
+                    'authorizeUrl' => $authorizeUrl,
+                    'authorize_url' => $authorizeUrl,
+                    'qrCodeUri' => $qrCodeUri,
+                    'qr_code_uri' => $qrCodeUri,
+                    'expires_at' => $expiresAt->toISOString(),
+                    'ttl_minutes' => max(1, (int) now()->diffInMinutes($expiresAt, false)),
+                ];
             }
         }
 
-        // Buat token baru sekali pakai (berlaku 15 menit)
+        return null;
+    }
+
+    /**
+     * Dapatkan status enrollment saat ini (active, consumed, atau none).
+     * Tidak melakukan auto-generate QR baru.
+     *
+     * @return array{status: string, token: ?string, authorizeUrl: string, authorize_url: string, qrCodeUri: string, qr_code_uri: string, expires_at: ?string, ttl_minutes: int, consumed_at?: ?string, device_name?: ?string}
+     */
+    public static function getEnrollmentState(): array
+    {
+        $active = self::getActiveEnrollmentToken();
+        if ($active !== null) {
+            return $active;
+        }
+
+        $consumed = Cache::get('kasir_enrollment_status');
+        if (is_array($consumed) && ($consumed['status'] ?? '') === 'consumed') {
+            return [
+                'status' => 'consumed',
+                'token' => null,
+                'authorizeUrl' => '',
+                'authorize_url' => '',
+                'qrCodeUri' => '',
+                'qr_code_uri' => '',
+                'expires_at' => null,
+                'ttl_minutes' => 0,
+                'consumed_at' => $consumed['consumed_at'] ?? null,
+                'device_name' => $consumed['device_name'] ?? null,
+            ];
+        }
+
+        return [
+            'status' => 'none',
+            'token' => null,
+            'authorizeUrl' => '',
+            'authorize_url' => '',
+            'qrCodeUri' => '',
+            'qr_code_uri' => '',
+            'expires_at' => null,
+            'ttl_minutes' => 0,
+        ];
+    }
+
+    /**
+     * Buat token otorisasi baru sekali pakai (One-Time Enrollment Token / QR OTP).
+     *
+     * @return array{status: string, token: string, authorizeUrl: string, authorize_url: string, qrCodeUri: string, qr_code_uri: string, expires_at: string, ttl_minutes: int}
+     */
+    public static function getOrGenerateEnrollmentToken(bool $forceFresh = false): array
+    {
+        if (! $forceFresh) {
+            $active = self::getActiveEnrollmentToken();
+            if ($active !== null) {
+                return $active;
+            }
+        }
+
+        // Hapus status consumed saat token baru dibuat secara manual
+        Cache::forget('kasir_enrollment_status');
+
         $token = Str::random(40);
         $expiresAt = now()->addMinutes(15);
 
@@ -184,7 +255,7 @@ class KasirLoginController extends Controller
             'created_at' => now()->toDateTimeString(),
         ], $expiresAt);
 
-        Cache::put($cacheKeyCurrent, [
+        Cache::put('kasir_active_enrollment_token', [
             'token' => $token,
             'expires_at' => $expiresAt->toDateTimeString(),
         ], $expiresAt);
@@ -193,9 +264,12 @@ class KasirLoginController extends Controller
         $qrCodeUri = QrCode::dataUri($authorizeUrl, 220);
 
         return [
+            'status' => 'active',
             'token' => $token,
             'authorizeUrl' => $authorizeUrl,
+            'authorize_url' => $authorizeUrl,
             'qrCodeUri' => $qrCodeUri,
+            'qr_code_uri' => $qrCodeUri,
             'expires_at' => $expiresAt->toISOString(),
             'ttl_minutes' => 15,
         ];
@@ -208,6 +282,7 @@ class KasirLoginController extends Controller
         return response()->json([
             'ok' => true,
             'success' => true,
+            'status' => 'active',
             'message' => 'Kode QR baru sekali pakai berhasil dibuat (berlaku 15 menit).',
             'token' => $enrollment['token'],
             'authorizeUrl' => $enrollment['authorizeUrl'],
@@ -249,7 +324,7 @@ class KasirLoginController extends Controller
             ];
         });
 
-        $enrollment = self::getOrGenerateEnrollmentToken(false);
+        $enrollment = self::getEnrollmentState();
 
         return response()->json([
             'ok' => true,
@@ -261,11 +336,14 @@ class KasirLoginController extends Controller
                 'revoked' => $devices->where('is_revoked', true)->count(),
             ],
             'enrollment' => [
+                'status' => $enrollment['status'],
                 'token' => $enrollment['token'],
-                'qr_code_uri' => $enrollment['qrCodeUri'],
-                'authorize_url' => $enrollment['authorizeUrl'],
+                'qr_code_uri' => $enrollment['qr_code_uri'],
+                'authorize_url' => $enrollment['authorize_url'],
                 'expires_at' => $enrollment['expires_at'],
                 'ttl_minutes' => $enrollment['ttl_minutes'],
+                'consumed_at' => $enrollment['consumed_at'] ?? null,
+                'device_name' => $enrollment['device_name'] ?? null,
             ],
         ]);
     }
@@ -315,12 +393,15 @@ class KasirLoginController extends Controller
             ];
         });
 
-        // Ambil atau buat token otorisasi sekali pakai (One-Time QR Token, berlaku 15 menit)
-        $enrollment = self::getOrGenerateEnrollmentToken(false);
+        // Ambil status otorisasi (hanya jika ada, tanpa auto-generate baru)
+        $enrollment = self::getEnrollmentState();
+        $enrollmentStatus = $enrollment['status'];
         $authorizeUrl = $enrollment['authorizeUrl'];
         $qrCodeUri = $enrollment['qrCodeUri'];
         $enrollmentExpiresAt = $enrollment['expires_at'];
         $enrollmentTtlMinutes = $enrollment['ttl_minutes'];
+        $consumedAt = $enrollment['consumed_at'] ?? null;
+        $consumedDevice = $enrollment['device_name'] ?? null;
 
         return view('kasir.device-setup', compact(
             'clientIp',
@@ -330,10 +411,13 @@ class KasirLoginController extends Controller
             'currentDevice',
             'devices',
             'initialDevices',
+            'enrollmentStatus',
             'authorizeUrl',
             'qrCodeUri',
             'enrollmentExpiresAt',
-            'enrollmentTtlMinutes'
+            'enrollmentTtlMinutes',
+            'consumedAt',
+            'consumedDevice'
         ));
     }
 

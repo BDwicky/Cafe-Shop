@@ -294,7 +294,6 @@ class KasirAccessRestrictionTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('Otorisasi Perangkat & Jaringan', false);
         $response->assertSee('Daftar Perangkat Kasir Terdaftar', false);
-        $response->assertSee('data:image/png;base64', false);
     }
 
     public function test_unauthenticated_user_is_redirected_from_device_setup(): void
@@ -628,6 +627,40 @@ class KasirAccessRestrictionTest extends TestCase
             ],
             'kpi' => ['total', 'active', 'revoked'],
             'enrollment' => ['token', 'qr_code_uri', 'authorize_url'],
+        ]);
+    }
+
+    public function test_consumed_enrollment_token_marks_status_as_consumed_and_does_not_auto_regenerate(): void
+    {
+        $user = User::factory()->create();
+
+        // 1. Owner creates new enrollment token manually
+        $createRes = $this->actingAs($user)
+            ->withServerVariables(['REMOTE_ADDR' => '127.0.0.1'])
+            ->postJson('/kasir/device-enrollment/create');
+
+        $createRes->assertStatus(200);
+        $token = $createRes->json('token');
+        $this->assertNotEmpty($token);
+
+        // 2. Device scans QR and visits authorize endpoint with token
+        $authRes = $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.88'])
+            ->get("/kasir/authorize-device?token={$token}");
+
+        $authRes->assertRedirect('/kasir/login');
+        $authRes->assertSessionHas('status', 'Perangkat ini berhasil diotorisasi sebagai terminal kasir resmi!');
+
+        // 3. Owner checks fleet data: status should be 'consumed' and NOT auto-regenerate
+        $fleetRes = $this->actingAs($user)
+            ->withServerVariables(['REMOTE_ADDR' => '127.0.0.1'])
+            ->getJson('/kasir/device-fleet/data');
+
+        $fleetRes->assertStatus(200);
+        $fleetRes->assertJson([
+            'enrollment' => [
+                'status' => 'consumed',
+                'token' => null,
+            ],
         ]);
     }
 }

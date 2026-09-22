@@ -10,9 +10,11 @@ use App\Services\InventoryService;
 use App\Services\KitchenService;
 use App\Services\OrderService;
 use App\Services\PromoService;
+use App\Services\TelegramService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class KasirController extends Controller
 {
@@ -172,6 +174,13 @@ class KasirController extends Controller
 
             return $order;
         });
+
+        // Kirim notifikasi Telegram ke Owner secara realtime (failsafe)
+        try {
+            app(TelegramService::class)->sendTransactionNotification($order);
+        } catch (\Throwable $e) {
+            Log::warning('[KasirController] Gagal memicu notifikasi Telegram: '.$e->getMessage());
+        }
 
         return response()->json([
             'order_id' => $order->id,

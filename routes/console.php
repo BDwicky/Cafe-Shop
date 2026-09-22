@@ -37,3 +37,23 @@ Artisan::command('kasir:generate-secret {--revoke-all : Cabut otorisasi semua pe
 
     $this->info("KASIR_DEVICE_SECRET baru berhasil digenerate: {$newSecret}");
 })->purpose('Generate security secret key baru untuk otorisasi perangkat kasir POS');
+
+// ===================================================================
+// JADWAL OTOMATIS REKAPITULASI PENJUALAN TELEGRAM (HARI - MINGGU - BULAN)
+// ===================================================================
+use Illuminate\Support\Facades\Schedule;
+
+// 1. Rekapitulasi Harian (Perhari): Setiap malam pukul 22:00 WIB saat tutup kasir
+Schedule::command('telegram:sales-recap --period=today')
+    ->dailyAt('22:00')
+    ->withoutOverlapping();
+
+// 2. Rekapitulasi Mingguan (7 Hari Terakhir): Setiap hari Senin pukul 08:00 WIB
+Schedule::command('telegram:sales-recap --period=7days')
+    ->weeklyOn(1, '08:00')
+    ->withoutOverlapping();
+
+// 3. Rekapitulasi Bulanan: Setiap tanggal 1 awal bulan pukul 08:00 WIB
+Schedule::command('telegram:sales-recap --period=month')
+    ->monthlyOn(1, '08:00')
+    ->withoutOverlapping();

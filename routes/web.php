@@ -12,9 +12,13 @@ use App\Http\Controllers\MusicRequestController;
 use App\Http\Controllers\PromoController;
 use App\Http\Controllers\PublicMenuController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\TelegramWebhookController;
 use App\Http\Middleware\RestrictKasirAccess;
 use App\Models\Menu;
 use Illuminate\Support\Facades\Route;
+
+// Webhook Telegram Bot
+Route::post('/telegram/webhook', [TelegramWebhookController::class, 'handle'])->name('telegram.webhook');
 
 Route::get('/', function () {
     $featured = Menu::available()->with('category')->orderBy('sort_order')->limit(6)->get();
@@ -141,6 +145,7 @@ Route::middleware([RestrictKasirAccess::class])->group(function () {
         // Laporan
         Route::get('/laporan', [ReportController::class, 'index'])->name('laporan');
         Route::get('/laporan/receipt', [ReportController::class, 'receipt'])->name('laporan.receipt');
+        Route::post('/laporan/send-telegram', [ReportController::class, 'sendTelegramRecap'])->name('laporan.send-telegram');
 
         // Pengaturan Keamanan & Otorisasi Perangkat Kasir (Akses URL langsung, tidak masuk di sidebar)
         Route::get('/device-setup', [KasirLoginController::class, 'deviceSetup'])->name('device-setup');

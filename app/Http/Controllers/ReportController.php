@@ -6,6 +6,7 @@ use App\Models\Expense;
 use App\Models\InventoryMovement;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Services\TelegramService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
@@ -23,6 +24,18 @@ class ReportController extends Controller
         $data = $this->queryReport($request);
 
         return view('kasir.laporan-receipt', $data);
+    }
+
+    public function sendTelegramRecap(Request $request, TelegramService $telegramService)
+    {
+        $period = (string) $request->input('period', 'today');
+        if (! in_array($period, ['today', 'day', '7days', 'week', 'month', '30days'], true)) {
+            $period = 'today';
+        }
+
+        $result = $telegramService->sendSalesRecap($period);
+
+        return response()->json($result, $result['success'] ? 200 : 400);
     }
 
     /**

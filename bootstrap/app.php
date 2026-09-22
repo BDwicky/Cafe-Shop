@@ -17,12 +17,13 @@ return Application::configure(basePath: dirname(__DIR__))
         // Guest gate untuk semua halaman /kasir diarahkan ke login kasir
         $middleware->redirectGuestsTo(fn () => route('kasir.login'));
 
-        // Pengecualian CSRF untuk request musik struk publik & sinkronisasi audio realtime
+        // Pengecualian CSRF untuk request musik struk publik, sinkronisasi audio, & webhook Telegram
         $middleware->validateCsrfTokens(except: [
             'music/request',
             'music/validate-code',
             'kasir/music/playback-sync',
             'kasir/music/master-host/*',
+            'telegram/webhook',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

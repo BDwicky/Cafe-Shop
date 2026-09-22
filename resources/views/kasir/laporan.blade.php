@@ -37,6 +37,69 @@
                     </span>
                 </div>
 
+                <!-- Tombol Kirim Rekap ke Telegram (Hari, Minggu, Bulan) -->
+                <div class="relative" x-data="{ openTele: false }" @click.outside="openTele = false">
+                    <button type="button" @click="openTele = !openTele" :disabled="isSendingTelegram"
+                            class="px-3.5 py-2 bg-sky-50 hover:bg-sky-100 text-sky-900 border border-sky-200 font-mono text-xs font-bold rounded-xl transition shadow-2xs flex items-center gap-2 active:scale-98 cursor-pointer disabled:opacity-50">
+                        <svg class="w-4 h-4 text-sky-700 shrink-0" :class="{'animate-spin': isSendingTelegram}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                        </svg>
+                        <span x-text="isSendingTelegram ? 'Mengirim...' : 'Kirim ke Telegram'">Kirim ke Telegram</span>
+                        <svg class="w-3 h-3 text-sky-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                    <div x-show="openTele" x-cloak
+                         class="absolute right-0 mt-1.5 w-72 bg-white border border-[#E4DCCC] rounded-2xl shadow-xl py-2 z-50 text-left divide-y divide-[#F0EBE1]">
+                        <div class="px-3.5 py-1.5 text-[10px] font-mono font-bold uppercase tracking-wider text-[#8A7B66]">
+                            Kirim Rekap Menu Otomatis:
+                        </div>
+                        <div class="py-1">
+                            <!-- Rekap Hari Ini -->
+                            <button type="button" @click="sendTelegramRecap('today'); openTele = false"
+                                    class="w-full px-3.5 py-2.5 text-xs font-sans text-[#1F1812] hover:bg-sky-50 flex items-center gap-3 transition text-left cursor-pointer">
+                                <div class="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 flex items-center justify-center shrink-0">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <div class="font-bold text-[#1F1812]">Rekap Hari Ini</div>
+                                    <div class="text-[10px] text-[#8A7B66]">Omzet & semua menu terjual hari ini</div>
+                                </div>
+                            </button>
+
+                            <!-- Rekap 7 Hari Terakhir -->
+                            <button type="button" @click="sendTelegramRecap('7days'); openTele = false"
+                                    class="w-full px-3.5 py-2.5 text-xs font-sans text-[#1F1812] hover:bg-sky-50 flex items-center gap-3 transition text-left cursor-pointer">
+                                <div class="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-center shrink-0">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <div class="font-bold text-[#1F1812]">Rekap 7 Hari Terakhir</div>
+                                    <div class="text-[10px] text-[#8A7B66]">Rangkuman omzet 1 minggu & ranking menu</div>
+                                </div>
+                            </button>
+
+                            <!-- Rekap Bulan Ini -->
+                            <button type="button" @click="sendTelegramRecap('month'); openTele = false"
+                                    class="w-full px-3.5 py-2.5 text-xs font-sans text-[#1F1812] hover:bg-sky-50 flex items-center gap-3 transition text-left cursor-pointer">
+                                <div class="w-8 h-8 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-800 flex items-center justify-center shrink-0">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <div class="font-bold text-[#1F1812]">Rekap Bulan Ini</div>
+                                    <div class="text-[10px] text-[#8A7B66]">Rekapitulasi penjualan bulan berjalan</div>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Tombol Cetak Struk Thermal 80mm -->
                 <a href="{{ route('kasir.laporan.receipt', ['from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d')]) }}"
                    target="_blank"
@@ -642,6 +705,52 @@
 <script>
     function reportPage() {
         return {
+            isSendingTelegram: false,
+
+            sendTelegramRecap(period) {
+                if (this.isSendingTelegram) return;
+                this.isSendingTelegram = true;
+
+                fetch('{{ route('kasir.laporan.send-telegram') }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ period: period })
+                })
+                .then(async (res) => {
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        if (window.customToast) {
+                            window.customToast({
+                                message: data.message || 'Rekap berhasil dikirim ke Telegram!',
+                                type: 'success'
+                            });
+                        } else {
+                            alert(data.message || 'Rekap berhasil dikirim ke Telegram!');
+                        }
+                    } else {
+                        throw new Error(data.message || 'Gagal mengirim rekap ke Telegram');
+                    }
+                })
+                .catch((err) => {
+                    if (window.customToast) {
+                        window.customToast({
+                            message: err.message || 'Gagal mengirim rekap ke Telegram.',
+                            type: 'error'
+                        });
+                    } else {
+                        alert(err.message || 'Gagal mengirim rekap ke Telegram.');
+                    }
+                })
+                .finally(() => {
+                    this.isSendingTelegram = false;
+                });
+            },
+
             setDateRange(preset) {
                 const fromInput = document.getElementById('report-from-date');
                 const toInput = document.getElementById('report-to-date');
