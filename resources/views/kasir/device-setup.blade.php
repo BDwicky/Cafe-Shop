@@ -611,6 +611,7 @@
                                 <!-- Edit Mode: Inline Form -->
                                 <div x-show="editingDeviceId === device.id" x-cloak class="flex items-center gap-2 mt-1">
                                     <form @submit.prevent="submitRename(device)"
+                                          data-no-pjax
                                           class="flex items-center gap-2 flex-wrap">
                                         <input type="text" name="device_name" :id="'rename-input-' + device.id"
                                                x-model="editingDeviceName" required maxlength="100"

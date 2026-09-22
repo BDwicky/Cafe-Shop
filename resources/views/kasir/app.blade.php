@@ -696,6 +696,8 @@
 
             // Intercept submit form kasir agar create/update/delete data berlangsung mulus tanpa reload halaman (musik tidak terputus)
             document.addEventListener('submit', async function(e) {
+                if (e.defaultPrevented) return;
+
                 const form = e.target;
                 if (!form || !form.action) return;
                 if (form.dataset.noPjax !== undefined || form.target === '_blank') return;

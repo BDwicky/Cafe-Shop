@@ -608,7 +608,7 @@
                             </div>
 
                             <!-- MODE 1: SINGLE LINK AUTO IMPORT (AJAX NO REFRESH) -->
-                            <form x-show="importMode === 'single'" @submit.prevent="submitSingleTrack()" class="space-y-3">
+                            <form x-show="importMode === 'single'" @submit.prevent="submitSingleTrack()" data-no-pjax class="space-y-3">
                                 <div>
                                     <label class="block text-[11px] font-mono uppercase text-[#7A6A58] mb-1.5 font-bold">
                                         Link Video YouTube <span class="text-[#D9973E]">*</span>
@@ -682,7 +682,7 @@
                             </form>
 
                             <!-- MODE 2: BATCH IMPORT MULTIPLE LINKS (AJAX NO REFRESH) -->
-                            <form x-show="importMode === 'batch'" @submit.prevent="submitBatchTracks()" class="space-y-3">
+                            <form x-show="importMode === 'batch'" @submit.prevent="submitBatchTracks()" data-no-pjax class="space-y-3">
                                 <div>
                                     <label class="block text-[11px] font-mono uppercase text-[#7A6A58] mb-1.5 font-bold">
                                         Daftar Link Video YouTube (1 Link per Baris)
@@ -943,7 +943,7 @@
                                 <span class="text-[10px] font-mono text-rose-600 bg-rose-100/60 px-2 py-0.5 rounded-full font-semibold">Blokir Instan</span>
                             </div>
 
-                            <form @submit.prevent="submitBanManual()" class="space-y-2.5">
+                            <form @submit.prevent="submitBanManual()" data-no-pjax class="space-y-2.5">
                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5">
                                     <div>
                                         <label class="block text-[10px] font-mono uppercase text-[#7A6A58] mb-1 font-bold">Link / ID Video YouTube (Opsional)</label>
@@ -1074,7 +1074,7 @@
                 </button>
             </div>
 
-            <form @submit.prevent="submitEditTrack()" class="space-y-4">
+            <form @submit.prevent="submitEditTrack()" data-no-pjax class="space-y-4">
                 <div>
                     <label class="block text-xs font-mono uppercase text-[#7A6A58] mb-1 font-bold">
                         Judul Lagu <span class="text-red-500">*</span>
@@ -1153,7 +1153,7 @@
                 </button>
             </div>
 
-            <form @submit.prevent="submitBanModal()" class="space-y-3.5">
+            <form @submit.prevent="submitBanModal()" data-no-pjax class="space-y-3.5">
                 <div>
                     <label class="block text-xs font-mono uppercase text-[#7A6A58] mb-1 font-bold">
                         Judul Lagu / Kata Kunci <span class="text-rose-600">*</span>
@@ -1238,7 +1238,16 @@ function musicStationPage() {
         queue: {!! json_encode($state['queue']) !!},
         queueCount: {{ $state['queue_count'] }},
 
-        activeTab: 'queue', // 'queue', 'default_tracks', 'history'
+        activeTab: (() => {
+            try {
+                const urlTab = new URLSearchParams(window.location.search).get('tab');
+                const validTabs = ['queue', 'default_tracks', 'history', 'ban_list'];
+                if (urlTab && validTabs.includes(urlTab)) return urlTab;
+                const saved = localStorage.getItem('soundstation_active_tab');
+                if (saved && validTabs.includes(saved)) return saved;
+            } catch (e) {}
+            return 'queue';
+        })(),
         pausedCashierTrack: null,
 
         // DEFAULT TRACKS STATE (AJAX NO REFRESH)
@@ -1364,6 +1373,26 @@ function musicStationPage() {
         },
 
         init() {
+            // Sinkronisasi active tab ke URL dan localStorage
+            try {
+                const url = new URL(window.location.href);
+                if (this.activeTab && url.searchParams.get('tab') !== this.activeTab) {
+                    url.searchParams.set('tab', this.activeTab);
+                    window.history.replaceState({}, '', url.href);
+                }
+            } catch (e) {}
+
+            this.$watch('activeTab', (newTab) => {
+                try {
+                    localStorage.setItem('soundstation_active_tab', newTab);
+                    const url = new URL(window.location.href);
+                    if (url.searchParams.get('tab') !== newTab) {
+                        url.searchParams.set('tab', newTab);
+                        window.history.replaceState({}, '', url.href);
+                    }
+                } catch (e) {}
+            });
+
             // Sambungkan ke SoundStationHub
             if (window.SoundStationHub) {
                 this.applyState(window.SoundStationHub.state);
@@ -2346,6 +2375,7 @@ function musicStationPage() {
 
         async submitBanModal() {
             await this.submitBanManual();
+            this.activeTab = 'ban_list';
             this.showBanModal = false;
         },
 
