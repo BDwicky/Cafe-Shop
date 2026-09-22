@@ -1758,6 +1758,18 @@ function navbarMusicWidget() {
         playDirectTrack(track) {
             if (!track || !track.youtube_id) return;
             const isLiveTrack = (track.duration_seconds >= 86400) || (track.title && /live|radio|24\/7/i.test(track.title));
+            // Hitung is_static_visual jika belum ada (untuk track dari playlist bawaan yang diputar manual)
+            const _isStaticVisual = typeof track.is_static_visual === 'boolean'
+                ? track.is_static_visual
+                : (() => {
+                    const _t = (track.title || '').toLowerCase();
+                    const _a = (track.artist || '').toLowerCase();
+                    if (/\s*-\s*topic\s*$/i.test(_a)) return true;
+                    return /\b(official\s+audio|audio\s+only|track\s+audio)\b/i.test(_t) ||
+                        /[\[\(]\s*audio\s*[\]\)]|[\s-]audio\s*$/i.test(_t) ||
+                        /\b(visualizer|visualiser|lyric\s+video|lyrics\s+video|lyric\s+clip)\b/i.test(_t) ||
+                        /\b(cover\s+art|album\s+art|full\s+album|static\s+video)\b/i.test(_t);
+                })();
             this.currentTrack = {
                 id: track.id,
                 title: track.title,
@@ -1766,7 +1778,8 @@ function navbarMusicWidget() {
                 youtube_id: track.youtube_id,
                 thumbnail_url: 'https://img.youtube.com/vi/' + track.youtube_id + '/hqdefault.jpg',
                 duration_seconds: track.duration_seconds || 0,
-                type: 'default_track'
+                type: 'default_track',
+                is_static_visual: _isStaticVisual
             };
             this.currentRequestId = null;
             this.lastDefaultTrackId = track.id;
