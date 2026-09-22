@@ -153,10 +153,10 @@
                 const a = (track.artist || '').toLowerCase();
                 // Topic channel = art track statis
                 if (/\s*-\s*topic\s*$/i.test(a)) return true;
-                // Keyword judul audio-only / visualizer
+                // Keyword judul audio-only / statis
                 const isStatic = /\b(official\s+audio|audio\s+only|track\s+audio)\b/i.test(t) ||
                     /[\[\(]\s*audio\s*[\]\)]|[\s-]audio\s*$/i.test(t) ||
-                    /\b(visualizer|visualiser|lyric\s+video|lyrics\s+video|lyric\s+clip)\b/i.test(t) ||
+                    /\b(lyric\s+video|lyrics\s+video|lyric\s+clip)\b/i.test(t) ||
                     /\b(cover\s+art|album\s+art|full\s+album|static\s+video)\b/i.test(t);
                 return isStatic; // default false jika tidak ada sinyal
             };
@@ -1040,7 +1040,7 @@
                     const isStatic = (
                         /\b(official\s+audio|audio\s+only|track\s+audio)\b/i.test(title) ||
                         /[\[\(]\s*audio\s*[\]\)]|[\s-]audio\s*$/i.test(title) ||
-                        /\b(visualizer|visualiser|lyric\s+video|lyrics\s+video|lyric\s+clip)\b/i.test(title) ||
+                        /\b(lyric\s+video|lyrics\s+video|lyric\s+clip)\b/i.test(title) ||
                         /\b(cover\s+art|album\s+art|full\s+album|static\s+video)\b/i.test(title)
                     );
 

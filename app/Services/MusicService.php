@@ -429,7 +429,7 @@ class MusicService
         $isStatic = (
             preg_match('/\b(official\s+audio|audio\s+only|track\s+audio|provided\s+to\s+youtube)\b/i', $t) ||
             preg_match('/\[\s*audio\s*\]|\(\s*audio\s*\)|[\s-]audio\s*$/i', $t) ||
-            preg_match('/\b(visualizer|visualiser|lyric\s+video|lyrics\s+video|lyric\s+clip)\b/i', $t) ||
+            preg_match('/\b(lyric\s+video|lyrics\s+video|lyric\s+clip)\b/i', $t) ||
             preg_match('/\b(cover\s+art|album\s+art|album\s+stream|full\s+album|static\s+video)\b/i', $t)
         );
 

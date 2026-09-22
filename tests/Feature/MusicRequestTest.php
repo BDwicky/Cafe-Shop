@@ -1563,19 +1563,21 @@ class MusicRequestTest extends TestCase
         $this->assertTrue($service->isStaticVisualTrack('The Scientist', 'Coldplay - Topic'));
         $this->assertTrue($service->isStaticVisualTrack('Yellow', 'Coldplay - Topic'));
 
-        // Kasus 2: Keyword judul audio-only / visualizer (Statis)
+        // Kasus 2: Keyword judul audio-only (Statis)
         $this->assertTrue($service->isStaticVisualTrack('Bruno Mars - Die With A Smile (Official Audio)', 'Bruno Mars'));
-        $this->assertTrue($service->isStaticVisualTrack('Joji - Glimpse of Us (Visualizer)', '88rising'));
         $this->assertTrue($service->isStaticVisualTrack('Song Title (Lyric Video)', 'Artist'));
         $this->assertTrue($service->isStaticVisualTrack('Song Title [Audio]', 'Artist'));
 
-        // Kasus 3: Judul tanpa keyword statis = default VIDEO (bukan statis)
-        // Ini adalah perubahan utama: judul biasa tidak lagi dianggap statis
+        // Kasus 3: Visualizer = VIDEO (bukan statis — visualizer modern punya animasi bergerak)
+        $this->assertFalse($service->isStaticVisualTrack('Bunga Maaf (Visualizer)', 'The Lantis'));
+        $this->assertFalse($service->isStaticVisualTrack('Joji - Glimpse of Us (Visualizer)', '88rising'));
+
+        // Kasus 4: Judul biasa = default VIDEO
         $this->assertFalse($service->isStaticVisualTrack('1 A.M Study Session - Lo-Fi Beats', 'Lofi Girl'));
         $this->assertFalse($service->isStaticVisualTrack('Coldplay - Yellow', 'Coldplay'));
         $this->assertFalse($service->isStaticVisualTrack('Sheila On 7 - Dan', 'Sheila On 7'));
 
-        // Kasus 4: Official Music Video / MV (Video Dinamis jelas)
+        // Kasus 5: Official Music Video / MV (Video Dinamis jelas)
         $this->assertFalse($service->isStaticVisualTrack('Bruno Mars - Die With A Smile (Official Music Video)', 'Bruno Mars'));
         $this->assertFalse($service->isStaticVisualTrack('NewJeans - Super Shy (Official MV)', 'HYBE LABELS'));
         $this->assertFalse($service->isStaticVisualTrack('Coldplay - The Scientist (Official 4K Video)', 'Coldplay'));

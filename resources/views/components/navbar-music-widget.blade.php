@@ -1767,7 +1767,7 @@ function navbarMusicWidget() {
                     if (/\s*-\s*topic\s*$/i.test(_a)) return true;
                     return /\b(official\s+audio|audio\s+only|track\s+audio)\b/i.test(_t) ||
                         /[\[\(]\s*audio\s*[\]\)]|[\s-]audio\s*$/i.test(_t) ||
-                        /\b(visualizer|visualiser|lyric\s+video|lyrics\s+video|lyric\s+clip)\b/i.test(_t) ||
+                        /\b(lyric\s+video|lyrics\s+video|lyric\s+clip)\b/i.test(_t) ||
                         /\b(cover\s+art|album\s+art|full\s+album|static\s+video)\b/i.test(_t);
                 })();
             this.currentTrack = {
