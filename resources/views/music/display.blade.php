@@ -145,16 +145,20 @@
 
             const initialPreference = localStorage.getItem('tv_display_preference') || 'auto';
             const detectStaticHelper = (track) => {
-                if (!track) return true;
+                if (!track) return false; // default: video mode
+                // Server-side result is the most authoritative signal
                 if (typeof track.is_static_visual === 'boolean') return track.is_static_visual;
+                // Fallback: keyword detection (hanya untuk kasus cache miss)
                 const t = (track.song_title || track.title || '').toLowerCase();
                 const a = (track.artist || '').toLowerCase();
-                if (a.includes('- topic') || a.endsWith('topic')) return true;
-                const isDynamic = /\b(official\s+.*?\s*video|music\s+video|video\s+clip|video\s+klip|official\s+mv)\b/i.test(t) ||
-                    /\[\s*(mv|m\/v)\s*\]|\(\s*(mv|m\/v)\s*\)|\b(mv|m\/v)\b/i.test(t) ||
-                    /\b(live\s+at|live\s+performance|live\s+concert|live\s+session|live\s+acoustic|special\s+clip|dance\s+practice)\b/i.test(t) ||
-                    a.includes('vevo') || t.includes('vevo');
-                return !isDynamic;
+                // Topic channel = art track statis
+                if (/\s*-\s*topic\s*$/i.test(a)) return true;
+                // Keyword judul audio-only / visualizer
+                const isStatic = /\b(official\s+audio|audio\s+only|track\s+audio)\b/i.test(t) ||
+                    /[\[\(]\s*audio\s*[\]\)]|[\s-]audio\s*$/i.test(t) ||
+                    /\b(visualizer|visualiser|lyric\s+video|lyrics\s+video|lyric\s+clip)\b/i.test(t) ||
+                    /\b(cover\s+art|album\s+art|full\s+album|static\s+video)\b/i.test(t);
+                return isStatic; // default false jika tidak ada sinyal
             };
 
             const initialMode = (initialPreference === 'auto')
@@ -1010,7 +1014,10 @@
                 },
 
                 isStaticVisualTrack(track, ytVideoData = null) {
-                    if (!track && !ytVideoData) return true;
+                    if (!track && !ytVideoData) return false; // default: video mode
+
+                    // Server-side is_static_visual adalah sumber kebenaran utama
+                    // (sudah dianalisis dari HTML YouTube langsung saat request masuk)
                     if (track && typeof track.is_static_visual === 'boolean') {
                         return track.is_static_visual;
                     }
@@ -1024,38 +1031,25 @@
                         if (ytVideoData.author) artist = ytVideoData.author.toLowerCase();
                     }
 
-                    // 1. YouTube Topic Channels (100% Art Track dari YouTube Music dengan gambar album cover 1:1 statis)
-                    if (artist.includes('- topic') || artist.endsWith('topic')) {
+                    // 1. YouTube Topic Channels (Art Track dari distributor label)
+                    if (/\s*-\s*topic\s*$/i.test(artist)) {
                         return true;
                     }
 
-                    // 2. Deteksi Video Klip Bergerak / Dinamis (MV, Konser Live, Performance)
-                    const isDynamic = (
-                        /\b(official\s+.*?\s*video|music\s+video|video\s+clip|video\s+klip|official\s+mv)\b/i.test(title) ||
-                        /\[\s*(mv|m\/v)\s*\]|\(\s*(mv|m\/v)\s*\)|\b(mv|m\/v)\b/i.test(title) ||
-                        /\b(live\s+at|live\s+performance|live\s+concert|live\s+session|live\s+acoustic|special\s+clip|dance\s+practice|choreography)\b/i.test(title) ||
-                        artist.includes('vevo') || title.includes('vevo')
-                    );
-
-                    if (isDynamic) {
-                        return false;
-                    }
-
-                    // 3. Deteksi Visual Statis (Official Audio, Album Art, Visualizer, dsb)
+                    // 2. Deteksi keyword judul audio-only / visual statis
                     const isStatic = (
                         /\b(official\s+audio|audio\s+only|track\s+audio)\b/i.test(title) ||
-                        /\[\s*audio\s*\]|\(\s*audio\s*\)|-\s*audio\b/i.test(title) ||
-                        /\b(cover\s+art|album\s+art|album\s+stream|full\s+album|static\s+video|static\s+visualizer)\b/i.test(title) ||
-                        /\b(visualizer|visualiser|lyric\s+video|lyrics\s+video)\b/i.test(title) ||
-                        /\b(lofi\s+beats|study\s+beats|relaxing\s+piano|cafe\s+ambience|chillhop|sleep\s+music)\b/i.test(title)
+                        /[\[\(]\s*audio\s*[\]\)]|[\s-]audio\s*$/i.test(title) ||
+                        /\b(visualizer|visualiser|lyric\s+video|lyrics\s+video|lyric\s+clip)\b/i.test(title) ||
+                        /\b(cover\s+art|album\s+art|full\s+album|static\s+video)\b/i.test(title)
                     );
 
                     if (isStatic) {
                         return true;
                     }
 
-                    // Default: visual statis agar piringan vinyl berputar estetik di TV kafe
-                    return true;
+                    // Default: video mode — jangan sembunyikan video klip asli di mode vinyl
+                    return false;
                 },
 
                 evaluateAutoDisplayMode(track = null, ytData = null) {

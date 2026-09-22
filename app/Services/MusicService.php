@@ -260,6 +260,7 @@ class MusicService
             $isNsfw = false;
 
             // 1. Coba scraping halaman video YouTube untuk ekstraksi durasi, judul, status live & NSFW
+            $isStaticByHtml = false;
             try {
                 $response = Http::timeout(4)
                     ->withHeaders(['User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'])
@@ -304,6 +305,26 @@ class MusicService
                     } elseif (preg_match('/"ownerChannelName":"([^"]+)"/', $html, $mChan)) {
                         $artist = html_entity_decode($mChan[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
                     }
+
+                    // --- Deteksi visual statis langsung dari HTML (sangat akurat) ---
+                    // Signal kuat #1: Channel YouTube "- Topic" (Art Track dari distributor label)
+                    $channelNameInHtml = $artist;
+                    if (preg_match('/"ownerChannelName":"([^"]+)"/', $html, $mChanCheck)) {
+                        $channelNameInHtml = html_entity_decode($mChanCheck[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                    }
+                    if (preg_match('/\s*-\s*Topic\s*$/i', $channelNameInHtml)) {
+                        $isStaticByHtml = true;
+                    }
+
+                    // Signal kuat #2: Deskripsi distribusi otomatis oleh label (bukan video klip resmi)
+                    if (! $isStaticByHtml && str_contains($html, 'Provided to YouTube by')) {
+                        $isStaticByHtml = true;
+                    }
+
+                    // Signal kuat #3: Channel berakhiran "- Topic" di metadata JSON
+                    if (! $isStaticByHtml && preg_match('/"ownerChannelName":"[^"]*-\s*Topic"/i', $html)) {
+                        $isStaticByHtml = true;
+                    }
                 }
             } catch (Throwable) {
                 // Lanjut ke fallback oEmbed jika scraping gagal
@@ -339,7 +360,8 @@ class MusicService
                 $isNsfw = true;
             }
 
-            $isStaticVisual = $this->isStaticVisualTrack($title, $artist, $youtubeId, $html ?? null);
+            // Jika HTML memberikan sinyal kuat, gunakan itu; jika tidak, fallback ke keyword title/artist
+            $isStaticVisual = $isStaticByHtml ?: $this->isStaticVisualTrack($title, $artist, $youtubeId);
 
             return [
                 'youtube_id' => $youtubeId,
@@ -388,54 +410,36 @@ class MusicService
     /**
      * Deteksi apakah sebuah track video YouTube bersifat visual statis (hanya cover/gambar yang tidak berganti)
      * atau video klip bergerak dinamis (Official MV, live performance, video klip aktif).
+     *
+     * Default: false (video mode) — jika tidak ada sinyal statis yang jelas,
+     * tampilkan sebagai video daripada menyembunyikan video klip asli di mode vinyl.
      */
-    public function isStaticVisualTrack(?string $title, ?string $artist = null, ?string $youtubeId = null, ?string $rawHtml = null): bool
+    public function isStaticVisualTrack(?string $title, ?string $artist = null, ?string $youtubeId = null): bool
     {
         $t = mb_strtolower($title ?? '');
         $a = mb_strtolower($artist ?? '');
 
-        // 1. YouTube Topic Channels (100% Art Track dari YouTube Music dengan gambar cover album 1:1 statis)
-        if (str_ends_with($a, '- topic') || str_contains($a, '- topic') || str_ends_with($a, ' topic')) {
+        // 1. YouTube Topic Channels → 100% Art Track (album cover statis dari distributor label)
+        // Contoh: "Coldplay - Topic", "Taylor Swift - Topic"
+        if (preg_match('/\s*-\s*topic\s*$/i', $a)) {
             return true;
         }
 
-        // 2. Pemeriksaan HTML mentah jika tersedia (Provided to YouTube by atau Storyboard square)
-        if (! empty($rawHtml)) {
-            if (str_contains($rawHtml, 'Provided to YouTube by') || preg_match('/"(?:isMusic|artTrack)":\s*true/i', $rawHtml)) {
-                return true;
-            }
-            if (preg_match('/"(?:spec|storyboard)":\s*"[^"]*(?:45#45#|90#90#|180#180#)/i', $rawHtml)) {
-                return true;
-            }
-        }
-
-        // 3. Kata kunci video klip bergerak aktif (Official MV, Live Concert, dsb)
-        $isDynamic = (
-            preg_match('/\b(official\s+.*?\s*video|music\s+video|video\s+clip|video\s+klip|official\s+mv)\b/i', $t) ||
-            preg_match('/\[\s*(mv|m\/v)\s*\]|\(\s*(mv|m\/v)\s*\)|\b(mv|m\/v)\b/i', $t) ||
-            preg_match('/\b(live\s+at|live\s+performance|live\s+concert|live\s+session|live\s+acoustic|special\s+clip|dance\s+practice|choreography)\b/i', $t) ||
-            str_contains($a, 'vevo') || str_contains($t, 'vevo')
-        );
-
-        if ($isDynamic) {
-            return false;
-        }
-
-        // 4. Kata kunci audio statis / cover art
+        // 2. Kata kunci judul yang jelas merupakan audio-only / visual statis
         $isStatic = (
-            preg_match('/\b(official\s+audio|audio\s+only|track\s+audio)\b/i', $t) ||
-            preg_match('/\[\s*audio\s*\]|\(\s*audio\s*\)|-\s*audio\b/i', $t) ||
-            preg_match('/\b(cover\s+art|album\s+art|album\s+stream|full\s+album|static\s+video|static\s+visualizer)\b/i', $t) ||
-            preg_match('/\b(visualizer|visualiser|lyric\s+video|lyrics\s+video)\b/i', $t) ||
-            preg_match('/\b(lofi\s+beats|study\s+beats|relaxing\s+piano|cafe\s+ambience|chillhop|sleep\s+music)\b/i', $t)
+            preg_match('/\b(official\s+audio|audio\s+only|track\s+audio|provided\s+to\s+youtube)\b/i', $t) ||
+            preg_match('/\[\s*audio\s*\]|\(\s*audio\s*\)|[\s-]audio\s*$/i', $t) ||
+            preg_match('/\b(visualizer|visualiser|lyric\s+video|lyrics\s+video|lyric\s+clip)\b/i', $t) ||
+            preg_match('/\b(cover\s+art|album\s+art|album\s+stream|full\s+album|static\s+video)\b/i', $t)
         );
 
         if ($isStatic) {
             return true;
         }
 
-        // Default: visual statis agar piringan vinyl 3D memukau di TV
-        return true;
+        // Default: video mode — lebih baik menampilkan video klip asli daripada
+        // menyembunyikan video klip bergerak di balik mode vinyl.
+        return false;
     }
 
     /**
@@ -573,6 +577,12 @@ class MusicService
 
         // 1. Prioritaskan request pelanggan yang sedang berstatus 'playing'
         if ($playingRequest) {
+            // Coba ambil is_static_visual dari cache YouTube details jika sudah pernah di-scrape
+            $cachedDetails = Cache::get("youtube_details_{$playingRequest->youtube_id}");
+            $isStaticVisual = isset($cachedDetails['is_static_visual'])
+                ? (bool) $cachedDetails['is_static_visual']
+                : $this->isStaticVisualTrack($playingRequest->song_title, $playingRequest->artist, $playingRequest->youtube_id);
+
             $nowPlaying = [
                 'type' => 'customer_request',
                 'id' => $playingRequest->id,
@@ -584,6 +594,7 @@ class MusicService
                 'duration_seconds' => $playingRequest->duration_seconds,
                 'customer_name' => $playingRequest->customer_name,
                 'request_id' => $playingRequest->id,
+                'is_static_visual' => $isStaticVisual,
             ];
             Cache::put('soundstation_current_track', $nowPlaying, now()->addHours(8));
         } else {
